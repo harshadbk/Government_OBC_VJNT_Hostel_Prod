@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { FiMenu, FiX, FiLogOut, FiUser, FiHome } from 'react-icons/fi';
+import { FiMenu, FiX, FiLogOut, FiUser, FiHome, FiSun, FiMoon } from 'react-icons/fi';
 import '../css/Navbar.css';
 
-function Navbar({ user, profileImage, onLogout }) {
+function Navbar({ user, profileImage, onLogout, darkMode, onToggleDarkMode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -15,18 +15,34 @@ function Navbar({ user, profileImage, onLogout }) {
 
   const navItems = [
     { label: 'Home', to: '/' },
-    { label: 'Features', to: '/#features' },
-    { label: 'Gallery', to: '/#gallery' },
     { label: 'About', to: '/#about' },
-    { label: 'Contact', to: '/#contact' }
+    { label: 'Facilities', to: '/#facilities' },
+    { label: 'Gallery', to: '/#gallery' },
+    { label: 'Admission', to: '/#admission' },
+    { label: 'Contact', to: '/#contact' },
   ];
+
+  const handleNavClick = (e, to) => {
+    setMobileOpen(false);
+    if (to.startsWith('/#')) {
+      e.preventDefault();
+      const id = to.replace('/#', '');
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
 
   return (
     <header className={`topbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="nav-shell">
         <Link to="/" className="brand" onClick={() => setMobileOpen(false)}>
           <span className="brand-mark"><FiHome /></span>
-          <span>Hostel Management System</span>
+          <div className="brand-text">
+            <span className="brand-name">Govt. OBC Boys Hostel</span>
+            <span className="brand-sub">Sangli, Maharashtra</span>
+          </div>
         </Link>
 
         <button className="mobile-toggle" onClick={() => setMobileOpen((prev) => !prev)} aria-label="Toggle menu">
@@ -38,12 +54,21 @@ function Navbar({ user, profileImage, onLogout }) {
             <NavLink
               key={item.label}
               to={item.to}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) => `nav-link ${isActive && item.to === '/' ? 'active' : ''}`}
+              onClick={(e) => handleNavClick(e, item.to)}
             >
               {item.label}
             </NavLink>
           ))}
+
+          <button
+            className="dark-mode-toggle"
+            onClick={onToggleDarkMode}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={darkMode ? 'Light Mode' : 'Dark Mode'}
+          >
+            {darkMode ? <FiSun /> : <FiMoon />}
+          </button>
 
           {user ? (
             <>
@@ -58,7 +83,7 @@ function Navbar({ user, profileImage, onLogout }) {
           ) : (
             <div className="nav-actions">
               <Link to="/login" className="nav-link" onClick={() => setMobileOpen(false)}>Login</Link>
-              <Link to="/signup" className="nav-cta" onClick={() => setMobileOpen(false)}>Create Account</Link>
+              <Link to="/signup" className="nav-cta" onClick={() => setMobileOpen(false)}>Apply Now</Link>
             </div>
           )}
         </nav>

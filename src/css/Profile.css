@@ -23,7 +23,7 @@
 .avatar-shell {
   padding: 0.5rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(91,108,255,0.12), rgba(124,58,237,0.16));
+  background: linear-gradient(135deg, rgba(26, 54, 93, 0.1), rgba(15, 118, 110, 0.1));
 }
 
 .profile-avatar {
@@ -44,7 +44,7 @@
   font-size: 2rem;
   font-weight: 800;
   color: white;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  background: linear-gradient(135deg, var(--primary), var(--accent));
 }
 
 .profile-actions {
@@ -89,7 +89,7 @@
 }
 
 .avatar-fallback {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  background: linear-gradient(135deg, var(--primary), var(--accent));
   color: white;
   font-weight: 700;
 }
@@ -104,7 +104,7 @@
 .detail-pill {
   padding: 0.8rem 0.95rem;
   border-radius: 16px;
-  background: rgba(91,108,255,0.08);
+  background: rgba(26, 54, 93, 0.06);
   display: flex;
   gap: 0.52rem;
   align-items: center;

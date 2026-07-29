@@ -9,16 +9,16 @@ import Profile from './pages/Profile';
 import './css/Global.css';
 
 const defaultUser = {
-  fullName: 'Ava Thompson',
-  rollNumber: 'CSE-202301',
-  email: 'ava.thompson@college.edu',
-  phone: '+1 555 0198',
+  fullName: 'Rahul Patil',
+  rollNumber: 'OBC-202501',
+  email: 'rahul.patil@college.edu',
+  phone: '+91 98765 43210',
   department: 'Computer Science',
   year: '2nd Year',
-  gender: 'Female',
-  hostelBlock: 'North Tower',
-  roomNumber: 'A-204',
-  address: '19 River View Road, Seattle'
+  gender: 'Male',
+  hostelBlock: 'Main Block',
+  roomNumber: 'A-104',
+  address: 'Miraj, Sangli, Maharashtra'
 };
 
 function App() {
@@ -29,6 +29,20 @@ function App() {
 
   const [profileImage, setProfileImage] = useState(() => localStorage.getItem('hostelProfileImage') || '');
   const [authReady, setAuthReady] = useState(false);
+
+  // Dark mode
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('hostelDarkMode');
+    if (stored !== null) return stored === 'true';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem('hostelDarkMode', String(darkMode));
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
   useEffect(() => {
     setAuthReady(true);
@@ -73,7 +87,13 @@ function App() {
 
   return (
     <div className="app-shell">
-      <Navbar user={user} profileImage={profileImage} onLogout={handleLogout} />
+      <Navbar
+        user={user}
+        profileImage={profileImage}
+        onLogout={handleLogout}
+        darkMode={darkMode}
+        onToggleDarkMode={toggleDarkMode}
+      />
       <main className="page-content">
         <Routes>
           <Route path="/" element={<Home />} />
