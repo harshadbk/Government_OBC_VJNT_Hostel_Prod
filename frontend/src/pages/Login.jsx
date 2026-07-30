@@ -66,14 +66,16 @@ function Login({ onLogin }) {
         <div className="auth-hero glass-card">
           <div className="floating-shape" style={{ width: '120px', height: '120px', background: 'rgba(91,108,255,0.22)', top: '20px', left: '20px' }} />
           <div className="floating-shape" style={{ width: '180px', height: '180px', background: 'rgba(124,58,237,0.15)', bottom: '-30px', right: '-25px' }} />
-          <h2>Welcome back to the campus portal</h2>
-          <p>Access your hostel profile and stay connected to the latest updates from your residence hall.</p>
+          <h2>Welcome to Government OBC Boys Hostel</h2>
+          <p>Access your student portal to manage profile details, track hostel information, and stay updated with official circulars.</p>
           <div className="hero-actions">
-            <div className="muted">Accounts are provided by admin — contact your administrator to get credentials.</div>
+            <div className="muted" style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+              Official Portal under Samaj Kalyan Vibhag, Govt. of Maharashtra.
+            </div>
           </div>
         </div>
         <div className="auth-card glass-card">
-          <h3>Login to your account</h3>
+          <h3>Student / Admin Login</h3>
           <form className="form-grid" onSubmit={handleSubmit} noValidate>
             <InputField
               label="Username"
@@ -110,7 +112,7 @@ function Login({ onLogin }) {
             <Button label="Login" variant="primary" type="submit" fullWidth loading={loading} icon={<FiArrowRight />} />
             <button type="button" className="ghost-btn"><FiChrome /> Continue with Google</button>
           </form>
-          <p className="auth-switch">No account yet? Contact your administrator to request access.</p>
+          <p className="auth-switch">Need access? Contact your hostel administrator.</p>
         </div>
       </div>
     </section>

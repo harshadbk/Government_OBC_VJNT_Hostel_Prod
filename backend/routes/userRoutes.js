@@ -4,31 +4,41 @@ import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 
+
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const localStudentUploadDir = path.join(__dirname, '..', 'uploads', 'students');
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const configureCloudinary = () => {
+  const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+  const api_key    = process.env.CLOUDINARY_API_KEY;
+  const api_secret = process.env.CLOUDINARY_API_SECRET;
 
-const uploadToCloudinary = (buffer) => {
+  const allPresent = [cloud_name, api_key, api_secret].every(
+    (v) => v && !/your_|your-|replace|placeholder/i.test(v)
+  );
+
+  if (!allPresent) {
+    throw new Error(
+      'Cloudinary credentials are not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your .env file.'
+    );
+  }
+
+  // Configure cloudinary here (at request time, after dotenv is loaded)
+  cloudinary.config({ cloud_name, api_key, api_secret });
+};
+
+const uploadStudentPhoto = (buffer) => {
+  configureCloudinary();
+
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder: 'hms_students', resource_type: 'image' },
       (error, result) => {
         if (error) return reject(error);
+        console.log('Image uploaded to Cloudinary:', result.secure_url);
         resolve(result.secure_url);
       }
     );
@@ -36,42 +46,32 @@ const uploadToCloudinary = (buffer) => {
   });
 };
 
-const hasCloudinaryConfig = () => {
-  const values = [
-    process.env.CLOUDINARY_CLOUD_NAME,
-    process.env.CLOUDINARY_API_KEY,
-    process.env.CLOUDINARY_API_SECRET,
-  ];
-
-  return values.every((value) => {
-    if (!value) return false;
-    return !/your_|your-|replace|placeholder/i.test(value);
-  });
-};
-
-const uploadToLocalStorage = async (req, file) => {
-  await fs.mkdir(localStudentUploadDir, { recursive: true });
-
-  const originalExtension = path.extname(file.originalname || '').toLowerCase();
-  const mimeExtension = file.mimetype?.split('/')[1] ? `.${file.mimetype.split('/')[1]}` : '.jpg';
-  const extension = originalExtension || mimeExtension;
-  const safeUsername = String(req.user.username).replace(/[^a-z0-9_-]/gi, '_');
-  const filename = `${safeUsername}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}${extension}`;
-
-  await fs.writeFile(path.join(localStudentUploadDir, filename), file.buffer);
-  return `${req.protocol}://${req.get('host')}/uploads/students/${filename}`;
-};
-
-const uploadStudentPhoto = async (req, file) => {
-  if (hasCloudinaryConfig()) {
-    try {
-      return await uploadToCloudinary(file.buffer);
-    } catch (error) {
-      console.warn('Cloudinary upload failed, saving student photo locally:', error.message);
-    }
+/**
+ * Extracts the Cloudinary public_id from a secure_url.
+ * Example URL: https://res.cloudinary.com/<cloud>/image/upload/v1234567890/hms_students/abc123.jpg
+ * Returns: "hms_students/abc123"
+ */
+const getCloudinaryPublicId = (url) => {
+  if (!url) return null;
+  try {
+    // Match everything after "/upload/v<version>/" (or "/upload/") up to (but not including) the file extension
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
   }
+};
 
-  return uploadToLocalStorage(req, file);
+const deleteCloudinaryImage = async (photoUrl) => {
+  const publicId = getCloudinaryPublicId(photoUrl);
+  if (!publicId) return;
+  try {
+    configureCloudinary();
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+    console.log(`Deleted old Cloudinary image [${publicId}]:`, result.result);
+  } catch (err) {
+    console.warn('Could not delete old Cloudinary image:', err.message);
+  }
 };
 
 const getPublicUserData = (user) => {
@@ -132,11 +132,30 @@ router.post('/add-user', async (req, res) => {
   }
 });
 
+// ─── HARDCODED ADMIN CREDENTIALS (for testing only) ───────────────────────────
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = 'Admin@1234';
+// ──────────────────────────────────────────────────────────────────────────────
+
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
       return res.status(400).json({ message: 'Username and password are required.' });
+    }
+
+    // Check hardcoded admin credentials first
+    if (username.trim() === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      const token = jwt.sign(
+        { userId: 'hardcoded-admin', username: ADMIN_USERNAME, role: 'admin' },
+        process.env.JWT_SECRET || 'your_super_secret_key_here',
+        { expiresIn: '7d' }
+      );
+      return res.json({
+        message: 'Login successful',
+        token,
+        user: { _id: 'hardcoded-admin', username: ADMIN_USERNAME, role: 'admin' },
+      });
     }
 
     const user = await User.findOne({ username: username.trim() });
@@ -212,13 +231,17 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       return data;
     }, {});
 
-    if (req.file) {
-      profileData.photoUrl = await uploadStudentPhoto(req, req.file);
-    }
-
     const currentUser = await findAuthenticatedUser(req.user);
     if (!currentUser) {
       return res.status(404).json({ message: 'User not found.' });
+    }
+
+    if (req.file) {
+      // Delete the old Cloudinary image (if any) before uploading the new one
+      if (currentUser.photoUrl) {
+        await deleteCloudinaryImage(currentUser.photoUrl);
+      }
+      profileData.photoUrl = await uploadStudentPhoto(req.file.buffer);
     }
 
     const updatedUser = await User.findByIdAndUpdate(

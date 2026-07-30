@@ -3,21 +3,26 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
+import About from './pages/About';
+import Facilities from './pages/Facilities';
+import Gallery from './pages/Gallery';
+import Admission from './pages/Admission';
+import Contact from './pages/Contact';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import './css/Global.css';
 
 const defaultUser = {
-  fullName: 'Ava Thompson',
-  rollNumber: 'CSE-202301',
-  email: 'ava.thompson@college.edu',
-  phone: '+1 555 0198',
+  fullName: 'Rahul Patil',
+  rollNumber: 'OBC-202501',
+  email: 'rahul.patil@college.edu',
+  phone: '+91 98765 43210',
   department: 'Computer Science',
   year: '2nd Year',
-  gender: 'Female',
-  hostelBlock: 'North Tower',
-  roomNumber: 'A-204',
-  address: '19 River View Road, Seattle'
+  gender: 'Male',
+  hostelBlock: 'Main Block',
+  roomNumber: 'A-104',
+  address: 'Miraj, Sangli, Maharashtra'
 };
 
 function App() {
@@ -29,6 +34,20 @@ function App() {
 
   const [profileImage, setProfileImage] = useState(() => localStorage.getItem('hostelProfileImage') || '');
   const [authReady, setAuthReady] = useState(false);
+
+  // Dark mode
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('hostelDarkMode');
+    if (stored !== null) return stored === 'true';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem('hostelDarkMode', String(darkMode));
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
   useEffect(() => {
     setAuthReady(true);
@@ -44,10 +63,6 @@ function App() {
     localStorage.setItem('hostelUser', JSON.stringify(loggedInUser));
     localStorage.setItem('hostelToken', tokenValue);
   }, []);
-
-  const handleSignup = useCallback((signupUser, imageUrl) => {
-    handleLogin(signupUser, token, imageUrl);
-  }, [handleLogin, token]);
 
   const handleLogout = () => {
     setUser(null);
@@ -83,10 +98,21 @@ function App() {
 
   return (
     <div className="app-shell">
-      <Navbar user={user} profileImage={profileImage} onLogout={handleLogout} />
+      <Navbar
+        user={user}
+        profileImage={profileImage}
+        onLogout={handleLogout}
+        darkMode={darkMode}
+        onToggleDarkMode={toggleDarkMode}
+      />
       <main className="page-content">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/facilities" element={<Facilities />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/admission" element={<Admission />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={user ? <Navigate to="/profile" replace /> : <Login onLogin={handleLogin} />} />
           <Route path="/signup" element={<Navigate to="/login" replace />} />
           <Route path="/profile" element={user ? <Profile user={currentUser} profileImage={profileImage} onProfileUpdate={handleProfileUpdate} onProfileImageChange={setProfileImage} token={token} /> : <Navigate to="/login" replace />} />

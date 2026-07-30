@@ -3,15 +3,9 @@ import { NavLink, Link } from 'react-router-dom';
 import { FiMenu, FiX, FiLogOut, FiUser, FiHome, FiSun, FiMoon } from 'react-icons/fi';
 import '../css/Navbar.css';
 
-function Navbar({ user, profileImage, onLogout }) {
+function Navbar({ user, profileImage, onLogout, darkMode, onToggleDarkMode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 18);
@@ -21,10 +15,11 @@ function Navbar({ user, profileImage, onLogout }) {
 
   const navItems = [
     { label: 'Home', to: '/' },
-    { label: 'Features', to: '/#features' },
-    { label: 'Gallery', to: '/#gallery' },
-    { label: 'About', to: '/#about' },
-    { label: 'Contact', to: '/#contact' }
+    { label: 'About', to: '/about' },
+    { label: 'Facilities', to: '/facilities' },
+    { label: 'Gallery', to: '/gallery' },
+    { label: 'Admission', to: '/admission' },
+    { label: 'Contact', to: '/contact' },
   ];
 
   return (
@@ -32,7 +27,10 @@ function Navbar({ user, profileImage, onLogout }) {
       <div className="nav-shell">
         <Link to="/" className="brand" onClick={() => setMobileOpen(false)}>
           <span className="brand-mark"><FiHome /></span>
-          <span>Hostel Management System</span>
+          <div className="brand-text">
+            <span className="brand-name">Govt. OBC Boys Hostel</span>
+            <span className="brand-sub">Sangli, Maharashtra</span>
+          </div>
         </Link>
 
         <button className="mobile-toggle" onClick={() => setMobileOpen((prev) => !prev)} aria-label="Toggle menu">
@@ -51,25 +49,29 @@ function Navbar({ user, profileImage, onLogout }) {
             </NavLink>
           ))}
 
+          <button
+            className="dark-mode-toggle"
+            onClick={onToggleDarkMode}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={darkMode ? 'Light Mode' : 'Dark Mode'}
+          >
+            {darkMode ? <FiSun /> : <FiMoon />}
+          </button>
+
           {user ? (
             <>
               <Link to="/profile" className="profile-pill" onClick={() => setMobileOpen(false)}>
                 {profileImage ? <img src={profileImage} alt="User" className="nav-avatar" /> : <FiUser />}
-                <span>{user.fullName}</span>
+                <span>{user.fullName || user.username}</span>
               </Link>
               <button className="logout-btn" onClick={onLogout}>
                 <FiLogOut /> Logout
-              </button>
-              <button className="icon-btn" onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} aria-label="Toggle theme">
-                {theme === 'dark' ? <FiSun /> : <FiMoon />}
               </button>
             </>
           ) : (
             <div className="nav-actions">
               <Link to="/login" className="nav-link" onClick={() => setMobileOpen(false)}>Login</Link>
-              <button className="icon-btn" onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} aria-label="Toggle theme">
-                {theme === 'dark' ? <FiSun /> : <FiMoon />}
-              </button>
+              <Link to="/login" className="nav-cta" onClick={() => setMobileOpen(false)}>Apply Now</Link>
             </div>
           )}
         </nav>

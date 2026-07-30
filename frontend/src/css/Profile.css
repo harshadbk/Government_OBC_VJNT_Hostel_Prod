@@ -23,7 +23,7 @@
 .avatar-shell {
   padding: 0.5rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(91,108,255,0.12), rgba(124,58,237,0.16));
+  background: linear-gradient(135deg, rgba(26, 54, 93, 0.1), rgba(15, 118, 110, 0.1));
 }
 
 .profile-avatar {
@@ -44,7 +44,7 @@
   font-size: 2rem;
   font-weight: 800;
   color: white;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  background: linear-gradient(135deg, var(--primary), var(--accent));
 }
 
 .profile-actions {
@@ -89,7 +89,7 @@
 }
 
 .avatar-fallback {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  background: linear-gradient(135deg, var(--primary), var(--accent));
   color: white;
   font-weight: 700;
 }
@@ -104,10 +104,16 @@
 .detail-pill {
   padding: 0.8rem 0.95rem;
   border-radius: 16px;
-  background: rgba(91,108,255,0.08);
+  background: rgba(26, 54, 93, 0.06);
   display: flex;
   gap: 0.52rem;
   align-items: center;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .detail-pill {
+  background: rgba(74, 144, 217, 0.1);
 }
 
 .profile-form {
@@ -122,22 +128,23 @@
 }
 
 .profile-message {
-  margin: 0.2rem 0 0;
-  padding: 0.75rem 0.9rem;
+  padding: 0.8rem 1.2rem;
   border-radius: 14px;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin: 0.5rem 0 0;
 }
 
 .profile-message.success {
-  color: #166534;
-  background: rgba(34,197,94,0.14);
-  border: 1px solid rgba(34,197,94,0.24);
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(22, 163, 74, 0.2);
 }
 
 .profile-message.error {
-  color: #991b1b;
-  background: rgba(239,68,68,0.12);
-  border: 1px solid rgba(239,68,68,0.22);
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
 @media (max-width: 900px) {

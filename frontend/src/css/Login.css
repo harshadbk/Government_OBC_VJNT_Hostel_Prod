@@ -60,7 +60,7 @@
 
 .input-label {
   font-weight: 600;
-  color: #334155;
+  color: var(--text-secondary);
 }
 
 .input-wrapper {
@@ -72,27 +72,28 @@
   left: 0.95rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #64748b;
+  color: var(--muted);
 }
 
 .input-control {
   width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 0.95rem 1rem;
-  background: rgba(255,255,255,0.75);
+  background: var(--card-bg);
+  color: var(--text);
   transition: all 0.25s ease;
 }
 
 .input-control:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 4px rgba(91, 108, 255, 0.15);
+  box-shadow: 0 0 0 4px rgba(26, 54, 93, 0.12);
   outline: none;
 }
 
 .input-control.input-error {
   border-color: #f87171;
-  background: #fff7f7;
+  background: rgba(248, 113, 113, 0.1);
 }
 
 .input-wrapper .input-control {
@@ -106,13 +107,24 @@
   transform: translateY(-50%);
   border: none;
   background: transparent;
-  color: #64748b;
+  color: var(--muted);
   cursor: pointer;
 }
 
 .input-error-text {
   color: #e53935;
   font-size: 0.9rem;
+}
+
+.form-error {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--danger);
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin: 0;
+  border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
 .form-row {
@@ -153,13 +165,13 @@
 }
 
 .button.primary {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: white;
-  box-shadow: 0 12px 28px rgba(91, 108, 255, 0.18);
+  box-shadow: 0 12px 28px rgba(26, 54, 93, 0.2);
 }
 
 .button.secondary {
-  background: rgba(91,108,255,0.08);
+  background: rgba(26, 54, 93, 0.08);
   color: var(--primary);
 }
 
@@ -182,9 +194,9 @@
   justify-content: center;
   gap: 0.5rem;
   width: 100%;
-  border: 1px solid rgba(148,163,184,0.25);
-  background: white;
-  color: #334155;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
   padding: 0.9rem 1rem;
   border-radius: 16px;
   font-weight: 700;
@@ -224,12 +236,12 @@
 }
 
 .upload-area {
-  border: 1.5px dashed rgba(91,108,255,0.25);
+  border: 1.5px dashed rgba(26, 54, 93, 0.2);
   border-radius: 20px;
   padding: 1rem;
   text-align: center;
   cursor: pointer;
-  background: rgba(255,255,255,0.7);
+  background: var(--card-bg);
 }
 
 .preview-image {
@@ -238,7 +250,7 @@
   object-fit: cover;
   border-radius: 24px;
   margin: 0.5rem auto 0;
-  border: 3px solid rgba(91,108,255,0.16);
+  border: 3px solid rgba(26, 54, 93, 0.15);
 }
 
 .select-grid {
