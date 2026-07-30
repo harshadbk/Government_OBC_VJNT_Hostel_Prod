@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
-  _id: { type: String, required: true, trim: true },
+  username: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true },
   rollNumber: { type: String, default: '' },
   email: { type: String, default: '' },
@@ -32,10 +32,6 @@ const userSchema = new mongoose.Schema({
   id: false,
   toJSON: { virtuals: true },
   toObject: { virtuals: true },
-});
-
-userSchema.virtual('username').get(function() {
-  return this._id;
 });
 
 export default mongoose.model('User', userSchema);

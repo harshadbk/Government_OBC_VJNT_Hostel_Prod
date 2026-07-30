@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import userRoutes from './routes/userRoutes.js';
+import User from './models/User.js';
 
 dotenv.config();
 
@@ -24,12 +25,21 @@ app.get('/', (req, res) => {
   res.json({ message: 'HMS backend is running.' });
 });
 
+const ensureUsernameIndex = async () => {
+  try {
+    await User.collection.createIndex({ username: 1 }, { unique: true });
+  } catch (error) {
+    console.warn('Unable to ensure username index:', error.message);
+  }
+};
+
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => {
+  .then(async () => {
     console.log('Connected to MongoDB');
+    await ensureUsernameIndex();
     app.listen(PORT, () => {
       console.log(`Server listening on port ${PORT}`);
     });

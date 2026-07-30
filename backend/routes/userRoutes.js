@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 
 const router = express.Router();
@@ -36,11 +37,16 @@ const uploadToCloudinary = (buffer) => {
 };
 
 const hasCloudinaryConfig = () => {
-  return Boolean(
-    process.env.CLOUDINARY_CLOUD_NAME &&
-    process.env.CLOUDINARY_API_KEY &&
-    process.env.CLOUDINARY_API_SECRET
-  );
+  const values = [
+    process.env.CLOUDINARY_CLOUD_NAME,
+    process.env.CLOUDINARY_API_KEY,
+    process.env.CLOUDINARY_API_SECRET,
+  ];
+
+  return values.every((value) => {
+    if (!value) return false;
+    return !/your_|your-|replace|placeholder/i.test(value);
+  });
 };
 
 const uploadToLocalStorage = async (req, file) => {
@@ -58,10 +64,34 @@ const uploadToLocalStorage = async (req, file) => {
 
 const uploadStudentPhoto = async (req, file) => {
   if (hasCloudinaryConfig()) {
-    return uploadToCloudinary(file.buffer);
+    try {
+      return await uploadToCloudinary(file.buffer);
+    } catch (error) {
+      console.warn('Cloudinary upload failed, saving student photo locally:', error.message);
+    }
   }
 
   return uploadToLocalStorage(req, file);
+};
+
+const getPublicUserData = (user) => {
+  const userData = user.toObject();
+  delete userData.password;
+  delete userData.__v;
+  return userData;
+};
+
+const findAuthenticatedUser = async (tokenUser) => {
+  if (tokenUser.userId && mongoose.isValidObjectId(tokenUser.userId)) {
+    const user = await User.findById(tokenUser.userId).select('-password -__v');
+    if (user) return user;
+  }
+
+  if (tokenUser.username) {
+    return User.findOne({ username: tokenUser.username }).select('-password -__v');
+  }
+
+  return null;
 };
 
 const authMiddleware = (req, res, next) => {
@@ -85,16 +115,17 @@ router.post('/add-user', async (req, res) => {
       return res.status(400).json({ message: 'Username and password are required.' });
     }
 
-    const existingUser = await User.findById(username.trim());
+    const normalizedUsername = username.trim();
+    const existingUser = await User.findOne({ username: normalizedUsername });
     if (existingUser) {
       return res.status(409).json({ message: 'Username already exists.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ _id: username.trim(), password: hashedPassword });
+    const user = new User({ username: normalizedUsername, password: hashedPassword });
     await user.save();
 
-    res.status(201).json({ message: 'User created', user: { username: user._id } });
+    res.status(201).json({ message: 'User created', user: { id: user._id, username: user.username } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -108,7 +139,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Username and password are required.' });
     }
 
-    const user = await User.findById(username.trim());
+    const user = await User.findOne({ username: username.trim() });
     if (!user) {
       return res.status(401).json({ message: 'Invalid username or password.' });
     }
@@ -119,15 +150,12 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user._id, username: user._id },
+      { userId: user._id.toString(), username: user.username },
       process.env.JWT_SECRET || 'your_super_secret_key_here',
       { expiresIn: '7d' }
     );
 
-    const userData = user.toObject();
-    userData.username = userData._id;
-    delete userData.password;
-    delete userData.__v;
+    const userData = getPublicUserData(user);
 
     res.json({ message: 'Login successful', token, user: userData });
   } catch (error) {
@@ -138,13 +166,11 @@ router.post('/login', async (req, res) => {
 
 router.get('/profile', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.user.username).select('-password -__v');
+    const user = await findAuthenticatedUser(req.user);
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
-    const userData = user.toObject();
-    userData.username = userData._id;
-    res.json({ user: userData });
+    res.json({ user: getPublicUserData(user) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -190,8 +216,13 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       profileData.photoUrl = await uploadStudentPhoto(req, req.file);
     }
 
+    const currentUser = await findAuthenticatedUser(req.user);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
-      req.user.username,
+      currentUser._id,
       { $set: profileData },
       { new: true, runValidators: true, fields: '-password -__v' }
     );
@@ -200,9 +231,7 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    const userData = updatedUser.toObject();
-    userData.username = userData._id;
-    res.json({ message: 'Profile saved', user: userData });
+    res.json({ message: 'Profile saved', user: getPublicUserData(updatedUser) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });
