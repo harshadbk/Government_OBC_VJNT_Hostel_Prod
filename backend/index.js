@@ -1,5 +1,4 @@
-import dotenv from 'dotenv';
-dotenv.config();
+import 'dotenv/config';
 
 import express from 'express';
 import cors from 'cors';
@@ -16,6 +15,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const requiredAdminEnv = ['ADMIN_USERNAME', 'ADMIN_PASSWORD'];
+const missingAdminEnv = requiredAdminEnv.filter((key) => !process.env[key] || !process.env[key].trim());
+if (missingAdminEnv.length > 0) {
+  console.warn(`WARNING: Missing admin environment variables: ${missingAdminEnv.join(', ')}. Admin dashboard login will not work.`);
+}
 
 app.use(cors());
 app.use(express.json());

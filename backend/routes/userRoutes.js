@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Document from '../models/Document.js';
+import Upload from '../models/Upload.js';
 
 
 const router = express.Router();
@@ -476,6 +477,13 @@ router.delete('/users/:id', authMiddleware, async (req, res) => {
       await deleteCloudinaryImage(user.photoUrl);
     }
     await User.findByIdAndDelete(req.params.id);
+
+    // Remove upload submissions belonging to the deleted user
+    await Upload.updateMany(
+      { 'submissions.userId': req.params.id },
+      { $pull: { submissions: { userId: req.params.id } } }
+    );
+
     // Also delete associated documents
     const doc = await Document.findOne({ userId: req.params.id });
     if (doc) {
