@@ -1,68 +1,44 @@
+import { useEffect, useState } from 'react';
 import { FiBell, FiCalendar, FiAlertCircle, FiInfo } from 'react-icons/fi';
 import useInView from '../../hooks/useInView';
 
-const notices = [
-  {
-    title: 'Hostel Admissions Open 2025-26',
-    date: '15 July 2025',
-    type: 'admission',
-    description: 'Online applications are now open for hostel admission for the academic year 2025-26. Eligible OBC students can apply through the portal.',
-    urgent: true
-  },
-  {
-    title: 'Merit List Published',
-    date: '1 August 2025',
-    type: 'admission',
-    description: 'First merit list for hostel admission has been published. Selected students must complete formalities within 7 days.',
-    urgent: true
-  },
-  {
-    title: 'Independence Day Celebration',
-    date: '15 August 2025',
-    type: 'event',
-    description: 'Flag hoisting ceremony at 8:00 AM. All hostel residents are required to attend in formal dress.',
-    urgent: false
-  },
-  {
-    title: 'Government Scholarship Updates',
-    date: '10 August 2025',
-    type: 'scholarship',
-    description: 'New government scholarship schemes announced for OBC students. Check eligibility and apply before the deadline.',
-    urgent: true
-  },
-  {
-    title: 'Holiday Notice — Ganesh Chaturthi',
-    date: '27 August 2025',
-    type: 'holiday',
-    description: 'Hostel will remain open during Ganesh Chaturthi. Students going home must fill the leave form.',
-    urgent: false
-  },
-  {
-    title: 'Hostel Maintenance Work',
-    date: '5 September 2025',
-    type: 'general',
-    description: 'Water supply will be interrupted on 5th September from 10 AM to 2 PM due to maintenance work.',
-    urgent: false
-  },
-  {
-    title: 'Career Guidance Session',
-    date: '20 September 2025',
-    type: 'event',
-    description: 'Career guidance session by Prof. Desai on competitive exam preparation. All students are encouraged to attend.',
-    urgent: false
-  },
-];
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
 const typeIcons = {
-  admission: <FiAlertCircle />,
-  event: <FiCalendar />,
-  scholarship: <FiInfo />,
-  holiday: <FiCalendar />,
-  general: <FiBell />,
+  high: <FiAlertCircle />,
+  medium: <FiInfo />,
+  low: <FiBell />,
 };
 
 export default function NoticeBoardSection() {
   const [ref, visible] = useInView();
+  const [notices, setNotices] = useState([]);
+  const [recentCount, setRecentCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchNotices = async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/notices?limit=6`);
+        const data = await res.json();
+        if (res.ok) {
+          setNotices(data.notices || []);
+          setRecentCount(data.recentCount || 0);
+        }
+      } catch (err) {
+        console.error('Failed to fetch notices:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotices();
+  }, []);
+
+  const isRecent = (createdAt) => {
+    const diff = Date.now() - new Date(createdAt).getTime();
+    return diff < 3 * 24 * 60 * 60 * 1000;
+  };
 
   return (
     <section className="page-section notice-section" id="notices" ref={ref}>
@@ -74,27 +50,38 @@ export default function NoticeBoardSection() {
             Stay updated with the latest notices, announcements, and government circulars from the hostel administration.
           </p>
         </div>
-        <div className="notices-list">
-          {notices.map((notice, index) => (
-            <div
-              key={notice.title}
-              className={`notice-card glass-card ${notice.urgent ? 'urgent' : ''} ${visible ? 'visible' : ''}`}
-              style={{ transitionDelay: `${index * 70}ms` }}
-            >
-              <div className="notice-icon-wrap">
-                {typeIcons[notice.type]}
-              </div>
-              <div className="notice-content">
-                <div className="notice-header">
-                  <h3>{notice.title}</h3>
-                  {notice.urgent && <span className="notice-urgent-badge">New</span>}
+
+        {loading ? (
+          <p className="section-subtitle">Loading notices…</p>
+        ) : notices.length === 0 ? (
+          <p className="section-subtitle">No notices have been published yet.</p>
+        ) : (
+          <div className="notices-list">
+            {notices.map((notice, index) => {
+              const recent = isRecent(notice.createdAt);
+              const showNewBadge = recentCount > 0 && recent;
+              return (
+                <div
+                  key={notice._id || notice.title}
+                  className={`notice-card glass-card ${showNewBadge ? 'urgent' : ''} ${visible ? 'visible' : ''}`}
+                  style={{ transitionDelay: `${index * 70}ms` }}
+                >
+                  <div className="notice-icon-wrap">
+                    {typeIcons[notice.severity] || typeIcons.low}
+                  </div>
+                  <div className="notice-content">
+                    <div className="notice-header">
+                      <h3>{notice.title}</h3>
+                      {showNewBadge && <span className="notice-urgent-badge">New</span>}
+                    </div>
+                    <p>{notice.content}</p>
+                    <span className="notice-date"><FiCalendar /> {new Date(notice.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </div>
                 </div>
-                <p>{notice.description}</p>
-                <span className="notice-date"><FiCalendar /> {notice.date}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

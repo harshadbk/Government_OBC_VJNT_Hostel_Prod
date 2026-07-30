@@ -1,4 +1,5 @@
 import HeroSection from '../components/sections/HeroSection';
+import UploadsWidget from '../components/UploadsWidget';
 import FeaturesSection from '../components/sections/FeaturesSection';
 import AboutSection from '../components/sections/AboutSection';
 import FacilitiesSection from '../components/sections/FacilitiesSection';
@@ -21,6 +22,7 @@ function Home() {
   return (
     <>
       <HeroSection />
+      <UploadsWidget />
       <NoticeBoardSection />
       <FeaturesSection />
       <AboutSection />

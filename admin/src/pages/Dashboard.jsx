@@ -91,6 +91,7 @@ function Dashboard({ onLogout }) {
             <div className="panel-head"><h3>Management Panel</h3></div>
             <div className="quick-actions">
               <button onClick={() => navigate('/users')}><FiUsers /> Manage Residents</button>
+              <button onClick={()=> navigate('/notices')}><FiBell />Notice Board</button>
               <button><FiBook /> Announcements</button>
               <button><FiGrid /> Room Overview</button>
             </div>

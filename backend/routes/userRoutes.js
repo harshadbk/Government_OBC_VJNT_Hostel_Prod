@@ -227,13 +227,25 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid username or password.' });
     }
 
+    const tokenPayload = {
+      userId: user._id.toString(),
+      username: user.username,
+    };
+
+    if (user.username?.trim().toLowerCase() === ADMIN_USERNAME) {
+      tokenPayload.role = 'admin';
+    }
+
     const token = jwt.sign(
-      { userId: user._id.toString(), username: user.username },
+      tokenPayload,
       process.env.JWT_SECRET || 'your_super_secret_key_here',
       { expiresIn: '7d' }
     );
 
     const userData = getPublicUserData(user);
+    if (tokenPayload.role === 'admin') {
+      userData.role = 'admin';
+    }
 
     res.json({ message: 'Login successful', token, user: userData });
   } catch (error) {

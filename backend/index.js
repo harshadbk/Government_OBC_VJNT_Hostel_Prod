@@ -5,6 +5,8 @@ import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import userRoutes from './routes/userRoutes.js';
+import noticeRoutes from './routes/noticeRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 import User from './models/User.js';
 
 dotenv.config();
@@ -20,6 +22,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/admin', userRoutes);
+app.use('/api/notices', noticeRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'HMS backend is running.' });

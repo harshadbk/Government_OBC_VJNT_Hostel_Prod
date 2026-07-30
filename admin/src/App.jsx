@@ -6,7 +6,10 @@ import Users from './pages/Users';
 import AddUser from './pages/AddUser';
 import Profile from './pages/Profile';
 import UserProfile from './pages/UserProfile';
+import NoticeBoard from './pages/NoticeBoard';
+import Uploads from './pages/Uploads';
 import './css/Global.css';
+import UploadDetails from './pages/UploadDetails';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localStorage.getItem('adminToken')));
@@ -29,6 +32,9 @@ function App() {
         <Route path="/users/:id" element={isLoggedIn ? <UserProfile onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
         <Route path="/add-user" element={isLoggedIn ? <AddUser /> : <Navigate to="/login" replace />} />
         <Route path="/profile" element={isLoggedIn ? <Profile onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+        <Route path="/notices" element={isLoggedIn ? <NoticeBoard onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+        <Route path="/uploads" element={isLoggedIn ? <Uploads /> : <Navigate to="/login" replace />} />
+        <Route path="/uploads/:id" element={isLoggedIn ? <UploadDetails /> : <Navigate to="/login" replace />} />
       </Routes>
     </div>
   );
