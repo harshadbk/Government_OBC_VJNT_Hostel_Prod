@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FiCamera, FiSave, FiEdit3, FiXCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiUpload, FiCheckCircle } from 'react-icons/fi';
+import { FiCamera, FiSave, FiEdit3, FiXCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiUpload, FiCheckCircle, FiCalendar, FiKey } from 'react-icons/fi';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import ProfileCard from '../components/ProfileCard';
@@ -10,6 +10,13 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, token }) {
   const [editable, setEditable] = useState(false);
   const fileInputRef = useRef(null);
+  const normalizeDateValue = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+  };
+
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
     rollNumber: user?.rollNumber || '',
@@ -17,7 +24,6 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
     phone: user?.phone || '',
     department: user?.department || '',
     year: user?.year || '',
-    hostelBlock: user?.hostelBlock || '',
     roomNumber: user?.roomNumber || '',
     address: user?.address || '',
     village: user?.village || '',
@@ -29,9 +35,7 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
     mobileNumber: user?.mobileNumber || '',
     fathersMobileNumber: user?.fathersMobileNumber || '',
     aadhaarNumber: user?.aadhaarNumber || '',
-    aadhaarBankName: user?.aadhaarBankName || '',
-    bankBranch: user?.bankBranch || '',
-    admissionDate: user?.admissionDate || '',
+    admissionDate: normalizeDateValue(user?.admissionDate),
     accountNumber: user?.accountNumber || '',
     ifscCode: user?.ifscCode || ''
   });
@@ -41,6 +45,7 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   
   const [documents, setDocuments] = useState(null);
   const [docUploading, setDocUploading] = useState(false);
@@ -102,7 +107,6 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
       phone: user?.phone || '',
       department: user?.department || '',
       year: user?.year || '',
-      hostelBlock: user?.hostelBlock || '',
       roomNumber: user?.roomNumber || '',
       address: user?.address || '',
       village: user?.village || '',
@@ -114,12 +118,11 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
       mobileNumber: user?.mobileNumber || '',
       fathersMobileNumber: user?.fathersMobileNumber || '',
       aadhaarNumber: user?.aadhaarNumber || '',
-      aadhaarBankName: user?.aadhaarBankName || '',
-      bankBranch: user?.bankBranch || '',
-      admissionDate: user?.admissionDate || '',
+      admissionDate: normalizeDateValue(user?.admissionDate),
       accountNumber: user?.accountNumber || '',
       ifscCode: user?.ifscCode || ''
     });
+    setNewPassword('');
     setPreview(profileImage || '');
   }, [user, profileImage]);
 
@@ -163,11 +166,15 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
     try {
       const payload = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
+        if (key === 'roomNumber') return;
         payload.append(key, value || '');
       });
 
       if (selectedPhoto) {
         payload.append('studentPhoto', selectedPhoto);
+      }
+      if (newPassword) {
+        payload.append('newPassword', newPassword);
       }
 
       const response = await fetch(`${apiBaseUrl}/api/admin/profile`, {
@@ -191,6 +198,7 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
       setMessage('Profile saved successfully.');
       setMessageType('success');
       setEditable(false);
+      setNewPassword('');
     } catch (error) {
       console.error('Save exception', error);
       setMessage('Unable to save profile. Please try again.');
@@ -253,8 +261,7 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
               <InputField label="Phone" id="phone" name="phone" value={formData.phone} onChange={handleChange} error={errors.phone} icon={<FiPhone />} required />
               <InputField label="Mobile Number" id="mobileNumber" name="mobileNumber" value={formData.mobileNumber} onChange={handleChange} icon={<FiPhone />} />
               <InputField label="Father's Mobile Number" id="fathersMobileNumber" name="fathersMobileNumber" value={formData.fathersMobileNumber} onChange={handleChange} icon={<FiPhone />} />
-              <InputField label="Hostel Block" id="hostelBlock" name="hostelBlock" value={formData.hostelBlock} onChange={handleChange} icon={<FiMapPin />} />
-              <InputField label="Room Number" id="roomNumber" name="roomNumber" value={formData.roomNumber} onChange={handleChange} icon={<FiMapPin />} />
+                      <InputField label="Room Number" id="roomNumber" name="roomNumber" value={formData.roomNumber} onChange={handleChange} icon={<FiMapPin />} disabled />
               <InputField label="Village" id="village" name="village" value={formData.village} onChange={handleChange} icon={<FiMapPin />} />
               <InputField label="Taluka" id="taluka" name="taluka" value={formData.taluka} onChange={handleChange} icon={<FiMapPin />} />
               <InputField label="District" id="district" name="district" value={formData.district} onChange={handleChange} icon={<FiMapPin />} />
@@ -262,9 +269,8 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
               <InputField label="Class / Year" id="classYear" name="classYear" value={formData.classYear} onChange={handleChange} icon={<FiUser />} />
               <InputField label="Entrance Exam" id="commonEntranceExam" name="commonEntranceExam" value={formData.commonEntranceExam} onChange={handleChange} icon={<FiUser />} />
               <InputField label="Aadhaar Number" id="aadhaarNumber" name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleChange} icon={<FiUser />} />
-              <InputField label="Aadhaar Bank Name" id="aadhaarBankName" name="aadhaarBankName" value={formData.aadhaarBankName} onChange={handleChange} icon={<FiUser />} />
-              <InputField label="Bank Branch" id="bankBranch" name="bankBranch" value={formData.bankBranch} onChange={handleChange} icon={<FiUser />} />
-              <InputField label="Admission Date" id="admissionDate" name="admissionDate" value={formData.admissionDate} onChange={handleChange} icon={<FiUser />} />
+              <InputField label="Admission Date" id="admissionDate" name="admissionDate" type="date" value={formData.admissionDate} onChange={handleChange} icon={<FiCalendar />} />
+              <InputField label="New Password" id="newPassword" name="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} icon={<FiKey />} placeholder="Leave blank to keep current password" />
               <InputField label="Account Number" id="accountNumber" name="accountNumber" value={formData.accountNumber} onChange={handleChange} icon={<FiUser />} />
               <InputField label="IFSC Code" id="ifscCode" name="ifscCode" value={formData.ifscCode} onChange={handleChange} icon={<FiUser />} />
               <InputField label="Address" id="address" name="address" value={formData.address} onChange={handleChange} icon={<FiMapPin />} textarea />

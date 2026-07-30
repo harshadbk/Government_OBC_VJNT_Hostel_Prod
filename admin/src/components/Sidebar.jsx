@@ -53,6 +53,7 @@ function Sidebar({ onLogout }) {
         <NavLink to="/users"><FiUsers /> Users</NavLink>
         <NavLink to="/add-user"><FiUserPlus /> Add User</NavLink>
         <NavLink to="/notices"><FiBell /> Notice Board</NavLink>
+        <NavLink to="/staff"><FiUsers /> Staff</NavLink>
         <NavLink to="/uploads" className={({isActive}) => isActive ? 'active' : ''}>
           <FiUpload /> Uploads
           {uploadsCount > 0 && (

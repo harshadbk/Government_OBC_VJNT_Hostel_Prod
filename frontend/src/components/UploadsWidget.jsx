@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiUpload, FiX } from 'react-icons/fi';
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -6,6 +7,7 @@ const isImageUrl = (url) => /\.(jpe?g|png|gif|jfif|webp)$/i.test(url);
 const isPdfUrl = (url) => /\.pdf$/i.test(url);
 
 export default function UploadsWidget() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [uploads, setUploads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,6 +16,7 @@ export default function UploadsWidget() {
   const lastCountRef = useRef(0);
   const [selectedFile, setSelectedFile] = useState(null);
   const [message, setMessage] = useState('');
+  const [loginRequired, setLoginRequired] = useState(false);
 
   const fetchUploads = async () => {
     setLoading(true);
@@ -42,6 +45,12 @@ export default function UploadsWidget() {
   const handleFileChange = (e) => setSelectedFile(e.target.files?.[0] || null);
 
   const handleSubmit = async (uploadId) => {
+    const token = localStorage.getItem('hostelToken');
+    if (!token) {
+      setLoginRequired(true);
+      setMessage('Please login first to upload your document.');
+      return;
+    }
     if (!selectedFile) { setMessage('Please choose a file.'); return; }
     setMessage('Uploading...');
     try {
@@ -49,7 +58,7 @@ export default function UploadsWidget() {
       formData.append('document', selectedFile);
       const res = await fetch(`${apiBaseUrl}/api/uploads/${uploadId}/submit`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('hostelToken') || ''}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
       const data = await res.json();
@@ -81,6 +90,11 @@ export default function UploadsWidget() {
             </div>
             {loading ? <p>Loading…</p> : (
               <div style={{ display: 'grid', gap: '.6rem' }}>
+                {loginRequired && (
+                  <div style={{ padding: '.9rem', borderRadius: 12, background: 'rgba(251,146,60,.12)', border: '1px solid rgba(251,146,60,.18)', color: '#ffb347' }}>
+                    Please <button type="button" className="secondary-btn" onClick={() => { setOpen(false); navigate('/login'); }} style={{ marginLeft: '.4rem' }}>login</button> first to upload documents.
+                  </div>
+                )}
                 {uploads.map(u => (
                   <div key={u._id} style={{ padding: '.75rem', borderRadius: 10, background: 'rgba(255,255,255,0.02)' }}>
                     <div style={{ display: 'grid', gap: '.3rem' }}>

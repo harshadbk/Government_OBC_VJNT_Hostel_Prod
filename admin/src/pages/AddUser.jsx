@@ -6,26 +6,55 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 function AddUser({ onLogout }) {
   const [username, setUsername] = useState("");
   const [tempPassword, setTempPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [roomNumber, setRoomNumber] = useState("");
   const [status, setStatus] = useState("");
   const [users, setUsers] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const storedUsers = localStorage.getItem("adminUsers");
-    if (storedUsers) {
-      setUsers(JSON.parse(storedUsers));
-    }
-  }, []);
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`${apiBaseUrl}/api/admin/users`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data.users || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+      }
+    };
 
-  const persistUsers = (nextUsers) => {
-    setUsers(nextUsers);
-    localStorage.setItem("adminUsers", JSON.stringify(nextUsers));
-  };
+    const fetchRooms = async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`${apiBaseUrl}/api/admin/rooms-overview`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setRooms(data.overview || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch room list:', err);
+      } finally {
+        setRoomsLoading(false);
+      }
+    };
+
+    fetchUsers();
+    fetchRooms();
+  }, []);
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!username.trim() || !tempPassword) {
-      setStatus("Please provide both username and temporary password.");
+    if (!username.trim() || !tempPassword || !roomNumber.trim()) {
+      setStatus("Please provide username, temporary password, and room allocation.");
       return;
     }
 
@@ -33,14 +62,17 @@ function AddUser({ onLogout }) {
     setStatus("Creating user...");
 
     try {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`${apiBaseUrl}/api/admin/add-user`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           username: username.trim(),
           password: tempPassword,
+          roomNumber: roomNumber.trim(),
         }),
       });
 
@@ -51,14 +83,19 @@ function AddUser({ onLogout }) {
         return;
       }
 
-      const nextUsers = [
-        { username: username.trim(), password: tempPassword },
-        ...users,
-      ];
-      persistUsers(nextUsers);
       setStatus(`User "${username}" saved to the database.`);
       setUsername("");
       setTempPassword("");
+      setRoomNumber("");
+      const refreshedResponse = await fetch(`${apiBaseUrl}/api/admin/users`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
+        },
+      });
+      if (refreshedResponse.ok) {
+        const refreshedData = await refreshedResponse.json();
+        setUsers(refreshedData.users || []);
+      }
     } catch (error) {
       console.error(error);
       setStatus("Network error. Could not reach the backend.");
@@ -93,12 +130,53 @@ function AddUser({ onLogout }) {
               <br />
               <label className="profile-field">
                 <span className="label-text">Temporary Password</span>
-                <input
-                  type="password"
-                  value={tempPassword}
-                  onChange={(e) => setTempPassword(e.target.value)}
-                  placeholder=" "
-                />
+                <div className="password-toggle-field" style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={tempPassword}
+                    onChange={(e) => setTempPassword(e.target.value)}
+                    placeholder=" "
+                    style={{ paddingRight: '3rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      right: '0.9rem',
+                      transform: 'translateY(-50%)',
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--text)',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                    }}
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </label>
+              <br />
+              <label className="profile-field">
+                <span className="label-text">Room Number</span>
+                <select value={roomNumber} onChange={(e) => setRoomNumber(e.target.value)}>
+                  {roomsLoading ? (
+                    <option value="">Loading rooms...</option>
+                  ) : rooms.length > 0 ? (
+                    rooms.map((room) => (
+                      <option
+                        key={room.roomNumber}
+                        value={room.roomNumber}
+                        disabled={room.occupancy >= room.capacity}
+                      >
+                        Room {room.roomNumber} ({room.occupancy}/{room.capacity}){room.occupancy >= room.capacity ? ' - Full' : ''}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No rooms available</option>
+                  )}
+                </select>
               </label>
             </div>
             <div className="profile-actions">
@@ -140,14 +218,14 @@ function AddUser({ onLogout }) {
               <thead>
                 <tr>
                   <th>Username</th>
-                  <th>Temporary Password</th>
+                  <th>Room</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((user, index) => (
                   <tr key={`${user.username}-${index}`}>
                     <td>{user.username}</td>
-                    <td>{user.password}</td>
+                    <td>{user.roomNumber || 'N/A'}</td>
                   </tr>
                 ))}
               </tbody>

@@ -7,7 +7,9 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
 function Dashboard({ onLogout }) {
   const [users, setUsers] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [roomsLoading, setRoomsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,7 +32,27 @@ function Dashboard({ onLogout }) {
       }
     };
 
+    const fetchRooms = async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`${apiBaseUrl}/api/admin/rooms-overview`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setRooms(data.overview || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch room overview:', err);
+      } finally {
+        setRoomsLoading(false);
+      }
+    };
+
     fetchUsers();
+    fetchRooms();
   }, []);
 
   // Get recently added 4 users
@@ -59,6 +81,26 @@ function Dashboard({ onLogout }) {
           <div className="stat-card"><h3>Hostel Blocks</h3><p>3</p></div>
           <div className="stat-card"><h3>Rooms</h3><p>20</p></div>
           <div className="stat-card"><h3>Total Users</h3><p>{loading ? '...' : users.length}</p></div>
+        </div>
+
+        <div className="panel-card">
+          <div className="panel-head">
+            <h3>Room Overview</h3>
+            <small>Green = free beds available, red = room full.</small>
+          </div>
+          {roomsLoading ? (
+            <p style={{ padding: '1rem', color: 'var(--muted)' }}>Loading rooms...</p>
+          ) : (
+            <div className="rooms-grid">
+              {rooms.map((room) => (
+                <div key={room.roomNumber} className={`room-card ${room.status === 'alloted' ? 'room-full' : 'room-free'}`}>
+                  <div className="room-card-title">Room {room.roomNumber}</div>
+                  <div className="room-card-meta">{room.occupancy}/{room.capacity} occupied</div>
+                  <div className="room-card-badge">{room.status === 'alloted' ? 'Full' : 'Available'}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="dashboard-grid">
@@ -92,8 +134,10 @@ function Dashboard({ onLogout }) {
             <div className="quick-actions">
               <button onClick={() => navigate('/users')}><FiUsers /> Manage Residents</button>
               <button onClick={()=> navigate('/notices')}><FiBell />Notice Board</button>
-              <button><FiBook /> Announcements</button>
+              <button onClick={()=> navigate('/uploads')}><FiUsers />Uploads</button>
+              <button onClick={()=> navigate('/staff')}><FiUsers />Staffs</button>
               <button><FiGrid /> Room Overview</button>
+              
             </div>
           </div>
         </div>

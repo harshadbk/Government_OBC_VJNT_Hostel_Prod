@@ -10,6 +10,7 @@ import NoticeBoard from './pages/NoticeBoard';
 import Uploads from './pages/Uploads';
 import './css/Global.css';
 import UploadDetails from './pages/UploadDetails';
+import StaffManagement from './pages/StaffManagement';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localStorage.getItem('adminToken')));
@@ -35,6 +36,7 @@ function App() {
         <Route path="/notices" element={isLoggedIn ? <NoticeBoard onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
         <Route path="/uploads" element={isLoggedIn ? <Uploads /> : <Navigate to="/login" replace />} />
         <Route path="/uploads/:id" element={isLoggedIn ? <UploadDetails /> : <Navigate to="/login" replace />} />
+        <Route path="/staff" element={isLoggedIn ? <StaffManagement /> : <Navigate to="/login" replace />} />
       </Routes>
     </div>
   );

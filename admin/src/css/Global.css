@@ -167,6 +167,52 @@ button, input { font: inherit; }
 .stat-card h3 { margin:0 0 .35rem; }
 .stat-card p { margin:0; color:#72e3ff; font-size:1.2rem; font-weight:700; }
 .dashboard-grid { display:grid; grid-template-columns: 1.2fr .8fr; gap:1rem; }
+.rooms-grid {
+  display: grid;
+  gap: .85rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin-top: .75rem;
+}
+.room-card {
+  padding: 1rem;
+  border-radius: 18px;
+  display: grid;
+  gap: .5rem;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.room-card.room-free {
+  background: rgba(34,197,94,.08);
+  border-color: rgba(34,197,94,.18);
+}
+.room-card.room-full {
+  background: rgba(239,68,68,.08);
+  border-color: rgba(239,68,68,.18);
+}
+.room-card-title {
+  font-weight: 700;
+}
+.room-card-meta {
+  color: var(--muted);
+  font-size: .95rem;
+}
+.room-card-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .35rem .7rem;
+  border-radius: 999px;
+  font-size: .83rem;
+  font-weight: 700;
+}
+.room-card.room-free .room-card-badge {
+  color: #16a34a;
+  background: rgba(34,197,94,.12);
+}
+.room-card.room-full .room-card-badge {
+  color: #b91c1c;
+  background: rgba(239,68,68,.12);
+}
 .panel-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; }
 .user-list { list-style:none; padding:0; margin:0; display:grid; gap:.8rem; }
 .user-list li { display:flex; justify-content:space-between; align-items:center; padding:.75rem .1rem; border-bottom:1px solid rgba(255,255,255,.06); transition: transform .12s ease, background .12s ease; border-radius:10px; }
@@ -185,7 +231,25 @@ th, td { text-align:left; padding:.8rem .4rem; border-bottom:1px solid rgba(255,
 .admin-form-grid.compact-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); max-width:640px; }
 .profile-field { display:flex; flex-direction:column; gap:.45rem; position:relative; }
 .profile-field .label-text { position:absolute; left:14px; top:50%; transform:translateY(-50%); transition: transform .16s ease, font-size .16s ease, color .16s ease; color:var(--muted); pointer-events:none; font-weight:600; }
-.profile-field input { padding:.9rem .85rem .6rem .85rem; border-radius:12px; border:1px solid rgba(255,255,255,.06); background: transparent; color:var(--text); }
+.profile-field input,
+.profile-field select {
+  width: 100%;
+  padding: .9rem .85rem .6rem .85rem;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.06);
+  background: transparent;
+  color: var(--text);
+  appearance: none;
+  outline: none;
+  font: inherit;
+}
+.profile-field select {
+  cursor: pointer;
+}
+.profile-field select option {
+  background: rgba(6,11,22,.95);
+  color: var(--text);
+}
 .profile-field:focus-within .label-text { transform: translateY(-170%); font-size:0.75rem; color:var(--accent-1); }
 .form-status { margin-top:.75rem; color:var(--accent-1); font-weight:600; }
 
@@ -229,6 +293,93 @@ th, td { text-align:left; padding:.8rem .4rem; border-bottom:1px solid rgba(255,
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.staff-grid.admin-staff-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.staff-card.admin-staff-card {
+  display: grid;
+  gap: .85rem;
+  padding: .95rem;
+  border-radius: 22px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  transition: transform .18s ease, box-shadow .18s ease;
+  min-width: 0;
+}
+
+.staff-card.admin-staff-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 60px rgba(0,0,0,.16);
+}
+
+.staff-card-image-wrap img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+.staff-card-content h3 {
+  margin: 0;
+}
+
+@media (max-width: 1060px) {
+  .staff-grid.admin-staff-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .staff-grid.admin-staff-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.staff-info-row {
+  color: var(--muted);
+  font-size: .93rem;
+  margin-top: .35rem;
+}
+
+.staff-card-actions {
+  display: flex;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.status-message {
+  margin-bottom: .9rem;
+  padding: .9rem 1rem;
+  border-radius: 14px;
+  background: rgba(72,187,120,.13);
+  color: #dafbe3;
+}
+
+.error-text {
+  color: #f87171;
+}
+
+.file-input-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .95rem 1rem;
+  border-radius: 14px;
+  background: rgba(255,255,255,.05);
+  border: 1px dashed rgba(255,255,255,.18);
+  cursor: pointer;
+  color: #cbd5e1;
+}
+
+.file-input-label input {
+  display: none;
 }
 
 .fade-in-scale {

@@ -112,6 +112,15 @@ const deleteCloudinaryImage = async (photoUrl, resourceType = 'auto') => {
 const getPublicUserData = (user) => {
   const userData = user.toObject();
   delete userData.password;
+  delete userData.tempPassword;
+  delete userData.__v;
+  return userData;
+};
+
+const getAdminUserData = (user) => {
+  const userData = user.toObject();
+  delete userData.password;
+  delete userData.tempPassword;
   delete userData.__v;
   return userData;
 };
@@ -153,6 +162,24 @@ const findAuthenticatedUser = async (tokenUser) => {
   return null;
 };
 
+const adminAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Missing authorization header.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_super_secret_key_here');
+    const isAdmin = decoded?.role?.toString().toLowerCase() === 'admin' || decoded?.username?.toString().toLowerCase() === 'admin' || decoded?.userId === 'hardcoded-admin';
+    if (!isAdmin) return res.status(403).json({ message: 'Admin access required.' });
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid or expired token.' });
+  }
+};
+
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
@@ -167,34 +194,56 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-router.post('/add-user', async (req, res) => {
+router.post('/add-user', adminAuth, async (req, res) => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ message: 'Username and password are required.' });
+    const { username, password, roomNumber } = req.body;
+    if (!username || !password || !roomNumber) {
+      return res.status(400).json({ message: 'Username, password, and room number are required.' });
     }
 
     const normalizedUsername = username.trim();
+    const normalizedRoom = roomNumber.trim();
     const existingUser = await User.findOne({ username: normalizedUsername });
     if (existingUser) {
       return res.status(409).json({ message: 'Username already exists.' });
     }
 
+    const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
+    const rooms = roomConfig.split(',').map((item) => {
+      const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
+      return {
+        roomNumber: roomNumberRaw || '',
+        capacity: Number(capacityRaw) || 4,
+      };
+    }).filter((item) => item.roomNumber);
+
+    const selectedRoom = rooms.find((room) => String(room.roomNumber) === normalizedRoom);
+    if (!selectedRoom) {
+      return res.status(400).json({ message: 'Selected room is not valid.' });
+    }
+
+    const currentOccupancy = await User.countDocuments({ roomNumber: normalizedRoom });
+    if (currentOccupancy >= selectedRoom.capacity) {
+      return res.status(400).json({ message: 'Capacity full: selected room is already full.' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ username: normalizedUsername, password: hashedPassword });
+    const user = new User({ username: normalizedUsername, password: hashedPassword, tempPassword: password, roomNumber: normalizedRoom });
     await user.save();
 
-    res.status(201).json({ message: 'User created', user: { id: user._id, username: user.username } });
+    res.status(201).json({
+      message: 'User created',
+      user: { id: user._id, username: user.username, roomNumber: user.roomNumber },
+      tempPassword: password,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// ─── HARDCODED ADMIN CREDENTIALS (for testing only) ───────────────────────────
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'Admin@1234';
-// ──────────────────────────────────────────────────────────────────────────────
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 router.post('/login', async (req, res) => {
   try {
@@ -203,8 +252,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Username and password are required.' });
     }
 
-    // Check hardcoded admin credentials first
-    if (username.trim() === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    if (ADMIN_USERNAME && ADMIN_PASSWORD && username.trim() === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
       const token = jwt.sign(
         { userId: 'hardcoded-admin', username: ADMIN_USERNAME, role: 'admin' },
         process.env.JWT_SECRET || 'your_super_secret_key_here',
@@ -276,8 +324,6 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       'phone',
       'department',
       'year',
-      'hostelBlock',
-      'roomNumber',
       'address',
       'village',
       'taluka',
@@ -288,8 +334,6 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       'mobileNumber',
       'fathersMobileNumber',
       'aadhaarNumber',
-      'aadhaarBankName',
-      'bankBranch',
       'admissionDate',
       'accountNumber',
       'ifscCode',
@@ -297,10 +341,31 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
 
     const profileData = profileFields.reduce((data, field) => {
       if (typeof req.body[field] !== 'undefined') {
-        data[field] = req.body[field];
+        if (field === 'admissionDate') {
+          const rawDate = req.body[field];
+          if (!rawDate) {
+            data[field] = null;
+          } else {
+            const dateValue = new Date(rawDate);
+            if (!Number.isNaN(dateValue.getTime())) {
+              data[field] = dateValue;
+            }
+          }
+        } else {
+          data[field] = req.body[field];
+        }
       }
       return data;
     }, {});
+
+    if (req.body.newPassword) {
+      if (typeof req.body.newPassword !== 'string' || req.body.newPassword.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+      }
+      const hashedNewPassword = await bcrypt.hash(req.body.newPassword, 10);
+      profileData.password = hashedNewPassword;
+      profileData.tempPassword = '';
+    }
 
     const currentUser = await findAuthenticatedUser(req.user);
     if (!currentUser) {
@@ -333,11 +398,53 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
   }
 });
 
-router.get('/users', authMiddleware, async (req, res) => {
+router.get('/users', adminAuth, async (req, res) => {
   try {
-    const users = await User.find().sort({ createdAt: -1 });
-    const publicUsers = users.map(getPublicUserData);
+    const users = await User.find().sort({ createdAt: -1 }).select('-password');
+    const publicUsers = users.map(getAdminUserData);
     res.json({ users: publicUsers });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/rooms-overview', adminAuth, async (req, res) => {
+  try {
+
+    const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
+    const rooms = roomConfig.split(',').map((item) => {
+      const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
+      const roomNumber = roomNumberRaw || '';
+      const capacity = Number(capacityRaw) || 4;
+      return { roomNumber, capacity };
+    }).filter((item) => item.roomNumber);
+
+    const users = await User.find().select('roomNumber');
+    const occupancyByRoom = users.reduce((acc, user) => {
+      const roomKey = String(user.roomNumber || '').trim();
+      if (!roomKey) return acc;
+      acc[roomKey] = (acc[roomKey] || 0) + 1;
+      return acc;
+    }, {});
+
+    const overview = rooms.map(({ roomNumber, capacity }) => {
+      const occupancy = occupancyByRoom[roomNumber] || 0;
+      return {
+        roomNumber,
+        capacity,
+        occupancy,
+        available: Math.max(capacity - occupancy, 0),
+        status: occupancy >= capacity ? 'alloted' : 'free',
+      };
+    });
+
+    const totalRooms = overview.length;
+    const totalCapacity = overview.reduce((sum, room) => sum + room.capacity, 0);
+    const totalOccupied = overview.reduce((sum, room) => sum + room.occupancy, 0);
+    const totalFree = totalCapacity - totalOccupied;
+
+    res.json({ overview, totalRooms, totalCapacity, totalOccupied, totalFree });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -350,7 +457,9 @@ router.get('/users/:id', authMiddleware, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.json({ user: getPublicUserData(user) });
+    const tokenIsAdmin = req.user?.role?.toString().toLowerCase() === 'admin' || req.user?.username?.toString().toLowerCase() === 'admin' || req.user?.userId === 'hardcoded-admin';
+    const userData = tokenIsAdmin ? getAdminUserData(user) : getPublicUserData(user);
+    res.json({ user: userData });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });

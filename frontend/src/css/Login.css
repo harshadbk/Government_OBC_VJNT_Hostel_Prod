@@ -91,6 +91,13 @@
   outline: none;
 }
 
+.input-control:disabled,
+textarea:disabled {
+  opacity: 0.65;
+  background: rgba(148, 163, 184, 0.08);
+  cursor: not-allowed;
+}
+
 .input-control.input-error {
   border-color: #f87171;
   background: rgba(248, 113, 113, 0.1);

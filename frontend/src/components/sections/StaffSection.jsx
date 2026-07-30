@@ -1,58 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FiUsers, FiPhone, FiMail, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import useInView from '../../hooks/useInView';
 
-import staffImg from '../../../assets/staff.jfif';
-import staff2 from '../../../assets/staff_2.jfif';
-
-const staff = [
-  {
-    name: 'Shri. Rajendra Patil',
-    designation: 'Rector',
-    phone: '+91 98765 43210',
-    email: 'rector.obchostel@gov.in',
-    image: staffImg
-  },
-  {
-    name: 'Shri. Manoj Jadhav',
-    designation: 'Assistant Rector',
-    phone: '+91 98765 43211',
-    email: 'asstrector.obchostel@gov.in',
-    image: staff2
-  },
-  {
-    name: 'Shri. Suresh Kamble',
-    designation: 'Hostel Superintendent',
-    phone: '+91 98765 43212',
-    email: 'superintendent.obchostel@gov.in',
-    image: staffImg
-  },
-  {
-    name: 'Shri. Anil Shinde',
-    designation: 'Clerk',
-    phone: '+91 98765 43213',
-    email: 'clerk.obchostel@gov.in',
-    image: staff2
-  },
-  {
-    name: 'Shri. Balaji More',
-    designation: 'Security Guard',
-    phone: '+91 98765 43214',
-    email: 'security.obchostel@gov.in',
-    image: staffImg
-  },
-  {
-    name: 'Shri. Vishnu Gaikwad',
-    designation: 'Caretaker',
-    phone: '+91 98765 43215',
-    email: 'caretaker.obchostel@gov.in',
-    image: staff2
-  },
-];
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
 export default function StaffSection() {
   const [ref, visible] = useInView();
   const [lightboxIndex, setLightboxIndex] = useState(-1);
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchStaff = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/staff`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Unable to load staff.');
+        if (mounted) setStaff(data.staff || []);
+      } catch (err) {
+        if (mounted) setError(err.message);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    fetchStaff();
+    return () => { mounted = false; };
+  }, []);
 
   const openLightbox = (index) => setLightboxIndex(index);
   const closeLightbox = () => setLightboxIndex(-1);
@@ -69,50 +45,61 @@ export default function StaffSection() {
             Dedicated and responsible hostel staff ensuring smooth operations and student welfare.
           </p>
         </div>
-        <div className="staff-grid">
-          {staff.map((member, index) => (
-            <div
-              key={member.name}
-              className={`staff-card glass-card ${visible ? 'visible' : ''}`}
-              style={{ transitionDelay: `${index * 80}ms` }}
-            >
-              <div
-                className="staff-image-wrap"
-                onClick={() => openLightbox(index)}
-                role="button"
-                tabIndex={0}
-                aria-label={`View photo of ${member.name}`}
-                style={{ cursor: 'pointer' }}
-              >
-                <img src={member.image} alt={member.name} loading="lazy" />
-                <div className="image-preview-hint">
-                  <span>Click to preview</span>
-                </div>
-              </div>
-              <div className="staff-info">
-                <h3>{member.name}</h3>
-                <span className="staff-designation">{member.designation}</span>
-                <div className="staff-contacts">
-                  <a href={`tel:${member.phone}`} className="staff-contact-link">
-                    <FiPhone /> {member.phone}
-                  </a>
-                  <a href={`mailto:${member.email}`} className="staff-contact-link">
-                    <FiMail /> {member.email}
-                  </a>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
 
-        {lightboxIndex >= 0 && (
+        {loading ? (
+          <p>Loading staff members…</p>
+        ) : error ? (
+          <p style={{ color: '#f87171' }}>{error}</p>
+        ) : (
+          <div className="staff-grid">
+            {staff.length > 0 ? staff.map((member, index) => (
+              <div
+                key={member._id}
+                className={`staff-card glass-card ${visible ? 'visible' : ''}`}
+                style={{ transitionDelay: `${index * 80}ms` }}
+              >
+                <div
+                  className="staff-image-wrap"
+                  onClick={() => member.imageUrl && openLightbox(index)}
+                  role={member.imageUrl ? 'button' : undefined}
+                  tabIndex={member.imageUrl ? 0 : -1}
+                  aria-label={member.imageUrl ? `View photo of ${member.name}` : undefined}
+                  style={{ cursor: member.imageUrl ? 'pointer' : 'default' }}
+                >
+                  <img src={member.imageUrl || ''} alt={member.name} loading="lazy" />
+                  {member.imageUrl && (
+                    <div className="image-preview-hint">
+                      <span>Click to preview</span>
+                    </div>
+                  )}
+                </div>
+                <div className="staff-info">
+                  <h3>{member.name}</h3>
+                  <span className="staff-designation">{member.position || 'Staff member'}</span>
+                  <div className="staff-contacts">
+                    <a href={`tel:${member.phone || ''}`} className="staff-contact-link">
+                      <FiPhone /> {member.phone || 'No phone'}
+                    </a>
+                    <a href={`mailto:${member.email || ''}`} className="staff-contact-link">
+                      <FiMail /> {member.email || 'No email'}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )) : (
+              <p>No staff records are available yet.</p>
+            )}
+          </div>
+        )}
+
+        {lightboxIndex >= 0 && staff[lightboxIndex] && staff[lightboxIndex].imageUrl && (
           <div className="lightbox-overlay" onClick={closeLightbox}>
             <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
               <button className="lightbox-close" onClick={closeLightbox} aria-label="Close"><FiX /></button>
               <button className="lightbox-nav lightbox-prev" onClick={prevImage} aria-label="Previous"><FiChevronLeft /></button>
-              <img src={staff[lightboxIndex].image} alt={staff[lightboxIndex].name} />
+              <img src={staff[lightboxIndex].imageUrl} alt={staff[lightboxIndex].name} />
               <button className="lightbox-nav lightbox-next" onClick={nextImage} aria-label="Next"><FiChevronRight /></button>
-              <div className="lightbox-caption">{staff[lightboxIndex].name} — {staff[lightboxIndex].designation}</div>
+              <div className="lightbox-caption">{staff[lightboxIndex].name} — {staff[lightboxIndex].position}</div>
             </div>
           </div>
         )}

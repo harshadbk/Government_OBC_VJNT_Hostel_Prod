@@ -15,7 +15,8 @@ function InputField({
   onBlur,
   required = false,
   textarea = false,
-  rows = 3
+  rows = 3,
+  disabled = false
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const inputType = type === 'password' ? (showPassword ? 'text' : 'password') : type;
@@ -50,6 +51,7 @@ function InputField({
             className={`input-control ${error ? 'input-error' : ''}`}
             placeholder={placeholder}
             required={required}
+            disabled={disabled}
           />
           {type === 'password' && (
             <button type="button" className="password-toggle" onClick={() => setShowPassword((prev) => !prev)}>
