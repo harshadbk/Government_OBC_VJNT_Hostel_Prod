@@ -21,6 +21,7 @@ function Home() {
   return (
     <>
       <HeroSection />
+      <NoticeBoardSection />
       <FeaturesSection />
       <AboutSection />
       <FacilitiesSection />
@@ -28,11 +29,10 @@ function Home() {
       <EventsSection />
       <GallerySection />
       <StaffSection />
-      <StudentCouncilSection />
+      {/* <StudentCouncilSection /> */}
       <HostelRulesSection />
       <AdmissionSection />
       <DocumentsSection />
-      <NoticeBoardSection />
       <HostelJourneySection />
       <FAQSection />
       <ContactSection />

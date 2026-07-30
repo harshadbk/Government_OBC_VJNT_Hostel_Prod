@@ -1,4 +1,4 @@
-import { FiInfo, FiDollarSign } from 'react-icons/fi';
+import { FiInfo, FiArrowRight } from 'react-icons/fi';
 import useInView from '../../hooks/useInView';
 
 export default function FoodAllowanceSection() {
@@ -9,7 +9,7 @@ export default function FoodAllowanceSection() {
       <div className="section-container">
         <div className={`food-allowance-card glass-card ${visible ? 'visible' : ''}`}>
           <div className="food-allowance-icon-wrap">
-            <FiDollarSign />
+            <FiArrowRight/>
           </div>
           <div className="food-allowance-content">
             <div className="food-allowance-badge">

@@ -1,5 +1,6 @@
 import { FiTarget, FiEye, FiAward, FiBookOpen, FiInfo } from 'react-icons/fi';
 import useInView from '../../hooks/useInView';
+import homeImage from '../../../assets/home.png';
 
 export default function AboutSection() {
   const [ref, visible] = useInView();
@@ -45,7 +46,7 @@ export default function AboutSection() {
         <div className="about-grid">
           <div className={`about-image-card glass-card ${visible ? 'visible' : ''}`}>
             <img
-              src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80"
+              src={homeImage}
               alt="Hostel common area with students"
               loading="lazy"
             />

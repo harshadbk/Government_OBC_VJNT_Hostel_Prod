@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import AddUser from './pages/AddUser';
 import Profile from './pages/Profile';
+import UserProfile from './pages/UserProfile';
 import './css/Global.css';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
         <Route path="/login" element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />} />
         <Route path="/dashboard" element={isLoggedIn ? <Dashboard onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
         <Route path="/users" element={isLoggedIn ? <Users /> : <Navigate to="/login" replace />} />
+        <Route path="/users/:id" element={isLoggedIn ? <UserProfile onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
         <Route path="/add-user" element={isLoggedIn ? <AddUser /> : <Navigate to="/login" replace />} />
         <Route path="/profile" element={isLoggedIn ? <Profile onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       </Routes>

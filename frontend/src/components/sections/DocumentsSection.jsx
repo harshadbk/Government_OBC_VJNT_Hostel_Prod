@@ -9,8 +9,8 @@ const documents = [
   { title: 'College Admission Receipt', description: 'Proof of admission to a recognized educational institution' },
   { title: 'Bonafide Certificate', description: 'Bonafide certificate from the college or university' },
   { title: 'Passport Size Photos', description: 'Recent passport-sized photographs (4 copies)' },
-  { title: 'Bank Passbook', description: 'Copy of student\'s bank passbook for scholarship disbursement' },
-  { title: 'Previous Marksheet', description: 'Marksheet of last qualifying examination' },
+  { title: 'Caste Valididty', description: 'OBC caste validity certificate issued by competent authority' },
+  { title: 'Previous Marksheets', description: 'Marksheet of last qualifying examination' },
 ];
 
 export default function DocumentsSection() {

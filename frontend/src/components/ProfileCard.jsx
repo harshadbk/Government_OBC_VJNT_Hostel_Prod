@@ -17,11 +17,12 @@ function ProfileCard({ user, profileImage }) {
         </div>
       </div>
       <div className="profile-details-grid">
-        <div className="detail-pill"><FiBookOpen /> {user?.department}</div>
-        <div className="detail-pill"><FiHome /> {user?.year}</div>
+        <div className="detail-pill"><FiBookOpen /> {user?.username}</div>
+        <div className="detail-pill"><FiHome /> {user?.hostelBlock}</div>
         <div className="detail-pill"><FiMail /> {user?.email}</div>
         <div className="detail-pill"><FiPhone /> {user?.phone}</div>
         <div className="detail-pill"><FiMapPin /> {user?.address}</div>
+        <div className="detail-pill"><FiMail /> {user?.aadhaarNumber}</div>
       </div>
     </div>
   );

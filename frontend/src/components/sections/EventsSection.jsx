@@ -1,101 +1,75 @@
-import { FiCalendar, FiImage } from 'react-icons/fi';
+import { useState } from 'react';
+import { FiCalendar, FiImage, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import useInView from '../../hooks/useInView';
+
+import festival from '../../../assets/festival.jfif';
+import festival02 from '../../../assets/festival_02.jfif';
+import festival03 from '../../../assets/festival_03.jfif';
+import meeting01 from '../../../assets/meeting_01.jfif';
+import meeting02 from '../../../assets/meeting_02.jfif';
+import meeting04 from '../../../assets/meeting_04.jfif';
+import studentsCorp from '../../../assets/students_corp.jfif';
+import studentCorp2 from '../../../assets/studnet_corp_2.jfif';
 
 const events = [
   {
     title: 'Independence Day Celebration',
     date: '15 August 2025',
     description: 'Flag hoisting ceremony and patriotic program organized with students and staff.',
-    image: 'https://images.unsplash.com/photo-1532375810709-75b1da00537c?auto=format&fit=crop&w=600&q=80'
+    image: festival
   },
   {
     title: 'Republic Day Celebration',
     date: '26 January 2026',
     description: 'Republic Day celebrations with cultural performances and flag hoisting.',
-    image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=600&q=80'
+    image: festival02
   },
   {
-    title: 'Tree Plantation Drive',
-    date: '5 June 2025',
-    description: 'Environmental awareness program with tree plantation activities in hostel campus.',
-    image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    title: 'Swachh Bharat Campaign',
-    date: '2 October 2025',
-    description: 'Cleanliness drive organized as part of the Swachh Bharat Abhiyan initiative.',
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    title: 'Blood Donation Camp',
-    date: '14 June 2025',
-    description: 'Voluntary blood donation camp organized in collaboration with local hospital.',
-    image: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    title: 'Health Check-up Camp',
-    date: '7 April 2026',
-    description: 'Free health check-up camp for hostel students with medical professionals.',
-    image: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    title: 'Cricket Tournament',
-    date: 'December 2025',
-    description: 'Inter-hostel cricket tournament promoting sportsmanship and teamwork.',
-    image: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    title: 'Volleyball Competition',
-    date: 'November 2025',
-    description: 'Volleyball competition among hostel residents to encourage physical fitness.',
-    image: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    title: 'Kabaddi Competition',
-    date: 'January 2026',
-    description: 'Traditional kabaddi competition fostering competitive spirit among students.',
-    image: 'https://images.unsplash.com/photo-1461896836934-bd45ba688509?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    title: 'Chess Competition',
-    date: 'February 2026',
-    description: 'Indoor chess competition to encourage strategic thinking among students.',
-    image: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    title: 'Cultural Programs',
+    title: 'Cultural Program',
     date: 'March 2026',
     description: 'Annual cultural program showcasing student talent in music, dance, and drama.',
-    image: 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&w=600&q=80'
+    image: festival03
   },
   {
-    title: 'Career Guidance Sessions',
+    title: 'Official Meeting',
     date: 'Quarterly',
-    description: 'Career counseling and guidance sessions by industry professionals and educators.',
-    image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=600&q=80'
+    description: 'Quarterly review meeting with hostel administration and government officials.',
+    image: meeting01
   },
   {
-    title: 'Motivational Talks',
+    title: 'Staff Meeting',
     date: 'Monthly',
-    description: 'Motivational sessions by eminent speakers to inspire student achievement.',
-    image: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=600&q=80'
+    description: 'Monthly staff coordination meeting to discuss hostel operations and student welfare.',
+    image: meeting02
   },
   {
-    title: 'Scholarship Awareness',
-    date: 'July 2025',
-    description: 'Awareness programs about government scholarships and educational benefits.',
-    image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80'
+    title: 'Administrative Meeting',
+    date: 'December 2025',
+    description: 'Administrative review and planning session for upcoming academic year.',
+    image: meeting04
   },
   {
-    title: 'Freshers Welcome',
+    title: 'Student Corps Formation',
     date: 'August 2025',
-    description: 'Welcome program for newly admitted students with orientation and activities.',
-    image: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=600&q=80'
+    description: 'Formation of the student council and corps for the academic year.',
+    image: studentsCorp
+  },
+  {
+    title: 'Student Corps Activity',
+    date: 'September 2025',
+    description: 'Student corps organizing campus activities and community service programs.',
+    image: studentCorp2
   },
 ];
 
 export default function EventsSection() {
   const [ref, visible] = useInView();
+  const [lightboxIndex, setLightboxIndex] = useState(-1);
+
+  const openLightbox = (index) => setLightboxIndex(index);
+  const closeLightbox = () => setLightboxIndex(-1);
+  const prevImage = () => setLightboxIndex((prev) => (prev - 1 + events.length) % events.length);
+  const nextImage = () => setLightboxIndex((prev) => (prev + 1) % events.length);
 
   return (
     <section className="page-section events-section" id="events" ref={ref}>
@@ -114,22 +88,44 @@ export default function EventsSection() {
               className={`event-card glass-card ${visible ? 'visible' : ''}`}
               style={{ transitionDelay: `${index * 60}ms` }}
             >
-              <div className="event-image-wrap">
+              <div
+                className="event-image-wrap"
+                onClick={() => openLightbox(index)}
+                role="button"
+                tabIndex={0}
+                aria-label={`View photo of ${event.title}`}
+                style={{ cursor: 'pointer' }}
+              >
                 <img src={event.image} alt={event.title} loading="lazy" />
                 <div className="event-date-badge">
                   <FiCalendar /> {event.date}
+                </div>
+                <div className="image-preview-hint">
+                  <span>Click to preview</span>
                 </div>
               </div>
               <div className="event-info">
                 <h3>{event.title}</h3>
                 <p>{event.description}</p>
-                <button className="event-gallery-btn">
-                  <FiImage /> View Gallery
+                <button className="event-gallery-btn" onClick={() => openLightbox(index)}>
+                  <FiImage /> View Photo
                 </button>
               </div>
             </article>
           ))}
         </div>
+
+        {lightboxIndex >= 0 && (
+          <div className="lightbox-overlay" onClick={closeLightbox}>
+            <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+              <button className="lightbox-close" onClick={closeLightbox} aria-label="Close"><FiX /></button>
+              <button className="lightbox-nav lightbox-prev" onClick={prevImage} aria-label="Previous"><FiChevronLeft /></button>
+              <img src={events[lightboxIndex].image} alt={events[lightboxIndex].title} />
+              <button className="lightbox-nav lightbox-next" onClick={nextImage} aria-label="Next"><FiChevronRight /></button>
+              <div className="lightbox-caption">{events[lightboxIndex].title} — {events[lightboxIndex].date}</div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

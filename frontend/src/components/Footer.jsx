@@ -50,7 +50,7 @@ function Footer() {
       <div className="footer-bottom">
         <p>© {new Date().getFullYear()} Government OBC Boys Hostel, Sangli. All rights reserved.</p>
         <p className="footer-developers">
-          Developed by <span>Madanraj Sagar</span> &amp; <span>Friend Name</span>
+          Developed by <span>Harshad Khatale</span> &amp; <span>Madanraj Sagar</span>
         </p>
       </div>
     </footer>

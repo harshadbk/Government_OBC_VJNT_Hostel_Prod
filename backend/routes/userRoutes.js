@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
+import Document from '../models/Document.js';
 
 
 const router = express.Router();
@@ -30,18 +31,52 @@ const configureCloudinary = () => {
   cloudinary.config({ cloud_name, api_key, api_secret });
 };
 
-const uploadStudentPhoto = (buffer) => {
+const uploadStudentPhoto = (buffer, filename, mimeType = 'image/jpeg') => {
   configureCloudinary();
 
+  const isImage = mimeType?.startsWith('image/');
+  const uploadOptions = {
+    folder: 'hms_students',
+    resource_type: 'image',
+    public_id: filename,
+    transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+  };
+
+  if (!isImage) {
+    uploadOptions.resource_type = 'auto';
+  }
+
   return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder: 'hms_students', resource_type: 'image' },
-      (error, result) => {
-        if (error) return reject(error);
-        console.log('Image uploaded to Cloudinary:', result.secure_url);
-        resolve(result.secure_url);
-      }
-    );
+    const stream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+      if (error) return reject(error);
+      console.log('Image uploaded to Cloudinary:', result.secure_url);
+      resolve(result.secure_url);
+    });
+    streamifier.createReadStream(buffer).pipe(stream);
+  });
+};
+
+const uploadDocumentToCloudinary = (buffer, filename, mimeType = 'application/octet-stream') => {
+  configureCloudinary();
+
+  const isPdf = mimeType?.includes('pdf');
+  const uploadOptions = {
+    folder: 'hms_documents',
+    resource_type: 'auto',
+    public_id: filename,
+    transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+  };
+
+  if (isPdf) {
+    uploadOptions.transformation = [{ quality: 'auto' }];
+  }
+
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+      if (error) return reject(error);
+      console.log('Document uploaded to Cloudinary:', result.secure_url);
+      resolve(result.secure_url);
+    });
     streamifier.createReadStream(buffer).pipe(stream);
   });
 };
@@ -62,15 +97,15 @@ const getCloudinaryPublicId = (url) => {
   }
 };
 
-const deleteCloudinaryImage = async (photoUrl) => {
+const deleteCloudinaryImage = async (photoUrl, resourceType = 'auto') => {
   const publicId = getCloudinaryPublicId(photoUrl);
   if (!publicId) return;
   try {
     configureCloudinary();
-    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
-    console.log(`Deleted old Cloudinary image [${publicId}]:`, result.result);
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+    console.log(`Deleted old Cloudinary asset [${publicId}] (${resourceType}):`, result.result);
   } catch (err) {
-    console.warn('Could not delete old Cloudinary image:', err.message);
+    console.warn('Could not delete old Cloudinary asset:', err.message);
   }
 };
 
@@ -79,6 +114,30 @@ const getPublicUserData = (user) => {
   delete userData.password;
   delete userData.__v;
   return userData;
+};
+
+const normalizeDocumentField = (fieldName) => {
+  const normalizedField = fieldName?.replace(/Url$/, '');
+  const fieldMap = {
+    aadharCard: 'aadharCardUrl',
+    aadharCardUrl: 'aadharCardUrl',
+    casteCertificate: 'casteCertificateUrl',
+    casteCertificateUrl: 'casteCertificateUrl',
+    incomeCertificate: 'incomeCertificateUrl',
+    incomeCertificateUrl: 'incomeCertificateUrl',
+    domicileCertificate: 'domicileCertificateUrl',
+    domicileCertificateUrl: 'domicileCertificateUrl',
+    collegeAdmissionReceipt: 'collegeAdmissionReceiptUrl',
+    collegeAdmissionReceiptUrl: 'collegeAdmissionReceiptUrl',
+    bonafideCertificate: 'bonafideCertificateUrl',
+    bonafideCertificateUrl: 'bonafideCertificateUrl',
+    casteValidityCertificate: 'casteValidityCertificateUrl',
+    casteValidityCertificateUrl: 'casteValidityCertificateUrl',
+    previousYearMarksheet: 'previousYearMarksheetUrl',
+    previousYearMarksheetUrl: 'previousYearMarksheetUrl',
+  };
+
+  return fieldMap[fieldName] || fieldMap[normalizedField] || fieldName;
 };
 
 const findAuthenticatedUser = async (tokenUser) => {
@@ -241,7 +300,8 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       if (currentUser.photoUrl) {
         await deleteCloudinaryImage(currentUser.photoUrl);
       }
-      profileData.photoUrl = await uploadStudentPhoto(req.file.buffer);
+      const uniquePhotoFilename = `${currentUser._id}_studentPhoto_${Date.now()}`;
+      profileData.photoUrl = await uploadStudentPhoto(req.file.buffer, uniquePhotoFilename, req.file.mimetype);
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -255,6 +315,131 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
     }
 
     res.json({ message: 'Profile saved', user: getPublicUserData(updatedUser) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/users', authMiddleware, async (req, res) => {
+  try {
+    const users = await User.find().sort({ createdAt: -1 });
+    const publicUsers = users.map(getPublicUserData);
+    res.json({ users: publicUsers });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/users/:id', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ user: getPublicUserData(user) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.delete('/users/:id', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    if (user.photoUrl) {
+      await deleteCloudinaryImage(user.photoUrl);
+    }
+    await User.findByIdAndDelete(req.params.id);
+    // Also delete associated documents
+    const doc = await Document.findOne({ userId: req.params.id });
+    if (doc) {
+      // In a real app we'd also delete the files from Cloudinary here
+      await Document.findByIdAndDelete(doc._id);
+    }
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// --- Document Routes ---
+
+router.get('/documents', authMiddleware, async (req, res) => {
+  try {
+    const currentUser = await findAuthenticatedUser(req.user);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    
+    let doc = await Document.findOne({ userId: currentUser._id });
+    if (!doc) {
+      doc = new Document({
+        email: currentUser.email || currentUser.username, // Fallback if no email
+        userId: currentUser._id,
+      });
+      await doc.save();
+    }
+    
+    const plainDoc = doc.toObject ? doc.toObject() : doc;
+    res.json({ documents: plainDoc });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/documents', authMiddleware, upload.any(), async (req, res) => {
+  try {
+    const currentUser = await findAuthenticatedUser(req.user);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    let doc = await Document.findOne({ userId: currentUser._id });
+    if (!doc) {
+      doc = new Document({
+        email: currentUser.email || currentUser.username,
+        userId: currentUser._id,
+      });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'No document file was provided.' });
+    }
+
+    // Process uploaded files
+    for (const file of req.files) {
+      const fieldName = normalizeDocumentField(file.fieldname);
+      const uniqueFilename = `${currentUser._id}_${fieldName}_${Date.now()}`;
+
+      if (doc[fieldName]) {
+        await deleteCloudinaryImage(doc[fieldName], 'auto');
+      }
+
+      const url = await uploadDocumentToCloudinary(file.buffer, uniqueFilename, file.mimetype);
+      doc[fieldName] = url;
+    }
+
+    await doc.save();
+    const plainDoc = doc.toObject ? doc.toObject() : doc;
+    res.json({ message: 'Documents updated successfully', documents: plainDoc });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/users/:id/documents', authMiddleware, async (req, res) => {
+  try {
+    const doc = await Document.findOne({ userId: req.params.id });
+    const plainDoc = doc ? (doc.toObject ? doc.toObject() : doc) : null;
+    res.json({ documents: plainDoc });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });

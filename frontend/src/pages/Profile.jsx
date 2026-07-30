@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FiCamera, FiSave, FiEdit3, FiXCircle, FiUser, FiMail, FiPhone, FiMapPin } from 'react-icons/fi';
+import { FiCamera, FiSave, FiEdit3, FiXCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiUpload, FiCheckCircle } from 'react-icons/fi';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import ProfileCard from '../components/ProfileCard';
@@ -41,6 +41,11 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  
+  const [documents, setDocuments] = useState(null);
+  const [docUploading, setDocUploading] = useState(false);
+  const [docMessage, setDocMessage] = useState('');
+  const [previewDocUrl, setPreviewDocUrl] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,7 +68,26 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
       }
     }
 
+    async function fetchDocuments() {
+      if (!token) return;
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/admin/documents`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) {
+          setDocuments(data.documents);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     fetchProfile();
+    fetchDocuments();
 
     return () => {
       cancelled = true;
@@ -250,6 +274,147 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
           {editable ? <div className="profile-actions" style={{ marginTop: '0.7rem' }}><Button label={saving ? 'Saving...' : 'Save Changes'} variant="primary" onClick={handleSave} loading={saving} icon={<FiSave />} /> </div> : null}
         </div>
       </section>
+
+      {/* --- Documents Section --- */}
+      <section className="glass-card" style={{ marginTop: '2rem', padding: '2rem', borderRadius: '32px' }}>
+        <div style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
+          <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+            <FiFileText /> Required Documents
+          </h2>
+          <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '1rem', borderRadius: '8px', marginBottom: '2rem', textAlign: 'center' }}>
+            <p style={{ color: 'var(--text)', marginBottom: '0.5rem', fontWeight: '500' }}>
+              Please ensure you have uploaded clear, legible copies (PDF or Image) of the following required documents:
+            </p>
+            <ul style={{ color: 'var(--muted)', listStyle: 'none', padding: 0, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem', maxWidth: '600px', textAlign: 'left' }}>
+              <li>Passport Size Photo (via Profile Picture)</li>
+              <li>Aadhar Card</li>
+              <li>Caste Certificate & Validity</li>
+              <li>Income Certificate</li>
+              <li>Domicile Certificate</li>
+              <li>College Admission Receipt</li>
+              <li>Bonafide Certificate</li>
+              <li>Previous Year Marksheet</li>
+            </ul>
+          </div>
+          
+          <div className="documents-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            
+            <div className="document-list-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card-bg)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <h4 style={{ margin: 0 }}>Passport Size Photo</h4>
+                {preview ? (
+                   <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><FiCheckCircle /> Uploaded (from profile)</span>
+                ) : (
+                   <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>Not Uploaded</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                {preview && (
+                  <button onClick={() => setPreviewDocUrl(preview)} className="icon-btn" style={{ color: 'var(--primary)', fontSize: '0.85rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    <FiFileText /> View
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Other Documents */}
+            {[
+              { key: 'aadharCardUrl', label: 'Aadhar Card' },
+              { key: 'casteCertificateUrl', label: 'Caste Certificate' },
+              { key: 'incomeCertificateUrl', label: 'Income Certificate' },
+              { key: 'domicileCertificateUrl', label: 'Domicile Certificate' },
+              { key: 'collegeAdmissionReceiptUrl', label: 'College Admission Receipt' },
+              { key: 'bonafideCertificateUrl', label: 'Bonafide Certificate' },
+              { key: 'casteValidityCertificateUrl', label: 'Caste Validity Certificate' },
+              { key: 'previousYearMarksheetUrl', label: 'Previous Year Marksheet' },
+            ].map(doc => (
+              <div key={doc.key} className="document-list-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card-bg)' }}>
+                
+                {/* Left Side: Name and Status */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  <h4 style={{ margin: 0 }}>{doc.label}</h4>
+                  {documents && documents[doc.key] ? (
+                    <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><FiCheckCircle /> Uploaded</span>
+                  ) : (
+                    <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>Not Uploaded</span>
+                  )}
+                </div>
+                
+                {/* Right Side: Upload and View Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <label className="button secondary" style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', display: 'inline-flex', cursor: 'pointer', margin: 0 }}>
+                    <FiUpload /> {documents && documents[doc.key] ? 'Update' : 'Upload'}
+                    <input 
+                      type="file" 
+                      accept="image/*,.pdf" 
+                      hidden 
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        
+                        setDocUploading(true);
+                        setDocMessage(`Uploading ${doc.label}...`);
+                        
+                        const formData = new FormData();
+                        formData.append(doc.key.replace('Url', ''), file);
+                        
+                        try {
+                          const res = await fetch(`${apiBaseUrl}/api/admin/documents`, {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${token}` },
+                            body: formData
+                          });
+                          const data = await res.json().catch(() => ({}));
+
+                          if (res.ok && data.documents) {
+                            const normalizedDocuments = data.documents.toObject ? data.documents.toObject() : data.documents;
+                            setDocuments(normalizedDocuments);
+                            setDocMessage(`${doc.label} uploaded successfully. You can preview it now.`);
+                          } else {
+                            setDocMessage(data.message || `Failed to upload ${doc.label}.`);
+                          }
+                        } catch (err) {
+                          setDocMessage(`Error uploading ${doc.label}.`);
+                        } finally {
+                          setDocUploading(false);
+                          setTimeout(() => setDocMessage(''), 4000);
+                        }
+                      }} 
+                    />
+                  </label>
+                  
+                  {documents && documents[doc.key] && (
+                    <button onClick={() => setPreviewDocUrl(documents[doc.key])} className="icon-btn" style={{ color: 'var(--primary)', fontSize: '0.85rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      <FiFileText /> View
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {docMessage && <p style={{ marginTop: '1rem', color: docUploading ? 'var(--text)' : 'var(--primary)' }}>{docMessage}</p>}
+        </div>
+      </section>
+
+      {/* --- Preview Modal --- */}
+      {previewDocUrl && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
+          <div style={{ background: '#fff', width: '100%', maxWidth: '900px', height: '100%', maxHeight: '800px', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
+              <h3 style={{ margin: 0, color: '#0f172a' }}>Document Preview</h3>
+              <button onClick={() => setPreviewDocUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: '#64748b' }}><FiXCircle /></button>
+            </div>
+            <div style={{ flex: 1, backgroundColor: '#f1f5f9', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'auto' }}>
+              {previewDocUrl.toLowerCase().endsWith('.pdf') ? (
+                <iframe src={previewDocUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Document Preview" />
+              ) : (
+                <img src={previewDocUrl} alt="Document Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

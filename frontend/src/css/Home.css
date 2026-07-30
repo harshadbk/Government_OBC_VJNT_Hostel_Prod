@@ -541,6 +541,7 @@
   width: 100%;
   height: 180px;
   object-fit: cover;
+  object-position: top;
   transition: transform 0.5s ease;
 }
 
@@ -665,6 +666,7 @@
   height: 100%;
   min-height: 200px;
   object-fit: cover;
+  object-position: top;
   transition: transform 0.5s ease;
 }
 
@@ -816,6 +818,7 @@
   width: 100%;
   height: 220px;
   object-fit: cover;
+  object-position: top;
   transition: transform 0.5s ease;
 }
 
@@ -889,6 +892,7 @@
   width: 100%;
   height: 200px;
   object-fit: cover;
+  object-position: top;
   transition: transform 0.5s ease;
 }
 
@@ -1564,6 +1568,41 @@
   .notice-card {
     flex-direction: column;
   }
+}
+
+/* ===== IMAGE PREVIEW HINT ===== */
+.image-preview-hint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.6));
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.staff-image-wrap:hover .image-preview-hint,
+.council-image-wrap:hover .image-preview-hint,
+.event-image-wrap:hover .image-preview-hint {
+  opacity: 1;
+}
+
+.image-preview-hint span {
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+}
+
+.staff-image-wrap,
+.council-image-wrap {
+  position: relative;
 }
 
 @media (max-width: 480px) {

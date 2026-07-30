@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { FiShield, FiWifi, FiHome, FiBookOpen, FiArrowRight, FiCheckCircle, FiLock } from 'react-icons/fi';
 import useInView from '../../hooks/useInView';
+import homeImage from '../../../assets/home.png';
 
 export default function HeroSection() {
   const [ref, visible] = useInView();
@@ -30,7 +31,7 @@ export default function HeroSection() {
         </p>
         <div className="hero-actions">
           <Link to="/login" className="button primary">
-            <span>Apply for Hostel</span>
+            <span>Complete Profile</span>
             <FiArrowRight />
           </Link>
           <Link to="/login" className="button secondary">
@@ -50,7 +51,7 @@ export default function HeroSection() {
         <div className="hero-illustration">
           <img
             className="hero-main-image"
-            src="https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1200&q=80"
+            src={homeImage}
             alt="Government Hostel Building"
             loading="eager"
           />

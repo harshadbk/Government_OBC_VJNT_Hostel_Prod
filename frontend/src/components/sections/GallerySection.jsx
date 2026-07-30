@@ -2,25 +2,32 @@ import { useState } from 'react';
 import { FiCamera, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import useInView from '../../hooks/useInView';
 
-const categories = ['All', 'Hostel Building', 'Rooms', 'Study Hall', 'Library', 'Common Area', 'Garden', 'Students', 'Events', 'Sports', 'Celebrations'];
+import festival from '../../../assets/festival.jfif';
+import festival02 from '../../../assets/festival_02.jfif';
+import festival03 from '../../../assets/festival_03.jfif';
+import meeting01 from '../../../assets/meeting_01.jfif';
+import meeting02 from '../../../assets/meeting_02.jfif';
+import meeting04 from '../../../assets/meeting_04.jfif';
+import staffImg from '../../../assets/staff.jfif';
+import staff2 from '../../../assets/staff_2.jfif';
+import studentsCorp from '../../../assets/students_corp.jfif';
+import studentCorp2 from '../../../assets/studnet_corp_2.jfif';
+import homeImage from '../../../assets/home.png';
+
+const categories = ['All', 'Hostel', 'Festival', 'Meeting', 'Staff', 'Students'];
 
 const galleryItems = [
-  { title: 'Hostel Building Front View', category: 'Hostel Building', image: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Hostel Entrance Gate', category: 'Hostel Building', image: 'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Student Dormitory Room', category: 'Rooms', image: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Study Hall', category: 'Study Hall', image: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Students Studying Together', category: 'Students', image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Library Reading Room', category: 'Library', image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Computer Lab', category: 'Study Hall', image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Common Recreation Area', category: 'Common Area', image: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Hostel Garden', category: 'Garden', image: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Cricket Match', category: 'Sports', image: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Cultural Program', category: 'Events', image: 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Independence Day Celebration', category: 'Celebrations', image: 'https://images.unsplash.com/photo-1532375810709-75b1da00537c?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Tree Plantation Activity', category: 'Events', image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Group Study Session', category: 'Students', image: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Sports Day Event', category: 'Sports', image: 'https://images.unsplash.com/photo-1461896836934-bd45ba688509?auto=format&fit=crop&w=800&q=80' },
-  { title: 'Campus Walkway', category: 'Garden', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?auto=format&fit=crop&w=800&q=80' },
+  { title: 'Hostel Building', category: 'Hostel', image: homeImage },
+  { title: 'Festival Celebration', category: 'Festival', image: festival },
+  { title: 'Festival Event', category: 'Festival', image: festival02 },
+  { title: 'Festival Program', category: 'Festival', image: festival03 },
+  { title: 'Official Meeting', category: 'Meeting', image: meeting01 },
+  { title: 'Staff Meeting', category: 'Meeting', image: meeting02 },
+  { title: 'Meeting Session', category: 'Meeting', image: meeting04 },
+  { title: 'Hostel Staff', category: 'Staff', image: staffImg },
+  { title: 'Staff Team', category: 'Staff', image: staff2 },
+  { title: 'Student Corps', category: 'Students', image: studentsCorp },
+  { title: 'Student Corps Team', category: 'Students', image: studentCorp2 },
 ];
 
 export default function GallerySection() {
