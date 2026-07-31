@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FiGrid, FiUsers, FiUserPlus, FiSettings, FiLogOut, FiSun, FiMoon, FiBell, FiUpload } from 'react-icons/fi';
+import { FiGrid, FiUsers, FiUserPlus, FiSettings, FiLogOut, FiSun, FiMoon, FiBell, FiUpload, FiCheckSquare } from 'react-icons/fi';
 import { useEffect, useState, useRef } from 'react';
 
 function Sidebar({ onLogout }) {
@@ -51,6 +51,7 @@ function Sidebar({ onLogout }) {
       <nav className="sidebar-nav">
         <NavLink to="/dashboard"><FiGrid /> Dashboard</NavLink>
         <NavLink to="/users"><FiUsers /> Users</NavLink>
+        <NavLink to="/attendance"><FiCheckSquare /> Attendance</NavLink>
         <NavLink to="/add-user"><FiUserPlus /> Add User</NavLink>
         <NavLink to="/notices"><FiBell /> Notice Board</NavLink>
         <NavLink to="/staff"><FiUsers /> Staff</NavLink>

@@ -13,9 +13,9 @@ import studentCorp2 from '../../../assets/studnet_corp_2.jfif';
 
 const events = [
   {
-    title: 'Independence Day Celebration',
-    date: '15 August 2025',
-    description: 'Flag hoisting ceremony and patriotic program organized with students and staff.',
+    title: 'Subhash Chandra Bose Jayanti',
+    date: '23 January 2026',
+    description: 'Officially celebrated as Parakram Diwas',
     image: festival
   },
   {

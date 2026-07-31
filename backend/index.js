@@ -9,6 +9,7 @@ import userRoutes from './routes/userRoutes.js';
 import noticeRoutes from './routes/noticeRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import staffRoutes from './routes/staffRoutes.js';
+import attendanceRoutes from './routes/attendanceRoutes.js';
 import User from './models/User.js';
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/admin', userRoutes);
 app.use('/api/notices', noticeRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'HMS backend is running.' });

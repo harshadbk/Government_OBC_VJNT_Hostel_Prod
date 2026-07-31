@@ -12,8 +12,17 @@ import './css/Global.css';
 import UploadDetails from './pages/UploadDetails';
 import StaffManagement from './pages/StaffManagement';
 
+const getValidToken = () => {
+  const token = localStorage.getItem('adminToken');
+  if (!token || token === 'null' || token === 'undefined') {
+    localStorage.removeItem('adminToken');
+    return null;
+  }
+  return token;
+};
+
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localStorage.getItem('adminToken')));
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getValidToken()));
   const location = useLocation();
 
   const handleLogin = () => setIsLoggedIn(true);
@@ -29,14 +38,14 @@ function App() {
         <Route path="/" element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />} />
         <Route path="/login" element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />} />
         <Route path="/dashboard" element={isLoggedIn ? <Dashboard onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
-        <Route path="/users" element={isLoggedIn ? <Users /> : <Navigate to="/login" replace />} />
+        <Route path="/users" element={isLoggedIn ? <Users onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
         <Route path="/users/:id" element={isLoggedIn ? <UserProfile onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
-        <Route path="/add-user" element={isLoggedIn ? <AddUser /> : <Navigate to="/login" replace />} />
+        <Route path="/add-user" element={isLoggedIn ? <AddUser onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
         <Route path="/profile" element={isLoggedIn ? <Profile onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
         <Route path="/notices" element={isLoggedIn ? <NoticeBoard onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
-        <Route path="/uploads" element={isLoggedIn ? <Uploads /> : <Navigate to="/login" replace />} />
-        <Route path="/uploads/:id" element={isLoggedIn ? <UploadDetails /> : <Navigate to="/login" replace />} />
-        <Route path="/staff" element={isLoggedIn ? <StaffManagement /> : <Navigate to="/login" replace />} />
+        <Route path="/uploads" element={isLoggedIn ? <Uploads onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+        <Route path="/uploads/:id" element={isLoggedIn ? <UploadDetails onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+        <Route path="/staff" element={isLoggedIn ? <StaffManagement onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       </Routes>
     </div>
   );

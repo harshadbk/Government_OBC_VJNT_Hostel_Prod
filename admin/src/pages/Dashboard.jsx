@@ -12,15 +12,35 @@ function Dashboard({ onLogout }) {
   const [roomsLoading, setRoomsLoading] = useState(true);
   const navigate = useNavigate();
 
+  const getAdminToken = () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token || token === 'null' || token === 'undefined') {
+      localStorage.removeItem('adminToken');
+      return null;
+    }
+    return token;
+  };
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const token = localStorage.getItem('adminToken');
+        const token = getAdminToken();
+        if (!token) {
+          if (typeof onLogout === 'function') onLogout();
+          navigate('/login');
+          return;
+        }
         const response = await fetch(`${apiBaseUrl}/api/admin/users`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
+        if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem('adminToken');
+          if (typeof onLogout === 'function') onLogout();
+          navigate('/login');
+          return;
+        }
         if (response.ok) {
           const data = await response.json();
           setUsers(data.users || []);
@@ -34,12 +54,19 @@ function Dashboard({ onLogout }) {
 
     const fetchRooms = async () => {
       try {
-        const token = localStorage.getItem('adminToken');
+        const token = getAdminToken();
+        if (!token) return;
         const response = await fetch(`${apiBaseUrl}/api/admin/rooms-overview`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
+        if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem('adminToken');
+          if (typeof onLogout === 'function') onLogout();
+          navigate('/login');
+          return;
+        }
         if (response.ok) {
           const data = await response.json();
           setRooms(data.overview || []);
@@ -53,7 +80,7 @@ function Dashboard({ onLogout }) {
 
     fetchUsers();
     fetchRooms();
-  }, []);
+  }, [navigate, onLogout]);
 
   // Get recently added 4 users
   const recentUsers = users.slice(0, 4);

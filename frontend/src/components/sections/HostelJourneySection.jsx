@@ -10,21 +10,21 @@ const milestones = [
     status: 'completed'
   },
   {
-    year: '2024',
+    year: '2025',
     title: 'First Batch Admission',
     description: 'The first batch of OBC students was admitted to the hostel, marking the beginning of a new chapter in student welfare.',
     icon: <FiUsers />,
     status: 'completed'
   },
   {
-    year: '2025',
+    year: '2026',
     title: 'Digital Hostel Management System',
     description: 'Launch of the comprehensive digital hostel management portal for online admissions, records, and communications.',
     icon: <FiMonitor />,
     status: 'current'
   },
   {
-    year: '2025-26',
+    year: '2026-27',
     title: 'Infrastructure Expansion',
     description: 'Planned expansion of hostel facilities including additional rooms, improved study areas, and sports infrastructure.',
     icon: <FiTrendingUp />,

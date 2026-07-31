@@ -28,7 +28,6 @@ const configureCloudinary = () => {
     );
   }
 
-  // Configure cloudinary here (at request time, after dotenv is loaded)
   cloudinary.config({ cloud_name, api_key, api_secret });
 };
 
@@ -165,7 +164,7 @@ const findAuthenticatedUser = async (tokenUser) => {
 
 const adminAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
+  if (!authHeader?.startsWith('Bearer')) {
     return res.status(401).json({ message: 'Missing authorization header.' });
   }
 
@@ -323,18 +322,19 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       'rollNumber',
       'email',
       'phone',
+      'college_name',
+      'stream',
       'department',
       'year',
       'address',
       'village',
       'taluka',
       'district',
-      'course',
-      'classYear',
-      'commonEntranceExam',
       'mobileNumber',
       'fathersMobileNumber',
       'aadhaarNumber',
+      'BankName',
+      'bankBranch',
       'admissionDate',
       'accountNumber',
       'ifscCode',
@@ -365,7 +365,6 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       }
       const hashedNewPassword = await bcrypt.hash(req.body.newPassword, 10);
       profileData.password = hashedNewPassword;
-      profileData.tempPassword = '';
     }
 
     const currentUser = await findAuthenticatedUser(req.user);
@@ -374,7 +373,6 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
     }
 
     if (req.file) {
-      // Delete the old Cloudinary image (if any) before uploading the new one
       if (currentUser.photoUrl) {
         await deleteCloudinaryImage(currentUser.photoUrl);
       }

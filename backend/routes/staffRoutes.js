@@ -134,7 +134,7 @@ router.delete('/:id', adminAuth, async (req, res) => {
     const staff = await Staff.findById(req.params.id);
     if (!staff) return res.status(404).json({ message: 'Staff member not found.' });
     if (staff.publicId) await deleteCloudinaryAsset(staff.imageUrl);
-    await staff.remove();
+    await staff.deleteOne();
     res.json({ message: 'Staff member deleted' });
   } catch (err) {
     console.error(err);

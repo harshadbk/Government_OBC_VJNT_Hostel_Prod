@@ -14,16 +14,39 @@ function UserProfile({ onLogout }) {
   const [error, setError] = useState(null);
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
 
+  const getAdminToken = () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token || token === 'null' || token === 'undefined') {
+      localStorage.removeItem('adminToken');
+      return null;
+    }
+    return token;
+  };
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('adminToken');
+        const token = getAdminToken();
+        if (!token) {
+          if (typeof onLogout === 'function') onLogout();
+          navigate('/login');
+          return;
+        }
+
         const response = await fetch(`${apiBaseUrl}/api/admin/users/${id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
+
+        if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem('adminToken');
+          if (typeof onLogout === 'function') onLogout();
+          navigate('/login');
+          return;
+        }
+
         if (!response.ok) {
           throw new Error('Failed to fetch user profile');
         }
@@ -46,7 +69,7 @@ function UserProfile({ onLogout }) {
     };
 
     fetchUser();
-  }, [id]);
+  }, [id, navigate, onLogout]);
 
   if (loading) {
     return (
@@ -113,11 +136,11 @@ function UserProfile({ onLogout }) {
             <div>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--text)' }}><FiBook /> Academic Details</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Course:</span> <strong>{user.course || '-'}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>College:</span> <strong>{user.college_name || '-'}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Stream:</span> <strong>{user.stream || '-'}</strong></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Department:</span> <strong>{user.department || '-'}</strong></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Year:</span> <strong>{user.year || user.classYear || '-'}</strong></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Entrance Exam:</span> <strong>{user.commonEntranceExam || '-'}</strong></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Admission Date:</span> <strong>{user.admissionDate || '-'}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Year:</span> <strong>{user.year || '-'}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Admission Date:</span> <strong>{user.admissionDate ? new Date(user.admissionDate).toLocaleDateString() : '-'}</strong></div>
               </div>
             </div>
 
@@ -125,8 +148,7 @@ function UserProfile({ onLogout }) {
             <div>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--text)' }}><FiHome /> Hostel Allocation</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Block:</span> <strong>{user.hostelBlock || '-'}</strong></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Room Number:</span> <strong>{user.roomNumber || '-'}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Room Number:</span> <strong>{user.roomNumber ? `Room ${user.roomNumber}` : 'Unassigned'}</strong></div>
               </div>
             </div>
 
@@ -137,6 +159,18 @@ function UserProfile({ onLogout }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Email:</span> <strong>{user.email || '-'}</strong></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Mobile No:</span> <strong>{user.mobileNumber || user.phone || '-'}</strong></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Father's Mobile No:</span> <strong>{user.fathersMobileNumber || '-'}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Aadhaar No:</span> <strong>{user.aadhaarNumber || '-'}</strong></div>
+              </div>
+            </div>
+
+            {/* Banking Info */}
+            <div>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--text)' }}><FiInfo /> Bank Details</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Bank Name:</span> <strong>{user.BankName || '-'}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Branch:</span> <strong>{user.bankBranch || '-'}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Account No:</span> <strong>{user.accountNumber || '-'}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>IFSC Code:</span> <strong>{user.ifscCode || '-'}</strong></div>
               </div>
             </div>
 
@@ -144,10 +178,10 @@ function UserProfile({ onLogout }) {
             <div>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--text)' }}><FiInfo /> Address Details</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Address:</span> <strong>{user.address || '-'}</strong></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Village:</span> <strong>{user.village || '-'}</strong></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Taluka:</span> <strong>{user.taluka || '-'}</strong></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>District:</span> <strong>{user.district || '-'}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--muted)' }}>Full Address:</span> <strong>{user.address || '-'}</strong></div>
               </div>
             </div>
 
