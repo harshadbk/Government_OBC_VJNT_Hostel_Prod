@@ -111,7 +111,7 @@ export default function Uploads() {
 
   return (
     <div className="dashboard-shell admin-dashboard-shell">
-      <Sidebar onLogout={() => { localStorage.removeItem('adminToken'); window.location.href = '/admin/login'; }} />
+      <Sidebar onLogout={() => { localStorage.removeItem('adminToken'); window.location.href = '#/login'; }} />
       <main className="dashboard-main admin-main">
         <header className="dashboard-topbar">
           <div>

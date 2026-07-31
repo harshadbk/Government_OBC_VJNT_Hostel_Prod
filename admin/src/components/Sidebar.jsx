@@ -66,7 +66,7 @@ function Sidebar({ onLogout }) {
           if (typeof onLogout === 'function') return onLogout();
           localStorage.removeItem('adminToken');
           localStorage.removeItem('adminUsername');
-          window.location.href = '/login';
+          window.location.href = '#/login';
         }}><FiLogOut /> Logout</button>
       </nav>
       <div style={{ marginTop: '1rem' }}>
