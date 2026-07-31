@@ -105,26 +105,23 @@ router.get('/summary', adminAuth, async (req, res) => {
       return res.status(400).json({ message: 'Date must be in YYYY-MM-DD format.' });
     }
 
-    const [allUsers, dateAttendance] = await Promise.all([
+    const [allUsers, dailyDoc] = await Promise.all([
       User.find().select('_id username fullName roomNumber').lean(),
-      Attendance.find({ date: targetDate }).lean()
+      Attendance.findOne({ date: targetDate }).lean()
     ]);
 
     const totalStudents = allUsers.length;
-    const attendanceMap = new Map();
-    dateAttendance.forEach(a => attendanceMap.set(a.userId.toString(), a));
+    const studentEntries = Array.isArray(dailyDoc?.students) ? dailyDoc.students : [];
+    const entriesByRoom = new Map();
+
+    studentEntries.forEach((entry) => {
+      const roomNumStr = String(entry.roomNumber || '').trim();
+      if (!entriesByRoom.has(roomNumStr)) entriesByRoom.set(roomNumStr, []);
+      entriesByRoom.get(roomNumStr).push(entry);
+    });
 
     let totalPresent = 0;
     let totalAbsent = 0;
-
-    dateAttendance.forEach(a => {
-      if (a.status === 'Present') totalPresent++;
-      if (a.status === 'Absent') totalAbsent++;
-    });
-
-    const overallPercentage = totalStudents > 0
-      ? Number(((totalPresent / totalStudents) * 100).toFixed(1))
-      : 0;
 
     const roomOverview = [];
     let completedRooms = 0;
@@ -133,19 +130,21 @@ router.get('/summary', adminAuth, async (req, res) => {
     for (let r = 1; r <= 20; r++) {
       const roomNumStr = String(r);
       const roomUsers = allUsers.filter(u => String(u.roomNumber || '').trim() === roomNumStr);
-      const roomAttendance = dateAttendance.filter(a => String(a.roomNumber || '').trim() === roomNumStr);
+      const roomEntries = entriesByRoom.get(roomNumStr) || [];
 
       const capacity = roomUsers.length;
-      const presentCount = roomAttendance.filter(a => a.status === 'Present').length;
-      const absentCount = roomAttendance.filter(a => a.status === 'Absent').length;
-      const markedCount = roomAttendance.length;
+      const presentCount = roomEntries.filter(item => item.status === 'Present').length;
+      const absentCount = roomEntries.filter(item => item.status === 'Absent').length;
+      const markedCount = roomEntries.length;
+
+      totalPresent += presentCount;
+      totalAbsent += absentCount;
 
       const isCompleted = capacity > 0 ? markedCount >= capacity : markedCount > 0;
       if (isCompleted) completedRooms++;
       else pendingRooms++;
 
-      const firstRecord = roomAttendance[0];
-      const firstSavedAt = firstRecord ? firstRecord.firstSavedAt : null;
+      const firstSavedAt = dailyDoc ? dailyDoc.firstSavedAt : null;
       const locked = isRecordLocked(firstSavedAt);
 
       roomOverview.push({
@@ -160,6 +159,9 @@ router.get('/summary', adminAuth, async (req, res) => {
       });
     }
 
+    const overallPercentage = totalStudents > 0
+      ? Number(((totalPresent / totalStudents) * 100).toFixed(1))
+      : 0;
     res.json({
       summary: {
         date: targetDate,
@@ -196,18 +198,21 @@ router.get('/visuals', adminAuth, async (req, res) => {
       `${selectedYear}-${monthStr}-${String(index + 1).padStart(2, '0')}`
     ));
 
-    const presentByDate = await Attendance.aggregate([
-      {
-        $match: {
-          date: { $gte: monthDates[0], $lte: monthDates[monthDates.length - 1] },
-          status: 'Present'
-        }
-      },
-      { $group: { _id: '$date', presentCount: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
-    ]);
+    const attendanceDocs = await Attendance.find({
+      date: { $gte: monthDates[0], $lte: monthDates[monthDates.length - 1] }
+    }).lean();
 
-    const presentMap = new Map(presentByDate.map(item => [item._id, item.presentCount]));
+    const presentMap = new Map();
+    attendanceDocs.forEach((doc) => {
+      const presentCount = Array.isArray(doc.students)
+        ? doc.students.filter(item => item.status === 'Present').length
+        : 0;
+
+      if (presentCount > 0 || doc.date) {
+        presentMap.set(doc.date, (presentMap.get(doc.date) || 0) + presentCount);
+      }
+    });
+
     const dailyPresent = monthDates.map(date => ({
       date,
       day: Number(date.slice(8, 10)),
@@ -248,20 +253,31 @@ router.post('/range-report', adminAuth, async (req, res) => {
         .sort({ roomNumber: 1, fullName: 1, username: 1 })
         .lean(),
       Attendance.find({ date: { $gte: startDate, $lte: endDate } })
-        .select('userId date status roomNumber')
+        .select('date students')
         .lean()
     ]);
 
+    const studentsByUsername = new Map(
+      students.map(student => [String(student.username || '').trim().toLowerCase(), student])
+    );
+
     const attendanceByStudent = new Map();
     records.forEach((record) => {
-      const studentId = record.userId.toString();
-      if (!attendanceByStudent.has(studentId)) {
-        attendanceByStudent.set(studentId, { presentDays: 0, absentDays: 0, markedDays: 0 });
-      }
-      const stats = attendanceByStudent.get(studentId);
-      stats.markedDays += 1;
-      if (record.status === 'Present') stats.presentDays += 1;
-      if (record.status === 'Absent') stats.absentDays += 1;
+      const studentStatuses = Array.isArray(record.students) ? record.students : [];
+      studentStatuses.forEach((entry) => {
+        const username = String(entry.username || '').trim().toLowerCase();
+        const student = studentsByUsername.get(username);
+        if (!student) return;
+
+        const studentId = student._id.toString();
+        if (!attendanceByStudent.has(studentId)) {
+          attendanceByStudent.set(studentId, { presentDays: 0, absentDays: 0, markedDays: 0 });
+        }
+        const stats = attendanceByStudent.get(studentId);
+        stats.markedDays += 1;
+        if (entry.status === 'Present') stats.presentDays += 1;
+        if (entry.status === 'Absent') stats.absentDays += 1;
+      });
     });
 
     const rooms = Array.from({ length: ROOM_COUNT }, (_, index) => {
@@ -326,25 +342,27 @@ router.get('/room/:roomNumber', adminAuth, async (req, res) => {
       .select('_id username fullName email college_name mobileNumber phone fathersMobileNumber photoUrl')
       .lean();
 
-    const attendanceRecords = await Attendance.find({
-      roomNumber: cleanRoomNum,
+    const attendanceDoc = await Attendance.findOne({
       date: targetDate
     }).lean();
 
-    const attendanceMap = new Map();
-    attendanceRecords.forEach(a => attendanceMap.set(a.userId.toString(), a));
+    const studentStatuses = Array.isArray(attendanceDoc?.students) ? attendanceDoc.students : [];
+    const roomEntries = studentStatuses.filter((entry) => String(entry.roomNumber || '').trim() === cleanRoomNum);
+    const statusByUsername = new Map(
+      roomEntries.map(entry => [String(entry.username || '').trim().toLowerCase(), entry.status])
+    );
 
-    const firstRecord = attendanceRecords[0];
-    const firstSavedAt = firstRecord ? firstRecord.firstSavedAt : null;
+    const firstSavedAt = attendanceDoc ? attendanceDoc.firstSavedAt : null;
     const locked = isRecordLocked(firstSavedAt);
 
     const students = roomUsers.map(user => {
-      const record = attendanceMap.get(user._id.toString());
+      const username = String(user.username || '').trim().toLowerCase();
+      const status = statusByUsername.get(username) || 'Absent';
       return {
         ...user,
-        status: record ? record.status : 'Absent',
-        isMarked: Boolean(record),
-        attendanceId: record ? record._id : null
+        status,
+        isMarked: statusByUsername.has(username),
+        attendanceId: attendanceDoc ? attendanceDoc._id : null
       };
     });
 
@@ -383,13 +401,12 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
     }
 
     // Check existing attendance for lock state
-    const existingRecords = await Attendance.find({
-      roomNumber: cleanRoomNum,
+    const existingDoc = await Attendance.findOne({
       date: targetDate
     }).lean();
 
-    if (existingRecords.length > 0) {
-      const firstSavedAt = existingRecords[0].firstSavedAt;
+    if (existingDoc) {
+      const firstSavedAt = existingDoc.firstSavedAt;
       const locked = isRecordLocked(firstSavedAt);
 
       if (locked) {
@@ -406,8 +423,8 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
       return res.status(404).json({ message: `No students assigned to Room ${cleanRoomNum}.` });
     }
 
-    const firstSavedAtTime = existingRecords.length > 0 && existingRecords[0].firstSavedAt
-      ? existingRecords[0].firstSavedAt
+    const firstSavedAtTime = existingDoc && existingDoc.firstSavedAt
+      ? existingDoc.firstSavedAt
       : new Date();
 
     const presentSet = new Set((presentUserIds || []).map(id => id.toString()));
@@ -417,29 +434,30 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
       return res.status(400).json({ message: 'Present student list contains students outside this room.' });
     }
 
-    const bulkOps = roomUsers.map(user => {
-      const isPresent = presentSet.has(user._id.toString());
-      const status = isPresent ? 'Present' : 'Absent';
+    const newRoomEntries = roomUsers.map(user => ({
+      username: user.username,
+      roomNumber: cleanRoomNum,
+      status: presentSet.has(user._id.toString()) ? 'Present' : 'Absent'
+    }));
 
-      return {
-        updateOne: {
-          filter: { userId: user._id, date: targetDate },
-          update: {
-            $set: {
-              roomNumber: cleanRoomNum,
-              status,
-              markedBy: req.user.username || 'admin'
-            },
-            $setOnInsert: {
-              firstSavedAt: firstSavedAtTime
-            }
-          },
-          upsert: true
+    const existingStudents = Array.isArray(existingDoc?.students) ? existingDoc.students : [];
+    const filteredStudents = existingStudents.filter((entry) => String(entry.roomNumber || '').trim() !== cleanRoomNum);
+    const mergedStudents = [...filteredStudents, ...newRoomEntries];
+
+    await Attendance.findOneAndUpdate(
+      { date: targetDate },
+      {
+        $set: {
+          date: targetDate,
+          students: mergedStudents,
+          markedBy: req.user.username || 'admin'
+        },
+        $setOnInsert: {
+          firstSavedAt: firstSavedAtTime
         }
-      };
-    });
-
-    await Attendance.bulkWrite(bulkOps);
+      },
+      { upsert: true, new: true }
+    );
 
     res.json({
       message: `Attendance saved successfully for Room ${cleanRoomNum}.`,
@@ -468,11 +486,33 @@ router.get('/student/my-attendance', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    // Fetch all attendance records for this student
-    const allRecords = await Attendance.find({ userId: user._id }).sort({ date: -1 }).lean();
+    const allAttendanceDocs = await Attendance.find({})
+      .select('date roomNumber students markedBy firstSavedAt')
+      .sort({ date: -1 })
+      .lean();
+
+    const matchingRecords = allAttendanceDocs
+      .map((doc) => {
+        const studentEntry = (doc.students || []).find((entry) => {
+          return String(entry.username || '').trim().toLowerCase() === String(user.username).trim().toLowerCase();
+        });
+
+        if (!studentEntry) return null;
+
+        return {
+          date: doc.date,
+          roomNumber: doc.roomNumber,
+          status: studentEntry.status,
+          markedBy: doc.markedBy,
+          firstSavedAt: doc.firstSavedAt
+        };
+      })
+      .filter(Boolean);
+
+    matchingRecords.sort((a, b) => b.date.localeCompare(a.date));
 
     const attendanceMap = new Map();
-    allRecords.forEach(r => attendanceMap.set(r.date, r));
+    matchingRecords.forEach((record) => attendanceMap.set(record.date, record));
 
     // Today's Status
     const todayRecord = attendanceMap.get(todayStr);
@@ -484,16 +524,16 @@ router.get('/student/my-attendance', authMiddleware, async (req, res) => {
     const currentMonthStr = String(now.getMonth() + 1).padStart(2, '0');
     const monthPrefix = `${currentYear}-${currentMonthStr}`;
 
-    const monthRecords = allRecords.filter(r => r.date.startsWith(monthPrefix));
-    const monthPresentCount = monthRecords.filter(r => r.status === 'Present').length;
+    const monthRecords = matchingRecords.filter((record) => record.date.startsWith(monthPrefix));
+    const monthPresentCount = monthRecords.filter((record) => record.status === 'Present').length;
     const monthlyPercentage = monthRecords.length > 0
       ? Number(((monthPresentCount / monthRecords.length) * 100).toFixed(1))
       : 0;
 
     // Yearly Percentage (Selected Year)
     const yearPrefix = `${selectedYear}-`;
-    const yearRecords = allRecords.filter(r => r.date.startsWith(yearPrefix));
-    const yearPresentCount = yearRecords.filter(r => r.status === 'Present').length;
+    const yearRecords = matchingRecords.filter((record) => record.date.startsWith(yearPrefix));
+    const yearPresentCount = yearRecords.filter((record) => record.status === 'Present').length;
     const yearlyPercentage = yearRecords.length > 0
       ? Number(((yearPresentCount / yearRecords.length) * 100).toFixed(1))
       : 0;
@@ -528,7 +568,7 @@ router.get('/student/my-attendance', authMiddleware, async (req, res) => {
         selectedYear
       },
       heatmapData,
-      history: allRecords.slice(0, 30) // Recent 30 records
+      history: matchingRecords.slice(0, 30) // Recent 30 records
     });
   } catch (error) {
     console.error('Error fetching student attendance:', error);
@@ -559,10 +599,43 @@ router.get('/export', adminAuth, async (req, res) => {
       reportTitle = `Yearly Attendance Report - ${selectedYear}`;
     }
 
-    const records = await Attendance.find(query)
-      .populate('userId', 'username fullName email college_name mobileNumber phone fathersMobileNumber')
+    const attendanceDocs = await Attendance.find(query)
       .sort({ date: 1, roomNumber: 1 })
       .lean();
+
+    const userProfiles = await User.find({})
+      .select('username fullName email college_name mobileNumber phone fathersMobileNumber roomNumber')
+      .lean();
+
+    const userProfilesByUsername = new Map(
+      userProfiles.map((user) => [String(user.username || '').trim().toLowerCase(), user])
+    );
+
+    const records = attendanceDocs.flatMap((doc) => {
+      const studentEntries = Array.isArray(doc.students) ? doc.students : [];
+      return studentEntries.map((entry) => {
+        const username = String(entry.username || '').trim().toLowerCase();
+        const student = userProfilesByUsername.get(username) || {
+          username: entry.username || '-',
+          fullName: '-',
+          email: '-',
+          college_name: '-',
+          mobileNumber: '-',
+          phone: '-',
+          fathersMobileNumber: '-'
+        };
+
+        const resolvedRoomNumber = String(entry.roomNumber || student.roomNumber || doc.roomNumber || '').trim();
+
+        return {
+          date: doc.date,
+          roomNumber: resolvedRoomNumber,
+          status: entry.status,
+          markedBy: doc.markedBy || 'admin',
+          userId: student
+        };
+      });
+    });
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Government OBC Boys Hostel Admin';

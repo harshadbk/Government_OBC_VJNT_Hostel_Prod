@@ -459,6 +459,192 @@
   object-fit: contain;
 }
 
+/* ===== Leave Section ===== */
+
+.leave-section {
+  margin-top: 2rem;
+  padding: 2rem;
+  border-radius: 32px;
+}
+
+.leave-open-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.8rem 1.1rem;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  color: white;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(74, 144, 217, 0.23);
+}
+
+.leave-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 18, 35, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.25rem;
+}
+
+.leave-modal-card {
+  width: min(760px, 100%);
+  max-height: min(90vh, 860px);
+  overflow: auto;
+  background: var(--bg-alt);
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+  padding: 1.25rem;
+}
+
+.leave-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.leave-modal-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
+}
+
+.leave-modal-header p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.leave-modal-close {
+  border: none;
+  background: transparent;
+  font-size: 1.25rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.leave-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.leave-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.leave-field span {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.leave-field input,
+.leave-field textarea {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.8rem 0.95rem;
+  background: var(--card-bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.leave-field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.leave-field-full {
+  grid-column: 1 / -1;
+}
+
+.leave-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.leave-helper-text {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.leave-submit-btn {
+  position: relative;
+  overflow: hidden;
+  min-width: 220px;
+  padding: 0.9rem 1.2rem;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  color: white;
+  box-shadow: 0 10px 28px rgba(74, 144, 217, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  animation: leaveButtonFloat 1.8s ease-in-out infinite;
+}
+
+.leave-submit-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.32) 50%, transparent 100%);
+  transform: translateX(-140%);
+  transition: transform 0.7s ease;
+}
+
+.leave-submit-btn:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 14px 32px rgba(74, 144, 217, 0.32);
+  filter: brightness(1.04);
+}
+
+.leave-submit-btn:hover::before {
+  transform: translateX(140%);
+}
+
+.leave-submit-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.leave-submit-btn:disabled {
+  animation: none;
+  opacity: 0.8;
+  cursor: wait;
+}
+
+.leave-submit-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes leaveButtonFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
 /* ===== Attendance Section ===== */
 
 .attendance-section {
@@ -703,6 +889,10 @@
 }
 
 @media (max-width: 700px) {
+  .leave-form-grid {
+    grid-template-columns: 1fr;
+  }
+
   .doc-card {
     flex-direction: column;
     align-items: flex-start;
@@ -722,6 +912,17 @@
   }
 
   .doc-preview-modal {
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .leave-modal-overlay {
+    padding: 0;
+  }
+
+  .leave-modal-card {
+    width: 100%;
     max-width: 100vw;
     max-height: 100vh;
     border-radius: 0;

@@ -225,7 +225,7 @@ function Attendance({ onLogout }) {
         </header>
 
         {/* Dashboard Summary Statistics */}
-        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
           <div className="stat-card" style={{ borderLeft: '4px solid #34d399' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
@@ -295,8 +295,8 @@ function Attendance({ onLogout }) {
               Select a report date here only for download. Past dates cannot be edited from attendance marking.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.06)', padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-end' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.06)', padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', minWidth: '0', flex: '1 1 180px' }}>
               <FiCalendar style={{ color: '#72e3ff' }} />
               <input
                 type="date"
@@ -305,13 +305,13 @@ function Attendance({ onLogout }) {
                 style={{ background: 'none', border: 'none', color: '#fff', fontWeight: '600', cursor: 'pointer', outline: 'none' }}
               />
             </label>
-            <button className="secondary-btn" onClick={() => handleExport('daily')}>
+            <button className="secondary-btn" onClick={() => handleExport('daily')} style={{ flex: '1 1 140px' }}>
               <FiDownload /> Daily Excel
             </button>
-            <button className="secondary-btn" onClick={() => handleExport('monthly')}>
+            <button className="secondary-btn" onClick={() => handleExport('monthly')} style={{ flex: '1 1 140px' }}>
               <FiDownload /> Monthly Excel
             </button>
-            <button className="primary-btn" onClick={() => handleExport('yearly')}>
+            <button className="primary-btn" onClick={() => handleExport('yearly')} style={{ flex: '1 1 140px' }}>
               <FiDownload /> Yearly Excel
             </button>
           </div>
@@ -327,7 +327,7 @@ function Attendance({ onLogout }) {
           {loading ? (
             <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted)' }}>Loading rooms...</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '1.2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
               {rooms.map((rm) => (
                 <div 
                   key={rm.roomNumber}
@@ -496,8 +496,7 @@ function Attendance({ onLogout }) {
                   </>
                 )}
               </div>
-
-              {/* Modal Footer Message & Save Button */}
+              
               <div style={{ padding: '1.25rem 1.5rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 {saveMessage ? (
                   <span style={{ fontSize: '0.88rem', fontWeight: '600', color: saveMessageType === 'success' ? '#34d399' : '#f87171' }}>

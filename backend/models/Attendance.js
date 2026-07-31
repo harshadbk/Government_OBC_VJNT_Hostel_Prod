@@ -1,33 +1,40 @@
 import mongoose from 'mongoose';
 
-const attendanceSchema = new mongoose.Schema({
-  userId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
-  },
-  roomNumber: { 
-    type: String, 
+const studentStatusSchema = new mongoose.Schema({
+  username: {
+    type: String,
     required: true,
-    trim: true 
+    trim: true
   },
-  date: { 
-    type: String, 
-    required: true, 
-    trim: true 
+  roomNumber: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  status: {
+    type: String,
+    enum: ['Present', 'Absent'],
+    required: true
+  }
+}, { _id: false });
+
+const attendanceSchema = new mongoose.Schema({
+  date: {
+    type: String,
+    required: true,
+    trim: true
   }, // Format: YYYY-MM-DD
-  status: { 
-    type: String, 
-    enum: ['Present', 'Absent'], 
-    required: true 
+  students: {
+    type: [studentStatusSchema],
+    default: []
   },
-  markedBy: { 
-    type: String, 
-    default: 'admin' 
+  markedBy: {
+    type: String,
+    default: 'admin'
   },
-  firstSavedAt: { 
-    type: Date, 
-    default: Date.now 
+  firstSavedAt: {
+    type: Date,
+    default: Date.now
   }
 }, {
   timestamps: true,
@@ -35,10 +42,9 @@ const attendanceSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Prevent duplicate attendance records for the same student on the same date
-attendanceSchema.index({ userId: 1, date: 1 }, { unique: true });
+// Prevent duplicate attendance records for the same date
+attendanceSchema.index({ date: 1 }, { unique: true });
 // Performance index queries
-attendanceSchema.index({ roomNumber: 1, date: 1 });
 attendanceSchema.index({ date: 1 });
 
 export default mongoose.model('Attendance', attendanceSchema);

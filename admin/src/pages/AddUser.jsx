@@ -206,31 +206,33 @@ function AddUser({ onLogout }) {
           </form>
         </div>
 
-        <div className="panel-card form-card user-list-card">
+        <div className="panel-card form-card user-list-card" style={{ maxHeight: '320px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div className="panel-head">
             <h3>Added Users</h3>
             <span>{users.length} total</span>
           </div>
-          {users.length === 0 ? (
-            <p className="empty-state">No users added yet. Add a user and it will appear below.</p>
-          ) : (
-            <table className="user-table">
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Room</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user, index) => (
-                  <tr key={`${user.username}-${index}`}>
-                    <td>{user.username}</td>
-                    <td>{user.roomNumber || 'N/A'}</td>
+          <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.25rem' }}>
+            {users.length === 0 ? (
+              <p className="empty-state">No users added yet. Add a user and it will appear below.</p>
+            ) : (
+              <table className="user-table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Room</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {users.map((user, index) => (
+                    <tr key={`${user.username}-${index}`}>
+                      <td>{user.username}</td>
+                      <td>{user.roomNumber || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       </main>
     </div>

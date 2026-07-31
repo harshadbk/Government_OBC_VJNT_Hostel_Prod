@@ -56,6 +56,21 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
   const [attendance, setAttendance] = useState(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceError, setAttendanceError] = useState('');
+  const [previewText, setPreviewText] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    reason: '',
+    startDate: '',
+    endDate: '',
+    mobileNumber: user?.mobileNumber || ''
+  });
+  const [leaveSubmitting, setLeaveSubmitting] = useState(false);
+  const [leaveAttachment, setLeaveAttachment] = useState(null);
+  const [leaveMessage, setLeaveMessage] = useState('');
+  const [leaveMessageType, setLeaveMessageType] = useState('');
+  const [leaveHistory, setLeaveHistory] = useState([]);
+  const [leaveHistoryLoading, setLeaveHistoryLoading] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +122,41 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
   useEffect(() => {
     let cancelled = false;
 
+    async function fetchLeaveHistory() {
+      if (!token) return;
+      setLeaveHistoryLoading(true);
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/leaves/my`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.message || 'Unable to load leave history.');
+        }
+        if (!cancelled) {
+          setLeaveHistory(data.leaves || []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLeaveMessage(err.message);
+          setLeaveMessageType('error');
+        }
+      } finally {
+        if (!cancelled) {
+          setLeaveHistoryLoading(false);
+        }
+      }
+    }
+
+    fetchLeaveHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
     async function fetchAttendance() {
       if (!token) return;
       setAttendanceLoading(true);
@@ -139,6 +189,53 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
       cancelled = true;
     };
   }, [token, attendanceYear]);
+
+  const getFileExtension = (url = '') => {
+    if (!url) return '';
+    const cleanUrl = url.split('?')[0];
+    const match = cleanUrl.match(/\.([a-z0-9]+)$/i);
+    return match ? match[1].toLowerCase() : '';
+  };
+
+  const isImageUrl = (url) => /\.(jpe?g|png|gif|jfif|webp|svg)$/i.test(url);
+  const isPdfUrl = (url) => /\.pdf$/i.test(url);
+  const isOfficeDocUrl = (url) => /\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(url);
+  const isTextUrl = (url) => /\.(txt|csv|json|md|log)$/i.test(url);
+
+  const getPreviewType = (url = '') => {
+    if (!url) return 'download';
+    if (isImageUrl(url)) return 'image';
+    if (isPdfUrl(url)) return 'pdf';
+    if (isOfficeDocUrl(url)) return 'office';
+    if (isTextUrl(url)) return 'text';
+    return 'download';
+  };
+
+  const openPreview = async (url) => {
+    if (!url) return;
+    setPreviewDocUrl(url);
+    setPreviewText('');
+    setPreviewLoading(false);
+
+    if (getPreviewType(url) === 'text') {
+      try {
+        setPreviewLoading(true);
+        const response = await fetch(url);
+        const text = await response.text();
+        setPreviewText(text.slice(0, 8000));
+      } catch (err) {
+        setPreviewText('Unable to load text preview for this file.');
+      } finally {
+        setPreviewLoading(false);
+      }
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewDocUrl(null);
+    setPreviewText('');
+    setPreviewLoading(false);
+  };
 
   const yearOptions = Array.from({ length: 5 }, (_, index) => new Date().getFullYear() - index);
   const heatmapWeeks = (() => {
@@ -308,6 +405,69 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
     setEditable((prev) => !prev);
   };
 
+  const handleLeaveChange = (e) => {
+    const { name, value } = e.target;
+    setLeaveForm((prev) => ({ ...prev, [name]: value }));
+    setLeaveMessage('');
+    setLeaveMessageType('');
+  };
+
+  const handleLeaveSubmit = async (e) => {
+    e.preventDefault();
+    if (!token) {
+      setLeaveMessage('Please log in to submit a leave request.');
+      setLeaveMessageType('error');
+      return;
+    }
+
+    if (!leaveForm.reason.trim() || !leaveForm.startDate || !leaveForm.endDate) {
+      setLeaveMessage('Reason, start date, and end date are required.');
+      setLeaveMessageType('error');
+      return;
+    }
+
+    if (!leaveAttachment) {
+      setLeaveMessage('A photo or document upload is required.');
+      setLeaveMessageType('error');
+      return;
+    }
+
+    setLeaveSubmitting(true);
+    setLeaveMessage('');
+    setLeaveMessageType('');
+
+    try {
+      const payload = new FormData();
+      payload.append('reason', leaveForm.reason);
+      payload.append('startDate', leaveForm.startDate);
+      payload.append('endDate', leaveForm.endDate);
+      payload.append('mobileNumber', leaveForm.mobileNumber || '');
+      payload.append('attachment', leaveAttachment);
+
+      const response = await fetch(`${apiBaseUrl}/api/leaves/submit`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: payload
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to submit leave request.');
+      }
+
+      setLeaveForm({ reason: '', startDate: '', endDate: '', mobileNumber: user?.mobileNumber || '' });
+      setLeaveAttachment(null);
+      setLeaveMessage('Leave request submitted successfully.');
+      setLeaveMessageType('success');
+      setShowLeaveModal(false);
+      setLeaveHistory((current) => [data.leaveApplication, ...current]);
+    } catch (err) {
+      setLeaveMessage(err.message || 'Unable to submit leave request.');
+      setLeaveMessageType('error');
+    } finally {
+      setLeaveSubmitting(false);
+    }
+  };
+
   return (
     <div className="profile-page">
       <section className="profile-hero glass-card">
@@ -392,7 +552,7 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
               </div>
               <div className="doc-card-actions">
                 {preview && (
-                  <button onClick={() => setPreviewDocUrl(preview)} className="doc-view-btn">
+                  <button onClick={() => openPreview(preview)} className="doc-view-btn">
                     <FiFileText /> View
                   </button>
                 )}
@@ -462,7 +622,7 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
                   </label>
                   
                   {documents && documents[doc.key] && (
-                    <button onClick={() => setPreviewDocUrl(documents[doc.key])} className="doc-view-btn">
+                    <button onClick={() => openPreview(documents[doc.key])} className="doc-view-btn">
                       <FiFileText /> View
                     </button>
                   )}
@@ -473,6 +633,38 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
 
           {docMessage && (
             <p className={`doc-message ${docUploading ? '' : 'done'}`}>{docMessage}</p>
+          )}
+        </div>
+      </section>
+
+      <section className="leave-section glass-card">
+        <div className="attendance-head">
+          <div>
+            <h2><FiCalendar /> Leave Application</h2>
+            <p>Submit leave requests with a supporting document for the admin review.</p>
+          </div>
+          <button type="button" className="leave-open-btn" onClick={() => setShowLeaveModal(true)}>
+            <FiCalendar /> Apply for Leave
+          </button>
+        </div>
+
+        {leaveMessage ? <p className={`profile-message ${leaveMessageType}`}>{leaveMessage}</p> : null}
+
+        <div className="attendance-history">
+          <h3><FiClock /> Your leave history</h3>
+          {leaveHistoryLoading ? (
+            <p className="attendance-muted">Loading leave history...</p>
+          ) : leaveHistory.length === 0 ? (
+            <p className="attendance-muted">No leave requests yet.</p>
+          ) : (
+            <div className="attendance-history-scroll">
+              {leaveHistory.map((leave) => (
+                <div className="attendance-history-row" key={leave._id}>
+                  <span>{leave.startDate} → {leave.endDate}</span>
+                  <strong className={leave.status === 'Approved' ? 'present-text' : leave.status === 'Rejected' ? 'absent-text' : ''}>{leave.status || 'Pending'}</strong>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </section>
@@ -563,19 +755,89 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
         )}
       </section>
 
+      {showLeaveModal && (
+        <div className="leave-modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowLeaveModal(false)}>
+          <div className="leave-modal-card">
+            <div className="leave-modal-header">
+              <div>
+                <h3><FiCalendar /> Leave Request</h3>
+                <p>Fill in your details and upload proof for admin review.</p>
+              </div>
+              <button type="button" className="leave-modal-close" onClick={() => setShowLeaveModal(false)}>
+                <FiX />
+              </button>
+            </div>
+
+            <form onSubmit={handleLeaveSubmit} className="leave-form-grid">
+              <label className="leave-field">
+                <span>Full name</span>
+                <input value={user?.fullName || ''} readOnly />
+              </label>
+              <label className="leave-field">
+                <span>Mobile number</span>
+                <input name="mobileNumber" value={leaveForm.mobileNumber} onChange={handleLeaveChange} />
+              </label>
+              <label className="leave-field">
+                <span>Start date</span>
+                <input type="date" name="startDate" value={leaveForm.startDate} onChange={handleLeaveChange} required />
+              </label>
+              <label className="leave-field">
+                <span>End date</span>
+                <input type="date" name="endDate" value={leaveForm.endDate} onChange={handleLeaveChange} required />
+              </label>
+              <label className="leave-field leave-field-full">
+                <span>Reason for leave</span>
+                <textarea name="reason" rows="4" value={leaveForm.reason} onChange={handleLeaveChange} required />
+              </label>
+              <label className="leave-field leave-field-full">
+                <span>Upload photo / document</span>
+                <input type="file" accept="image/*,.pdf,.doc,.docx,.txt" onChange={(e) => setLeaveAttachment(e.target.files?.[0] || null)} required />
+              </label>
+              <div className="leave-actions leave-field-full">
+                <button type="submit" className="leave-submit-btn primary-btn" disabled={leaveSubmitting}>
+                  <span className="leave-submit-label">
+                    {leaveSubmitting ? 'Submitting...' : 'Submit Leave Request'}
+                  </span>
+                </button>
+                {leaveAttachment ? <span>{leaveAttachment.name}</span> : <span>No file selected</span>}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* --- Preview Modal --- */}
       {previewDocUrl && (
-        <div className="doc-preview-overlay" onClick={(e) => e.target === e.currentTarget && setPreviewDocUrl(null)}>
+        <div className="doc-preview-overlay" onClick={(e) => e.target === e.currentTarget && closePreview()}>
           <div className="doc-preview-modal">
             <div className="doc-preview-header">
               <h3>Document Preview</h3>
-              <button onClick={() => setPreviewDocUrl(null)} className="doc-preview-close"><FiXCircle /></button>
+              <button onClick={closePreview} className="doc-preview-close"><FiXCircle /></button>
             </div>
             <div className="doc-preview-body">
-              {previewDocUrl.toLowerCase().endsWith('.pdf') ? (
-                <iframe src={previewDocUrl} className="doc-preview-iframe" title="Document Preview" />
-              ) : (
+              {getPreviewType(previewDocUrl) === 'image' ? (
                 <img src={previewDocUrl} alt="Document Preview" className="doc-preview-image" />
+              ) : getPreviewType(previewDocUrl) === 'pdf' ? (
+                <iframe
+                  src={`https://docs.google.com/viewer?embedded=true&url=${encodeURIComponent(previewDocUrl)}`}
+                  className="doc-preview-iframe"
+                  title="Document Preview"
+                />
+              ) : getPreviewType(previewDocUrl) === 'office' ? (
+                <iframe
+                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewDocUrl)}`}
+                  className="doc-preview-iframe"
+                  title="Document Preview"
+                />
+              ) : getPreviewType(previewDocUrl) === 'text' ? (
+                <div className="doc-preview-text">
+                  {previewLoading ? <p>Loading preview…</p> : <pre>{previewText || 'No text content available.'}</pre>}
+                </div>
+              ) : (
+                <div className="doc-preview-text">
+                  <p>This file type cannot be previewed inline.</p>
+                  <a href={previewDocUrl} target="_blank" rel="noreferrer">Open in new tab</a>
+                </div>
               )}
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FiGrid, FiUsers, FiUserPlus, FiSettings, FiLogOut, FiSun, FiMoon, FiBell, FiUpload, FiCheckSquare } from 'react-icons/fi';
+import { FiGrid, FiUsers, FiUserPlus, FiSettings, FiLogOut, FiSun, FiMoon, FiBell, FiUpload, FiCheckSquare, FiClipboard } from 'react-icons/fi';
 import { useEffect, useState, useRef } from 'react';
 
 function Sidebar({ onLogout }) {

@@ -171,7 +171,7 @@ function Users({ onLogout }) {
             <p style={{ color: 'var(--muted)' }}>No student records found matching your search.</p>
           </div>
         ) : (
-          <div className="room-groups-container" style={{ display: 'grid', gap: '1.5rem' }}>
+          <div className="room-groups-container" style={{ display: 'grid', gap: '1.5rem', maxHeight: '70vh', overflowY: 'auto', paddingRight: '0.25rem' }}>
             {sortedRoomKeys.map(roomKey => {
               const roomStudents = groupedByRoom[roomKey];
               const isUnassigned = roomKey === 'Unassigned';
