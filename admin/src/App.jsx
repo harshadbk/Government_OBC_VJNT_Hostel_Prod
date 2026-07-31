@@ -11,6 +11,8 @@ import Uploads from './pages/Uploads';
 import './css/Global.css';
 import UploadDetails from './pages/UploadDetails';
 import StaffManagement from './pages/StaffManagement';
+import Attendance from './pages/Attendance';
+import AttendanceVisuals from './pages/AttendanceVisuals';
 
 const getValidToken = () => {
   const token = localStorage.getItem('adminToken');
@@ -46,6 +48,8 @@ function App() {
         <Route path="/uploads" element={isLoggedIn ? <Uploads onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
         <Route path="/uploads/:id" element={isLoggedIn ? <UploadDetails onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
         <Route path="/staff" element={isLoggedIn ? <StaffManagement onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+        <Route path="/attendance" element={isLoggedIn ? <Attendance onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+        <Route path="/attendance-visuals" element={isLoggedIn ? <AttendanceVisuals onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       </Routes>
     </div>
   );

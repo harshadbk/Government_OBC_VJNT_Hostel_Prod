@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { FiBell, FiUsers, FiHome, FiBook, FiGrid } from 'react-icons/fi';
+import { FiBell, FiUsers, FiBarChart2 } from 'react-icons/fi';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -82,7 +82,6 @@ function Dashboard({ onLogout }) {
     fetchRooms();
   }, [navigate, onLogout]);
 
-  // Get recently added 4 users
   const recentUsers = users.slice(0, 4);
 
   return (
@@ -163,8 +162,7 @@ function Dashboard({ onLogout }) {
               <button onClick={()=> navigate('/notices')}><FiBell />Notice Board</button>
               <button onClick={()=> navigate('/uploads')}><FiUsers />Uploads</button>
               <button onClick={()=> navigate('/staff')}><FiUsers />Staffs</button>
-              <button><FiGrid /> Room Overview</button>
-              
+              <button onClick={()=> navigate('/attendance-visuals')}><FiBarChart2 />Attendance Visuals</button>
             </div>
           </div>
         </div>

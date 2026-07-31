@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FiCamera, FiSave, FiEdit3, FiXCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiUpload, FiCheckCircle, FiCalendar, FiKey } from 'react-icons/fi';
+import { FiCamera, FiSave, FiEdit3, FiXCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiUpload, FiCheckCircle, FiCalendar, FiKey, FiTrendingUp, FiClock, FiX } from 'react-icons/fi';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import ProfileCard from '../components/ProfileCard';
@@ -52,6 +52,10 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
   const [docUploading, setDocUploading] = useState(false);
   const [docMessage, setDocMessage] = useState('');
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
+  const [attendanceYear, setAttendanceYear] = useState(() => new Date().getFullYear());
+  const [attendance, setAttendance] = useState(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceError, setAttendanceError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +103,74 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
       cancelled = true;
     };
   }, [token, onProfileUpdate]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchAttendance() {
+      if (!token) return;
+      setAttendanceLoading(true);
+      setAttendanceError('');
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/attendance/student/my-attendance?year=${attendanceYear}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.message || 'Unable to load attendance.');
+        }
+        if (!cancelled) {
+          setAttendance(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setAttendanceError(err.message);
+        }
+      } finally {
+        if (!cancelled) {
+          setAttendanceLoading(false);
+        }
+      }
+    }
+
+    fetchAttendance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, attendanceYear]);
+
+  const yearOptions = Array.from({ length: 5 }, (_, index) => new Date().getFullYear() - index);
+  const heatmapWeeks = (() => {
+    const days = attendance?.heatmapData || [];
+    const weeks = [];
+    let currentWeek = [];
+    days.forEach((day, index) => {
+      if (index === 0) {
+        for (let gap = 0; gap < day.dayOfWeek; gap += 1) currentWeek.push(null);
+      }
+      currentWeek.push(day);
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    });
+    if (currentWeek.length) {
+      while (currentWeek.length < 7) currentWeek.push(null);
+      weeks.push(currentWeek);
+    }
+    return weeks;
+  })();
+  const attendanceHistoryByMonth = (() => {
+    const formatter = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' });
+    return (attendance?.history || []).reduce((groups, record) => {
+      const date = new Date(`${record.date}T00:00:00`);
+      const monthLabel = Number.isNaN(date.getTime()) ? 'Other Records' : formatter.format(date);
+      if (!groups[monthLabel]) groups[monthLabel] = [];
+      groups[monthLabel].push(record);
+      return groups;
+    }, {});
+  })();
 
   useEffect(() => {
     setFormData({
@@ -405,6 +477,92 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
         </div>
       </section>
 
+      <section className="attendance-section glass-card">
+        <div className="attendance-head">
+          <div>
+            <h2><FiTrendingUp /> Attendance</h2>
+            <p>Daily status, percentages, history, and yearly presence heatmap.</p>
+          </div>
+          <label className="attendance-year">
+            Year
+            <select value={attendanceYear} onChange={(e) => setAttendanceYear(Number(e.target.value))}>
+              {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+          </label>
+        </div>
+
+        {attendanceLoading ? (
+          <p className="attendance-muted">Loading attendance...</p>
+        ) : attendanceError ? (
+          <p className="profile-message error">{attendanceError}</p>
+        ) : (
+          <>
+            <div className="attendance-stats">
+              <div className={`attendance-stat ${attendance?.todayStatus === 'Present' ? 'present' : attendance?.todayStatus === 'Absent' ? 'absent' : ''}`}>
+                <span>Today</span>
+                <strong>{attendance?.todayStatus || 'Not Marked'}</strong>
+              </div>
+              <div className="attendance-stat">
+                <span>This Month</span>
+                <strong>{attendance?.summary?.monthlyPercentage ?? 0}%</strong>
+              </div>
+              <div className="attendance-stat">
+                <span>{attendanceYear}</span>
+                <strong>{attendance?.summary?.yearlyPercentage ?? 0}%</strong>
+              </div>
+              <div className="attendance-stat">
+                <span>Present Days</span>
+                <strong>{attendance?.summary?.totalPresentDays ?? 0}/{attendance?.summary?.totalMarkedDays ?? 0}</strong>
+              </div>
+            </div>
+
+            <div className="attendance-heatmap-wrap">
+              <div className="attendance-heatmap">
+                {heatmapWeeks.map((week, weekIndex) => (
+                  <div className="attendance-week" key={`week-${weekIndex}`}>
+                    {week.map((day, dayIndex) => (
+                      <span
+                        key={day?.date || `blank-${weekIndex}-${dayIndex}`}
+                        className={`attendance-day ${day ? day.status.toLowerCase() : 'empty'}`}
+                        title={day ? `${day.date}: ${day.status}` : ''}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <div className="attendance-legend">
+                <span><i className="attendance-day present" /> Present</span>
+                <span><i className="attendance-day absent" /> Absent</span>
+                <span><i className="attendance-day notmarked" /> Not marked</span>
+              </div>
+            </div>
+
+            <div className="attendance-history">
+              <h3><FiClock /> Attendance History</h3>
+              {(attendance?.history || []).length === 0 ? (
+                <p className="attendance-muted">No attendance records yet.</p>
+              ) : (
+                <div className="attendance-history-scroll">
+                  {Object.entries(attendanceHistoryByMonth).map(([monthLabel, records]) => (
+                    <div className="attendance-month-group" key={monthLabel}>
+                      <h4>{monthLabel}</h4>
+                      {records.map((record) => (
+                        <div className="attendance-history-row" key={record._id}>
+                          <span>{record.date}</span>
+                          <strong className={record.status === 'Present' ? 'present-text' : 'absent-text'}>
+                            {record.status === 'Present' ? <FiCheckCircle /> : <FiX />} {record.status}
+                          </strong>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </section>
+
       {/* --- Preview Modal --- */}
       {previewDocUrl && (
         <div className="doc-preview-overlay" onClick={(e) => e.target === e.currentTarget && setPreviewDocUrl(null)}>
@@ -429,4 +587,3 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
 }
 
 export default Profile;
-

@@ -5,6 +5,8 @@ import User from '../models/User.js';
 import Attendance from '../models/Attendance.js';
 
 const router = express.Router();
+const ROOM_COUNT = 20;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 // Authentication middleware
 const authMiddleware = (req, res, next) => {
@@ -58,18 +60,50 @@ const getFormattedDate = (dateObj = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const isRecordLocked = (firstSavedAt, isUnlockedByAdmin) => {
+const normalizeRoomNumber = (roomNumber) => {
+  const cleanRoomNum = String(roomNumber || '').trim();
+  const numericRoom = Number(cleanRoomNum);
+  if (!Number.isInteger(numericRoom) || numericRoom < 1 || numericRoom > ROOM_COUNT) {
+    return null;
+  }
+  return String(numericRoom);
+};
+
+const normalizeDate = (date) => {
+  const targetDate = date || getFormattedDate();
+  return DATE_PATTERN.test(targetDate) ? targetDate : null;
+};
+
+const isAttendanceWindowOpen = (dateObj = new Date()) => {
+  const hour = dateObj.getHours();
+  return hour >= 20 && hour < 24;
+};
+
+const getDatesInRange = (startDate, endDate) => {
+  const dates = [];
+  const current = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+
+  while (current <= end) {
+    dates.push(getFormattedDate(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+};
+
+const isRecordLocked = (firstSavedAt) => {
   if (!firstSavedAt) return false;
-  if (isUnlockedByAdmin) return false;
-  const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-  const elapsed = Date.now() - new Date(firstSavedAt).getTime();
-  return elapsed > TWO_HOURS_MS;
+  return !isAttendanceWindowOpen();
 };
 
 
 router.get('/summary', adminAuth, async (req, res) => {
   try {
-    const targetDate = req.query.date || getFormattedDate();
+    const targetDate = normalizeDate(req.query.date);
+    if (!targetDate) {
+      return res.status(400).json({ message: 'Date must be in YYYY-MM-DD format.' });
+    }
 
     const [allUsers, dateAttendance] = await Promise.all([
       User.find().select('_id username fullName roomNumber').lean(),
@@ -112,8 +146,7 @@ router.get('/summary', adminAuth, async (req, res) => {
 
       const firstRecord = roomAttendance[0];
       const firstSavedAt = firstRecord ? firstRecord.firstSavedAt : null;
-      const isUnlockedByAdmin = roomAttendance.some(a => a.isUnlockedByAdmin);
-      const locked = isRecordLocked(firstSavedAt, isUnlockedByAdmin);
+      const locked = isRecordLocked(firstSavedAt);
 
       roomOverview.push({
         roomNumber: roomNumStr,
@@ -123,8 +156,7 @@ router.get('/summary', adminAuth, async (req, res) => {
         markedCount,
         status: isCompleted ? 'Completed' : 'Pending',
         isLocked: locked,
-        firstSavedAt,
-        isUnlockedByAdmin
+        firstSavedAt
       });
     }
 
@@ -146,17 +178,156 @@ router.get('/summary', adminAuth, async (req, res) => {
   }
 });
 
+router.get('/visuals', adminAuth, async (req, res) => {
+  try {
+    const selectedYear = Number(req.query.year) || new Date().getFullYear();
+    const selectedMonth = Number(req.query.month) || (new Date().getMonth() + 1);
+
+    if (!Number.isInteger(selectedYear) || selectedYear < 2000 || selectedYear > 2100) {
+      return res.status(400).json({ message: 'Year must be between 2000 and 2100.' });
+    }
+    if (!Number.isInteger(selectedMonth) || selectedMonth < 1 || selectedMonth > 12) {
+      return res.status(400).json({ message: 'Month must be between 1 and 12.' });
+    }
+
+    const monthStr = String(selectedMonth).padStart(2, '0');
+    const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+    const monthDates = Array.from({ length: daysInMonth }, (_, index) => (
+      `${selectedYear}-${monthStr}-${String(index + 1).padStart(2, '0')}`
+    ));
+
+    const presentByDate = await Attendance.aggregate([
+      {
+        $match: {
+          date: { $gte: monthDates[0], $lte: monthDates[monthDates.length - 1] },
+          status: 'Present'
+        }
+      },
+      { $group: { _id: '$date', presentCount: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const presentMap = new Map(presentByDate.map(item => [item._id, item.presentCount]));
+    const dailyPresent = monthDates.map(date => ({
+      date,
+      day: Number(date.slice(8, 10)),
+      presentCount: presentMap.get(date) || 0
+    }));
+
+    res.json({
+      year: selectedYear,
+      month: selectedMonth,
+      dailyPresent,
+      totalPresentMarks: dailyPresent.reduce((sum, item) => sum + item.presentCount, 0)
+    });
+  } catch (error) {
+    console.error('Error fetching attendance visuals:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/range-report', adminAuth, async (req, res) => {
+  try {
+    const startDate = normalizeDate(req.body.startDate);
+    const endDate = normalizeDate(req.body.endDate);
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: 'Start date and end date must be in YYYY-MM-DD format.' });
+    }
+    if (startDate > endDate) {
+      return res.status(400).json({ message: 'Start date cannot be after end date.' });
+    }
+
+    const reportDates = getDatesInRange(startDate, endDate);
+    if (reportDates.length > 366) {
+      return res.status(400).json({ message: 'Date range cannot exceed 366 days.' });
+    }
+
+    const [students, records] = await Promise.all([
+      User.find({ roomNumber: { $ne: '' } })
+        .select('_id username fullName email roomNumber college_name')
+        .sort({ roomNumber: 1, fullName: 1, username: 1 })
+        .lean(),
+      Attendance.find({ date: { $gte: startDate, $lte: endDate } })
+        .select('userId date status roomNumber')
+        .lean()
+    ]);
+
+    const attendanceByStudent = new Map();
+    records.forEach((record) => {
+      const studentId = record.userId.toString();
+      if (!attendanceByStudent.has(studentId)) {
+        attendanceByStudent.set(studentId, { presentDays: 0, absentDays: 0, markedDays: 0 });
+      }
+      const stats = attendanceByStudent.get(studentId);
+      stats.markedDays += 1;
+      if (record.status === 'Present') stats.presentDays += 1;
+      if (record.status === 'Absent') stats.absentDays += 1;
+    });
+
+    const rooms = Array.from({ length: ROOM_COUNT }, (_, index) => {
+      const roomNumber = String(index + 1);
+      const roomStudents = students
+        .filter(student => String(student.roomNumber || '').trim() === roomNumber)
+        .map((student) => {
+          const stats = attendanceByStudent.get(student._id.toString()) || { presentDays: 0, absentDays: 0, markedDays: 0 };
+          return {
+            studentId: student._id,
+            username: student.username,
+            fullName: student.fullName,
+            email: student.email,
+            college_name: student.college_name,
+            roomNumber,
+            presentDays: stats.presentDays,
+            absentDays: stats.absentDays,
+            markedDays: stats.markedDays,
+            totalDays: reportDates.length,
+            attendancePercentage: reportDates.length > 0
+              ? Number(((stats.presentDays / reportDates.length) * 100).toFixed(1))
+              : 0
+          };
+        });
+
+      return {
+        roomNumber,
+        students: roomStudents,
+        totals: {
+          students: roomStudents.length,
+          presentDays: roomStudents.reduce((sum, student) => sum + student.presentDays, 0),
+          totalPossibleDays: roomStudents.length * reportDates.length
+        }
+      };
+    });
+
+    res.json({
+      startDate,
+      endDate,
+      totalDays: reportDates.length,
+      rooms
+    });
+  } catch (error) {
+    console.error('Error generating attendance range report:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 router.get('/room/:roomNumber', adminAuth, async (req, res) => {
   try {
     const { roomNumber } = req.params;
-    const targetDate = req.query.date || getFormattedDate();
+    const cleanRoomNum = normalizeRoomNumber(roomNumber);
+    const targetDate = normalizeDate(req.query.date);
+    if (!cleanRoomNum) {
+      return res.status(400).json({ message: 'Room number must be between 1 and 20.' });
+    }
+    if (!targetDate) {
+      return res.status(400).json({ message: 'Date must be in YYYY-MM-DD format.' });
+    }
 
-    const roomUsers = await User.find({ roomNumber: String(roomNumber).trim() })
-      .select('_id username fullName rollNumber college_name stream mobileNumber phone fathersMobileNumber photoUrl')
+    const roomUsers = await User.find({ roomNumber: cleanRoomNum })
+      .select('_id username fullName email college_name mobileNumber phone fathersMobileNumber photoUrl')
       .lean();
 
     const attendanceRecords = await Attendance.find({
-      roomNumber: String(roomNumber).trim(),
+      roomNumber: cleanRoomNum,
       date: targetDate
     }).lean();
 
@@ -165,25 +336,23 @@ router.get('/room/:roomNumber', adminAuth, async (req, res) => {
 
     const firstRecord = attendanceRecords[0];
     const firstSavedAt = firstRecord ? firstRecord.firstSavedAt : null;
-    const isUnlockedByAdmin = attendanceRecords.some(a => a.isUnlockedByAdmin);
-    const locked = isRecordLocked(firstSavedAt, isUnlockedByAdmin);
+    const locked = isRecordLocked(firstSavedAt);
 
     const students = roomUsers.map(user => {
       const record = attendanceMap.get(user._id.toString());
       return {
         ...user,
-        status: record ? record.status : 'Absent', // default unchecked = Absent
+        status: record ? record.status : 'Absent',
         isMarked: Boolean(record),
         attendanceId: record ? record._id : null
       };
     });
 
     res.json({
-      roomNumber: String(roomNumber).trim(),
+      roomNumber: cleanRoomNum,
       date: targetDate,
       firstSavedAt,
       isLocked: locked,
-      isUnlockedByAdmin,
       totalStudents: roomUsers.length,
       students
     });
@@ -197,9 +366,21 @@ router.get('/room/:roomNumber', adminAuth, async (req, res) => {
 router.post('/room/:roomNumber', adminAuth, async (req, res) => {
   try {
     const { roomNumber } = req.params;
-    const { date, presentUserIds = [], overrideLock = false } = req.body;
-    const targetDate = date || getFormattedDate();
-    const cleanRoomNum = String(roomNumber).trim();
+    const { date, presentUserIds = [] } = req.body;
+    const targetDate = normalizeDate(date);
+    const cleanRoomNum = normalizeRoomNumber(roomNumber);
+    if (!cleanRoomNum) {
+      return res.status(400).json({ message: 'Room number must be between 1 and 20.' });
+    }
+    if (!targetDate) {
+      return res.status(400).json({ message: 'Date must be in YYYY-MM-DD format.' });
+    }
+    if (targetDate !== getFormattedDate()) {
+      return res.status(403).json({ message: 'Attendance can be marked only for today. Use reports to view/download older attendance.' });
+    }
+    if (!isAttendanceWindowOpen()) {
+      return res.status(403).json({ message: 'Attendance can be marked or edited only between 8:00 PM and 12:00 AM.' });
+    }
 
     // Check existing attendance for lock state
     const existingRecords = await Attendance.find({
@@ -209,12 +390,11 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
 
     if (existingRecords.length > 0) {
       const firstSavedAt = existingRecords[0].firstSavedAt;
-      const isUnlockedByAdmin = existingRecords.some(a => a.isUnlockedByAdmin);
-      const locked = isRecordLocked(firstSavedAt, isUnlockedByAdmin);
+      const locked = isRecordLocked(firstSavedAt);
 
-      if (locked && !overrideLock) {
+      if (locked) {
         return res.status(403).json({
-          message: 'Attendance for this room is locked (passed 2-hour window). Ask Super Admin to unlock.',
+          message: 'Attendance for this room is locked outside the 8:00 PM to 12:00 AM attendance window.',
           isLocked: true
         });
       }
@@ -231,6 +411,11 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
       : new Date();
 
     const presentSet = new Set((presentUserIds || []).map(id => id.toString()));
+    const roomUserIdSet = new Set(roomUsers.map(user => user._id.toString()));
+    const invalidPresentIds = [...presentSet].filter(id => !roomUserIdSet.has(id));
+    if (invalidPresentIds.length > 0) {
+      return res.status(400).json({ message: 'Present student list contains students outside this room.' });
+    }
 
     const bulkOps = roomUsers.map(user => {
       const isPresent = presentSet.has(user._id.toString());
@@ -243,8 +428,7 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
             $set: {
               roomNumber: cleanRoomNum,
               status,
-              markedBy: req.user.username || 'admin',
-              isUnlockedByAdmin: overrideLock ? true : (existingRecords[0]?.isUnlockedByAdmin || false)
+              markedBy: req.user.username || 'admin'
             },
             $setOnInsert: {
               firstSavedAt: firstSavedAtTime
@@ -267,25 +451,6 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error saving room attendance:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// ─── POST /api/attendance/unlock (Admin Override Unlock) ────────────────
-router.post('/unlock', adminAuth, async (req, res) => {
-  try {
-    const { roomNumber, date } = req.body;
-    const targetDate = date || getFormattedDate();
-    const cleanRoomNum = String(roomNumber).trim();
-
-    await Attendance.updateMany(
-      { roomNumber: cleanRoomNum, date: targetDate },
-      { $set: { isUnlockedByAdmin: true } }
-    );
-
-    res.json({ message: `Attendance for Room ${cleanRoomNum} unlocked successfully for ${targetDate}.` });
-  } catch (error) {
-    console.error('Error unlocking attendance:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -395,8 +560,8 @@ router.get('/export', adminAuth, async (req, res) => {
     }
 
     const records = await Attendance.find(query)
-      .populate('userId', 'username fullName rollNumber college_name stream mobileNumber phone fathersMobileNumber')
-      .sort({ date: -1, roomNumber: 1 })
+      .populate('userId', 'username fullName email college_name mobileNumber phone fathersMobileNumber')
+      .sort({ date: 1, roomNumber: 1 })
       .lean();
 
     const workbook = new ExcelJS.Workbook();
@@ -414,39 +579,50 @@ router.get('/export', adminAuth, async (req, res) => {
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(1).height = 35;
 
-    // Table Headers
-    const headers = ['Date', 'Room No', 'Roll No', 'Username', 'Full Name', 'College & Stream', 'Status', 'Marked By'];
-    worksheet.getRow(3).values = headers;
-    worksheet.getRow(3).height = 24;
+    const headers = ['Date', 'Room No', 'Email', 'Username', 'Full Name', 'College Name', 'Status', 'Marked By'];
 
-    const headerRow = worksheet.getRow(3);
-    headerRow.eachCell((cell) => {
-      cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2B4C7E' } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-        bottom: { style: 'medium', color: { argb: 'FF0F172A' } },
-        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
-      };
-    });
+    const styleHeaderRow = (row) => {
+      row.height = 24;
+      row.eachCell((cell) => {
+        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2B4C7E' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          bottom: { style: 'medium', color: { argb: 'FF0F172A' } },
+          left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+        };
+      });
+    };
 
-    // Populate Data Rows
-    records.forEach((rec, idx) => {
-      const student = rec.userId || {};
-      const rowNumber = idx + 4;
+    const styleSectionRow = (row, color = 'FF334155') => {
+      row.height = 24;
+      row.eachCell((cell) => {
+        cell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      });
+    };
+
+    const writeHeader = (rowNumber) => {
       const row = worksheet.getRow(rowNumber);
+      row.values = headers;
+      styleHeaderRow(row);
+    };
 
+    const writeRecord = (rowNumber, rec) => {
+      const student = rec.userId || {};
+      const row = worksheet.getRow(rowNumber);
       const statusColor = rec.status === 'Present' ? 'FF16A34A' : 'FFDC2626';
 
       row.values = [
         rec.date,
         rec.roomNumber ? `Room ${rec.roomNumber}` : 'Unassigned',
-        student.rollNumber || '-',
+        student.email || '-',
         student.username || '-',
         student.fullName || '-',
-        `${student.college_name || '-'} (${student.stream || '-'})`,
+        student.college_name || '-',
         rec.status,
         rec.markedBy || 'admin'
       ];
@@ -466,13 +642,77 @@ router.get('/export', adminAuth, async (req, res) => {
           cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: statusColor } };
         }
       });
-    });
+    };
+
+    const writeMergedSection = (rowNumber, label, color) => {
+      worksheet.mergeCells(`A${rowNumber}:H${rowNumber}`);
+      const row = worksheet.getRow(rowNumber);
+      row.getCell(1).value = label;
+      styleSectionRow(row, color);
+    };
+
+    let rowNumber = 3;
+
+    if (type === 'daily') {
+      writeHeader(rowNumber);
+      records.forEach((rec) => {
+        rowNumber += 1;
+        writeRecord(rowNumber, rec);
+      });
+    } else if (type === 'monthly') {
+      const recordsByDate = records.reduce((groups, rec) => {
+        if (!groups[rec.date]) groups[rec.date] = [];
+        groups[rec.date].push(rec);
+        return groups;
+      }, {});
+
+      Object.keys(recordsByDate).sort().forEach((recordDate) => {
+        writeMergedSection(rowNumber, `Date: ${recordDate}`, 'FF1E40AF');
+        rowNumber += 1;
+        writeHeader(rowNumber);
+        recordsByDate[recordDate].forEach((rec) => {
+          rowNumber += 1;
+          writeRecord(rowNumber, rec);
+        });
+        rowNumber += 1;
+      });
+    } else if (type === 'yearly') {
+      const monthFormatter = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' });
+      const recordsByMonth = records.reduce((groups, rec) => {
+        const monthKey = rec.date.slice(0, 7);
+        if (!groups[monthKey]) groups[monthKey] = {};
+        if (!groups[monthKey][rec.date]) groups[monthKey][rec.date] = [];
+        groups[monthKey][rec.date].push(rec);
+        return groups;
+      }, {});
+
+      Object.keys(recordsByMonth).sort().forEach((monthKey) => {
+        const monthLabel = monthFormatter.format(new Date(`${monthKey}-01T00:00:00`));
+        writeMergedSection(rowNumber, `Month: ${monthLabel}`, 'FF0F766E');
+        rowNumber += 1;
+
+        Object.keys(recordsByMonth[monthKey]).sort().forEach((recordDate) => {
+          writeMergedSection(rowNumber, `Date: ${recordDate}`, 'FF1E40AF');
+          rowNumber += 1;
+          writeHeader(rowNumber);
+          recordsByMonth[monthKey][recordDate].forEach((rec) => {
+            rowNumber += 1;
+            writeRecord(rowNumber, rec);
+          });
+          rowNumber += 1;
+        });
+      });
+    }
+
+    if (records.length === 0) {
+      worksheet.getRow(rowNumber).values = ['No attendance records found for this report.'];
+    }
 
     // Set Column Widths
     worksheet.columns = [
       { width: 14 },
       { width: 14 },
-      { width: 14 },
+      { width: 28 },
       { width: 16 },
       { width: 24 },
       { width: 30 },

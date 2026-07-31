@@ -21,7 +21,7 @@ function ProfileCard({ user, profileImage }) {
         <div className="detail-pill"><FiHome /> Room {user?.roomNumber}</div>
         <div className="detail-pill"><FiMail /> {user?.email}</div>
         <div className="detail-pill"><FiPhone /> {user?.phone}</div>
-        <div className="detail-pill"><FiMapPin /> {user?.district}</div>
+        <div className="detail-pill"><FiMapPin /> {user?.address}</div>
         <div className="detail-pill"><FiBookOpen /> {user?.college_name}</div>
       </div>
     </div>

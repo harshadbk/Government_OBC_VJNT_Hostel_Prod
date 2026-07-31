@@ -459,6 +459,229 @@
   object-fit: contain;
 }
 
+/* ===== Attendance Section ===== */
+
+.attendance-section {
+  margin-top: 2rem;
+  padding: 2rem;
+  border-radius: 32px;
+}
+
+.attendance-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.attendance-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.attendance-head p,
+.attendance-muted {
+  color: var(--muted);
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+}
+
+.attendance-year {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.attendance-year select {
+  min-width: 96px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text);
+  padding: 0.55rem 0.75rem;
+  font-weight: 700;
+}
+
+.attendance-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1.25rem;
+}
+
+.attendance-stat {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1rem;
+  background: var(--card-bg);
+  display: grid;
+  gap: 0.25rem;
+}
+
+.attendance-stat span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.attendance-stat strong {
+  color: var(--text);
+  font-size: 1.35rem;
+}
+
+.attendance-stat.present {
+  border-left: 4px solid #16a34a;
+}
+
+.attendance-stat.absent {
+  border-left: 4px solid #dc2626;
+}
+
+.attendance-heatmap-wrap {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1rem;
+  background: var(--card-bg);
+  overflow-x: auto;
+}
+
+.attendance-heatmap {
+  display: flex;
+  gap: 4px;
+  min-width: 760px;
+}
+
+.attendance-week {
+  display: grid;
+  grid-template-rows: repeat(7, 12px);
+  gap: 4px;
+}
+
+.attendance-day {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  border-radius: 3px;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.attendance-day.present {
+  background: #16a34a;
+}
+
+.attendance-day.absent {
+  background: #dc2626;
+}
+
+.attendance-day.future,
+.attendance-day.empty {
+  background: transparent;
+}
+
+.attendance-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-top: 0.9rem;
+}
+
+.attendance-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.attendance-history {
+  margin-top: 1.25rem;
+}
+
+.attendance-history h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.attendance-history-scroll {
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 0.4rem;
+}
+
+.attendance-history-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.attendance-history-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.attendance-history-scroll::-webkit-scrollbar-thumb {
+  background: rgba(74, 144, 217, 0.45);
+  border-radius: 999px;
+}
+
+.attendance-month-group {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card-bg);
+  overflow: hidden;
+}
+
+.attendance-month-group + .attendance-month-group {
+  margin-top: 0.8rem;
+}
+
+.attendance-month-group h4 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.attendance-history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.attendance-history-row:last-child {
+  border-bottom: none;
+}
+
+.attendance-history-row strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.present-text {
+  color: #16a34a;
+}
+
+.absent-text {
+  color: #dc2626;
+}
+
 
 /* ===== Responsive ===== */
 
@@ -468,8 +691,14 @@
   }
 
   .profile-form,
-  .profile-details-grid {
+  .profile-details-grid,
+  .attendance-stats {
     grid-template-columns: 1fr;
+  }
+
+  .attendance-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

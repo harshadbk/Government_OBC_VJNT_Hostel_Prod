@@ -6,7 +6,6 @@ import {
   FiCheckCircle, 
   FiClock, 
   FiLock, 
-  FiUnlock, 
   FiDownload, 
   FiHome, 
   FiUserCheck, 
@@ -21,16 +20,16 @@ import {
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
 function Attendance({ onLogout }) {
-  const [selectedDate, setSelectedDate] = useState(() => {
+  const [todayDate] = useState(() => {
     const d = new Date();
     return d.toISOString().slice(0, 10);
   });
+  const [exportDate, setExportDate] = useState(todayDate);
   const [summary, setSummary] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // Modal state
   const [activeRoom, setActiveRoom] = useState(null);
   const [roomData, setRoomData] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
@@ -88,8 +87,8 @@ function Attendance({ onLogout }) {
   };
 
   useEffect(() => {
-    fetchSummary(selectedDate);
-  }, [selectedDate]);
+    fetchSummary(todayDate);
+  }, [todayDate]);
 
   const openRoomModal = async (roomNumber) => {
     setActiveRoom(roomNumber);
@@ -100,7 +99,7 @@ function Attendance({ onLogout }) {
 
     try {
       const token = getAdminToken();
-      const res = await fetch(`${apiBaseUrl}/api/attendance/room/${roomNumber}?date=${selectedDate}`, {
+      const res = await fetch(`${apiBaseUrl}/api/attendance/room/${roomNumber}?date=${todayDate}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -108,7 +107,6 @@ function Attendance({ onLogout }) {
         const data = await res.json();
         setRoomData(data);
         
-        // Initialize checked map: Present = true, Absent = false
         const initialMap = {};
         (data.students || []).forEach(s => {
           initialMap[s._id] = s.status === 'Present';
@@ -138,7 +136,7 @@ function Attendance({ onLogout }) {
     setPresentMap(newMap);
   };
 
-  const handleSaveAttendance = async (overrideLock = false) => {
+  const handleSaveAttendance = async () => {
     if (!activeRoom || !roomData) return;
     setSaving(true);
     setSaveMessage('');
@@ -155,9 +153,8 @@ function Attendance({ onLogout }) {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          date: selectedDate,
-          presentUserIds,
-          overrideLock
+          date: todayDate,
+          presentUserIds
         })
       });
 
@@ -171,9 +168,8 @@ function Attendance({ onLogout }) {
 
       setSaveMessage('Attendance saved successfully!');
       setSaveMessageType('success');
-      fetchSummary(selectedDate);
+      fetchSummary(todayDate);
       
-      // Re-fetch room modal details to update lock status
       setTimeout(() => {
         openRoomModal(activeRoom);
       }, 1000);
@@ -186,36 +182,10 @@ function Attendance({ onLogout }) {
     }
   };
 
-  const handleUnlockRoom = async () => {
-    if (!activeRoom) return;
-    try {
-      const token = getAdminToken();
-      const res = await fetch(`${apiBaseUrl}/api/attendance/unlock`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          roomNumber: activeRoom,
-          date: selectedDate
-        })
-      });
-      if (res.ok) {
-        setSaveMessage('Room attendance unlocked by Super Admin.');
-        setSaveMessageType('success');
-        openRoomModal(activeRoom);
-        fetchSummary(selectedDate);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleExport = (type) => {
     const token = getAdminToken();
     if (!token) return;
-    const url = `${apiBaseUrl}/api/attendance/export?type=${type}&date=${selectedDate}&year=${selectedDate.slice(0, 4)}&month=${parseInt(selectedDate.slice(5, 7))}`;
+    const url = `${apiBaseUrl}/api/attendance/export?type=${type}&date=${exportDate}&year=${exportDate.slice(0, 4)}&month=${parseInt(exportDate.slice(5, 7))}`;
     
     // Trigger file download
     fetch(url, {
@@ -226,7 +196,7 @@ function Attendance({ onLogout }) {
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `Attendance_${type}_${selectedDate}.xlsx`;
+        a.download = `Attendance_${type}_${exportDate}.xlsx`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -243,18 +213,12 @@ function Attendance({ onLogout }) {
           <div>
             <p className="eyebrow">Daily Operation & Monitoring</p>
             <h2>Attendance Management</h2>
+            <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '0.88rem' }}>
+              Marking is available only for today ({todayDate}) between 8:00 PM and 12:00 AM.
+            </p>
           </div>
           <div className="topbar-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.06)', padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)' }}>
-              <FiCalendar style={{ color: '#72e3ff' }} />
-              <input 
-                type="date" 
-                value={selectedDate} 
-                onChange={(e) => setSelectedDate(e.target.value)} 
-                style={{ background: 'none', border: 'none', color: '#fff', fontWeight: '600', cursor: 'pointer', outline: 'none' }}
-              />
-            </label>
-            <button className="secondary-btn" onClick={() => fetchSummary(selectedDate)}>
+            <button className="secondary-btn" onClick={() => fetchSummary(todayDate)}>
               <FiRefreshCw /> Refresh
             </button>
           </div>
@@ -328,10 +292,19 @@ function Attendance({ onLogout }) {
           <div>
             <h3 style={{ margin: 0 }}>Attendance Reports Export</h3>
             <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: '0.85rem' }}>
-              Download official spreadsheet reports for auditing and records.
+              Select a report date here only for download. Past dates cannot be edited from attendance marking.
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.06)', padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <FiCalendar style={{ color: '#72e3ff' }} />
+              <input
+                type="date"
+                value={exportDate}
+                onChange={(e) => setExportDate(e.target.value)}
+                style={{ background: 'none', border: 'none', color: '#fff', fontWeight: '600', cursor: 'pointer', outline: 'none' }}
+              />
+            </label>
             <button className="secondary-btn" onClick={() => handleExport('daily')}>
               <FiDownload /> Daily Excel
             </button>
@@ -421,7 +394,7 @@ function Attendance({ onLogout }) {
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <FiHome style={{ color: '#72e3ff' }} /> Room {activeRoom} Attendance ({selectedDate})
+                    <FiHome style={{ color: '#72e3ff' }} /> Room {activeRoom} Attendance ({todayDate})
                   </h3>
                   <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
                     Check residents who are Present physically. Unchecked students will be marked Absent.
@@ -442,19 +415,14 @@ function Attendance({ onLogout }) {
                   <>
                     {/* Lock Status Warning */}
                     {roomData.isLocked ? (
-                      <div style={{ padding: '0.9rem 1.2rem', borderRadius: '14px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.9rem' }}>
-                          <FiLock style={{ fontSize: '1.2rem' }} />
-                          <span>Attendance locked (2-hour edit window expired).</span>
-                        </div>
-                        <button className="secondary-btn" onClick={handleUnlockRoom} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
-                          <FiUnlock /> Super Admin Unlock
-                        </button>
+                      <div style={{ padding: '0.9rem 1.2rem', borderRadius: '14px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.9rem' }}>
+                        <FiLock style={{ fontSize: '1.2rem' }} />
+                        <span>Attendance is locked outside the 8:00 PM to 12:00 AM marking window.</span>
                       </div>
                     ) : roomData.firstSavedAt ? (
                       <div style={{ padding: '0.75rem 1rem', borderRadius: '12px', background: 'rgba(114,227,255,0.08)', border: '1px solid rgba(114,227,255,0.15)', color: '#72e3ff', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <FiClock />
-                        <span>First saved at {new Date(roomData.firstSavedAt).toLocaleTimeString()}. Editable within 2 hours.</span>
+                        <span>First saved at {new Date(roomData.firstSavedAt).toLocaleTimeString()}. Editable only between 8:00 PM and 12:00 AM today.</span>
                       </div>
                     ) : null}
 
@@ -484,7 +452,7 @@ function Attendance({ onLogout }) {
                             style={{
                               display: 'flex',
                               alignItems: 'center',
-                              justify-content: 'space-between',
+                              justifyContent: 'space-between',
                               padding: '0.9rem 1.2rem',
                               borderRadius: '14px',
                               background: isPresent ? 'rgba(52, 211, 153, 0.08)' : 'rgba(248, 113, 113, 0.06)',
@@ -541,7 +509,7 @@ function Attendance({ onLogout }) {
                   <button className="secondary-btn" onClick={() => setActiveRoom(null)}>Cancel</button>
                   <button 
                     className="primary-btn" 
-                    onClick={() => handleSaveAttendance(false)}
+                    onClick={handleSaveAttendance}
                     disabled={saving || roomData?.isLocked}
                   >
                     {saving ? 'Saving...' : 'Save Attendance'}

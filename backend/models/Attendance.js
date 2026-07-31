@@ -28,10 +28,6 @@ const attendanceSchema = new mongoose.Schema({
   firstSavedAt: { 
     type: Date, 
     default: Date.now 
-  },
-  isUnlockedByAdmin: { 
-    type: Boolean, 
-    default: false 
   }
 }, {
   timestamps: true,
