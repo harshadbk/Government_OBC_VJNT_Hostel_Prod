@@ -220,6 +220,7 @@ function AddUser({ onLogout }) {
                   <tr>
                     <th>Username</th>
                     <th>Room</th>
+                    <th>Present Days</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -227,6 +228,7 @@ function AddUser({ onLogout }) {
                     <tr key={`${user.username}-${index}`}>
                       <td>{user.username}</td>
                       <td>{user.roomNumber || 'N/A'}</td>
+                      <td>{user.presentDaysSinceCreated ?? 0}/{user.totalAttendanceDaysSinceCreated ?? 0}</td>
                     </tr>
                   ))}
                 </tbody>

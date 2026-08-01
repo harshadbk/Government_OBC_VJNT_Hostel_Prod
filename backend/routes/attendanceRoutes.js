@@ -77,7 +77,7 @@ const normalizeDate = (date) => {
 
 const isAttendanceWindowOpen = (dateObj = new Date()) => {
   const hour = dateObj.getHours();
-  return hour >= 20 && hour < 24;
+  return hour >= 12 && hour < 24;
 };
 
 const getDatesInRange = (startDate, endDate) => {
@@ -462,8 +462,7 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
     const activeLeaves = await LeaveApplication.find({
       status: 'Approved',
       comebackMarked: false,
-      startDate: { $lte: targetDate },
-      endDate: { $gte: targetDate }
+      startDate: { $lte: targetDate }
     }).select('userId').lean();
     const leaveUserIds = new Set(activeLeaves.map(leave => String(leave.userId)));
 
@@ -605,6 +604,103 @@ router.get('/student/my-attendance', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching student attendance:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/student/:id/attendance', adminAuth, async (req, res) => {
+  try {
+    const selectedYear = parseInt(req.query.year) || new Date().getFullYear();
+    const todayStr = getFormattedDate();
+
+    const user = await User.findById(req.params.id).select('_id username fullName roomNumber').lean();
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const allAttendanceDocs = await Attendance.find({})
+      .select('date roomNumber students markedBy firstSavedAt')
+      .sort({ date: -1 })
+      .lean();
+
+    const matchingRecords = allAttendanceDocs
+      .map((doc) => {
+        const studentEntry = (doc.students || []).find((entry) => {
+          return String(entry.username || '').trim().toLowerCase() === String(user.username).trim().toLowerCase();
+        });
+
+        if (!studentEntry) return null;
+
+        return {
+          _id: `${doc._id}-${user._id}`,
+          date: doc.date,
+          roomNumber: doc.roomNumber,
+          status: studentEntry.status,
+          markedBy: doc.markedBy,
+          firstSavedAt: doc.firstSavedAt
+        };
+      })
+      .filter(Boolean);
+
+    matchingRecords.sort((a, b) => b.date.localeCompare(a.date));
+
+    const attendanceMap = new Map();
+    matchingRecords.forEach((record) => attendanceMap.set(record.date, record));
+
+    const todayRecord = attendanceMap.get(todayStr);
+    const todayStatus = todayRecord ? todayRecord.status : 'Not Marked';
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthStr = String(now.getMonth() + 1).padStart(2, '0');
+    const monthPrefix = `${currentYear}-${currentMonthStr}`;
+
+    const monthRecords = matchingRecords.filter((record) => record.date.startsWith(monthPrefix));
+    const monthPresentCount = monthRecords.filter((record) => record.status === 'Present').length;
+    const monthlyPercentage = monthRecords.length > 0
+      ? Number(((monthPresentCount / monthRecords.length) * 100).toFixed(1))
+      : 0;
+
+    const yearPrefix = `${selectedYear}-`;
+    const yearRecords = matchingRecords.filter((record) => record.date.startsWith(yearPrefix));
+    const yearPresentCount = yearRecords.filter((record) => record.status === 'Present').length;
+    const yearlyPercentage = yearRecords.length > 0
+      ? Number(((yearPresentCount / yearRecords.length) * 100).toFixed(1))
+      : 0;
+
+    const heatmapData = [];
+    const isLeapYear = (selectedYear % 4 === 0 && selectedYear % 100 !== 0) || (selectedYear % 400 === 0);
+    const daysInYear = isLeapYear ? 366 : 365;
+
+    const startDate = new Date(selectedYear, 0, 1);
+    for (let i = 0; i < daysInYear; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      const dateStr = getFormattedDate(d);
+      const rec = attendanceMap.get(dateStr);
+
+      heatmapData.push({
+        date: dateStr,
+        dayOfWeek: d.getDay(),
+        month: d.getMonth(),
+        status: rec ? rec.status : (dateStr > todayStr ? 'Future' : 'NotMarked')
+      });
+    }
+
+    res.json({
+      todayStatus,
+      summary: {
+        monthlyPercentage,
+        yearlyPercentage,
+        totalPresentDays: yearPresentCount,
+        totalMarkedDays: yearRecords.length,
+        selectedYear
+      },
+      heatmapData,
+      history: matchingRecords.slice(0, 30)
+    });
+  } catch (error) {
+    console.error('Error fetching admin student attendance:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

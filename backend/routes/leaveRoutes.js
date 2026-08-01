@@ -130,6 +130,7 @@ const cleanupExpiredLeaveApplications = async () => {
     const now = new Date();
 
     allLeaves.forEach((leave) => {
+      if (leave.status === 'Approved' && !leave.comebackMarked) return;
       const endDate = parseLeaveDate(leave.endDate);
       if (!endDate) return;
       const deleteAfter = new Date(endDate);

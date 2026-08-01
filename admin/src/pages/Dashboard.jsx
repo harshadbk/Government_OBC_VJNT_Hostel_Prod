@@ -10,6 +10,8 @@ function Dashboard({ onLogout }) {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [roomsLoading, setRoomsLoading] = useState(true);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
   const navigate = useNavigate();
 
   const getAdminToken = () => {
@@ -78,8 +80,29 @@ function Dashboard({ onLogout }) {
       }
     };
 
+    const fetchNotifications = async () => {
+      try {
+        const token = getAdminToken();
+        if (!token) return;
+        const response = await fetch(`${apiBaseUrl}/api/leaves/notifications`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setNotifications(data.notifications || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch leave notifications:", err);
+      } finally {
+        setNotificationsLoading(false);
+      }
+    };
+
     fetchUsers();
     fetchRooms();
+    fetchNotifications();
   }, [navigate, onLogout]);
 
   const recentUsers = users.slice(0, 4);
@@ -96,6 +119,9 @@ function Dashboard({ onLogout }) {
           <div className="topbar-actions">
             <button className="icon-button">
               <FiBell />
+              {notifications.length > 0 ? (
+                <span className="notification-count">{notifications.length}</span>
+              ) : null}
             </button>
             <div className="profile-pill">
               <div className="brand-icon">A</div>
@@ -153,6 +179,48 @@ function Dashboard({ onLogout }) {
         </div>
 
         <div className="dashboard-grid">
+          <div className="panel-card">
+            <div className="panel-head">
+              <h3><FiBell /> Notifications</h3>
+              <small>{notifications.length} active</small>
+            </div>
+            {notificationsLoading ? (
+              <p style={{ padding: "1rem", color: "var(--muted)" }}>
+                Loading notifications...
+              </p>
+            ) : notifications.length > 0 ? (
+              <ul className="user-list">
+                {notifications.map((item) => (
+                  <li
+                    key={item._id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "1rem",
+                      padding: "0.8rem 0",
+                      borderBottom: "1px solid var(--border)",
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontWeight: "600" }}>
+                        {item.studentName}
+                      </span>
+                      <small style={{ color: "var(--muted)" }}>
+                        Room {item.roomNumber || "N/A"} - expected back after {item.endDate}
+                      </small>
+                    </div>
+                    <button className="table-action" onClick={() => navigate("/leaves")}>
+                      Review
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ padding: "1rem", color: "var(--muted)" }}>
+                No overdue leave returns.
+              </p>
+            )}
+          </div>
           <div className="panel-card">
             <div className="panel-head">
               <h3>Recently Added Users</h3>

@@ -228,6 +228,7 @@ function Users({ onLogout }) {
                           <th>Stream</th>
                           <th>Phone No</th>
                           <th>Father's No</th>
+                          <th>Present Days</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -251,6 +252,9 @@ function Users({ onLogout }) {
                             </td>
                             <td onClick={() => handleRowClick(student._id)}>
                               {student.fathersMobileNumber || '-'}
+                            </td>
+                            <td onClick={() => handleRowClick(student._id)}>
+                              <strong>{student.presentDaysSinceCreated ?? 0}/{student.totalAttendanceDaysSinceCreated ?? 0}</strong>
                             </td>
                             <td>
                               <button 
@@ -290,4 +294,3 @@ function Users({ onLogout }) {
 }
 
 export default Users;
-

@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Document from '../models/Document.js';
 import Upload from '../models/Upload.js';
+import Attendance from '../models/Attendance.js';
 
 
 const router = express.Router();
@@ -123,6 +124,13 @@ const getAdminUserData = (user) => {
   delete userData.tempPassword;
   delete userData.__v;
   return userData;
+};
+
+const formatDate = (dateObj = new Date()) => {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const normalizeDocumentField = (fieldName) => {
@@ -400,7 +408,34 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
 router.get('/users', adminAuth, async (req, res) => {
   try {
     const users = await User.find().sort({ createdAt: -1 }).select('-password');
-    const publicUsers = users.map(getAdminUserData);
+    const attendanceDocs = await Attendance.find({}).select('date students').lean();
+    const attendanceByUsername = new Map();
+
+    attendanceDocs.forEach((doc) => {
+      const studentEntries = Array.isArray(doc.students) ? doc.students : [];
+      studentEntries.forEach((entry) => {
+        const username = String(entry.username || '').trim().toLowerCase();
+        if (!username) return;
+        if (!attendanceByUsername.has(username)) {
+          attendanceByUsername.set(username, { presentDates: new Set(), markedDates: new Set() });
+        }
+        const attendanceSummary = attendanceByUsername.get(username);
+        attendanceSummary.markedDates.add(doc.date);
+        if (entry.status === 'Present') {
+          attendanceSummary.presentDates.add(doc.date);
+        }
+      });
+    });
+
+    const publicUsers = users.map((user) => {
+      const userData = getAdminUserData(user);
+      const createdDate = formatDate(user.createdAt || new Date(0));
+      const username = String(user.username || '').trim().toLowerCase();
+      const attendanceSummary = attendanceByUsername.get(username) || { presentDates: new Set(), markedDates: new Set() };
+      userData.presentDaysSinceCreated = [...attendanceSummary.presentDates].filter((date) => date >= createdDate).length;
+      userData.totalAttendanceDaysSinceCreated = [...attendanceSummary.markedDates].filter((date) => date >= createdDate).length;
+      return userData;
+    });
     res.json({ users: publicUsers });
   } catch (error) {
     console.error(error);
@@ -475,6 +510,17 @@ router.delete('/users/:id', authMiddleware, async (req, res) => {
       await deleteCloudinaryImage(user.photoUrl);
     }
     await User.findByIdAndDelete(req.params.id);
+
+    await Attendance.updateMany(
+      {},
+      {
+        $pull: {
+          students: {
+            username: user.username
+          }
+        }
+      }
+    );
 
     // Remove upload submissions belonging to the deleted user
     await Upload.updateMany(

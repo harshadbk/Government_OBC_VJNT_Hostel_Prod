@@ -10,6 +10,8 @@ function LeaveManagement({ onLogout }) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [selectedLeave, setSelectedLeave] = useState(null);
+  const [comebackLeave, setComebackLeave] = useState(null);
+  const [comebackDate, setComebackDate] = useState(new Date().toISOString().slice(0, 10));
   const navigate = useNavigate();
 
   const getAdminToken = () => {
@@ -82,22 +84,29 @@ function LeaveManagement({ onLogout }) {
     }
   };
 
-  const markComeback = async (id) => {
+  const openComebackPrompt = (leave) => {
+    setComebackLeave(leave);
+    setComebackDate(new Date().toISOString().slice(0, 10));
+  };
+
+  const markComeback = async () => {
+    if (!comebackLeave) return;
     const token = getAdminToken();
     if (!token) return;
-    setBusyId(id);
+    setBusyId(comebackLeave._id);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/leaves/${id}/comeback`, {
+      const response = await fetch(`${apiBaseUrl}/api/leaves/${comebackLeave._id}/comeback`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ comebackDate: new Date().toISOString().slice(0, 10) })
+        body: JSON.stringify({ comebackDate })
       });
       if (response.ok) {
         const data = await response.json();
-        setLeaves((current) => current.map((item) => item._id === id ? { ...item, ...data.leaveApplication } : item));
+        setLeaves((current) => current.map((item) => item._id === comebackLeave._id ? { ...item, ...data.leaveApplication } : item));
+        setComebackLeave(null);
       }
     } finally {
       setBusyId(null);
@@ -174,7 +183,7 @@ function LeaveManagement({ onLogout }) {
                           <button className="table-action" disabled={busyId === leave._id} onClick={() => updateStatus(leave._id, 'Approved')}><FiCheckCircle /> Approve</button>
                           <button className="table-action" disabled={busyId === leave._id} onClick={() => updateStatus(leave._id, 'Rejected')}><FiXCircle /> Reject</button>
                           {leave.status === 'Approved' && !leave.comebackMarked ? (
-                            <button className="table-action" disabled={busyId === leave._id} onClick={() => markComeback(leave._id)}><FiCheckCircle /> Comeback</button>
+                            <button className="table-action" disabled={busyId === leave._id} onClick={() => openComebackPrompt(leave)}><FiCheckCircle /> Comeback</button>
                           ) : null}
                         </div>
                       </td>
@@ -213,6 +222,36 @@ function LeaveManagement({ onLogout }) {
               ) : (
                 <p>No attachment uploaded.</p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {comebackLeave && (
+        <div className="leave-modal-overlay" onClick={(e) => e.target === e.currentTarget && setComebackLeave(null)}>
+          <div className="leave-modal-card attachment-only">
+            <div className="leave-modal-header">
+              <div>
+                <h3><FiCheckCircle /> Mark Comeback</h3>
+                <p>{comebackLeave.fullName} - Room {comebackLeave.userId?.roomNumber || comebackLeave.roomNumber || 'N/A'}</p>
+              </div>
+              <button type="button" className="leave-modal-close" onClick={() => setComebackLeave(null)}><FiX /></button>
+            </div>
+
+            <div className="leave-form-grid">
+              <label className="leave-field leave-field-full">
+                <span>Comeback date</span>
+                <input type="date" value={comebackDate} onChange={(e) => setComebackDate(e.target.value)} required />
+              </label>
+              <p className="attendance-muted leave-field-full">
+                Are you sure? From this date, attendance marking will start again for this student.
+              </p>
+              <div className="leave-actions leave-field-full">
+                <button type="button" className="leave-submit-btn primary-btn" disabled={busyId === comebackLeave._id || !comebackDate} onClick={markComeback}>
+                  <span className="leave-submit-label">{busyId === comebackLeave._id ? 'Saving...' : 'Yes, Mark Comeback'}</span>
+                </button>
+                <button type="button" className="secondary-btn" onClick={() => setComebackLeave(null)}>Cancel</button>
+              </div>
             </div>
           </div>
         </div>
