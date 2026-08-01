@@ -74,7 +74,30 @@ function LeaveManagement({ onLogout }) {
         body: JSON.stringify({ status })
       });
       if (response.ok) {
-        setLeaves((current) => current.map((item) => item._id === id ? { ...item, status } : item));
+        const data = await response.json();
+        setLeaves((current) => current.map((item) => item._id === id ? { ...item, ...data.leaveApplication } : item));
+      }
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const markComeback = async (id) => {
+    const token = getAdminToken();
+    if (!token) return;
+    setBusyId(id);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/leaves/${id}/comeback`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ comebackDate: new Date().toISOString().slice(0, 10) })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setLeaves((current) => current.map((item) => item._id === id ? { ...item, ...data.leaveApplication } : item));
       }
     } finally {
       setBusyId(null);
@@ -112,6 +135,7 @@ function LeaveManagement({ onLogout }) {
                     <th>Dates</th>
                     <th>Reason</th>
                     <th>Status</th>
+                    <th>Comeback</th>
                     <th>Attachment</th>
                     <th>Action</th>
                   </tr>
@@ -121,7 +145,7 @@ function LeaveManagement({ onLogout }) {
                     <tr key={leave._id}>
                       <td>
                         <strong>{leave.fullName}</strong>
-                        <div className="staff-info-row">{leave.username} • Room {leave.userId?.roomNumber || leave.roomNumber || 'N/A'}</div>
+                        <div className="staff-info-row">{leave.username} - Room {leave.userId?.roomNumber || leave.roomNumber || 'N/A'}</div>
                       </td>
                       <td><strong>{leave.userId?.roomNumber || leave.roomNumber || 'N/A'}</strong></td>
                       <td>{leave.startDate} to {leave.endDate}</td>
@@ -132,12 +156,26 @@ function LeaveManagement({ onLogout }) {
                         </span>
                       </td>
                       <td>
-                        {leave.attachmentUrl ? <button className="table-action" onClick={() => setSelectedLeave(leave)}><FiEye /> View</button> : '—'}
+                        {leave.status === 'Approved' ? (
+                          leave.comebackMarked ? (
+                            <span className="status-pill approved">Returned {leave.comebackDate ? `on ${leave.comebackDate}` : ''}</span>
+                          ) : (
+                            <span className="status-pill pending">Awaiting comeback</span>
+                          )
+                        ) : (
+                          <span className="staff-info-row">-</span>
+                        )}
+                      </td>
+                      <td>
+                        {leave.attachmentUrl ? <button className="table-action" onClick={() => setSelectedLeave(leave)}><FiEye /> View</button> : '-'}
                       </td>
                       <td>
                         <div className="staff-card-actions">
                           <button className="table-action" disabled={busyId === leave._id} onClick={() => updateStatus(leave._id, 'Approved')}><FiCheckCircle /> Approve</button>
                           <button className="table-action" disabled={busyId === leave._id} onClick={() => updateStatus(leave._id, 'Rejected')}><FiXCircle /> Reject</button>
+                          {leave.status === 'Approved' && !leave.comebackMarked ? (
+                            <button className="table-action" disabled={busyId === leave._id} onClick={() => markComeback(leave._id)}><FiCheckCircle /> Comeback</button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -155,7 +193,7 @@ function LeaveManagement({ onLogout }) {
             <div className="leave-modal-header">
               <div>
                 <h3><FiClipboard /> Attachment Preview</h3>
-                <p>{selectedLeave.fullName} • {selectedLeave.username}</p>
+                <p>{selectedLeave.fullName} - {selectedLeave.username}</p>
               </div>
               <button type="button" className="leave-modal-close" onClick={() => setSelectedLeave(null)}><FiX /></button>
             </div>

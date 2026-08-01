@@ -101,6 +101,8 @@ function AttendanceVisuals({ onLogout }) {
     return { ...item, x, y };
   });
   const chartPolyline = chartPoints.map(point => `${point.x},${point.y}`).join(' ');
+  const reportDatesList = attendanceReport?.dates || [];
+  const reportStudents = attendanceReport?.students || [];
 
   return (
     <div className="dashboard-shell admin-dashboard-shell">
@@ -178,31 +180,50 @@ function AttendanceVisuals({ onLogout }) {
             <div className="attendance-report-results">
               <div className="attendance-report-summary">
                 <strong>{attendanceReport.startDate} to {attendanceReport.endDate}</strong>
-                <span>{attendanceReport.totalDays} total days included</span>
+                <span>{attendanceReport.totalDays} days shown, totals count marked days only</span>
               </div>
-              {attendanceReport.rooms.filter(room => room.students.length > 0).map(room => (
-                <div className="attendance-report-room" key={room.roomNumber}>
-                  <h4>Room {room.roomNumber}</h4>
-                  <div className="attendance-report-table">
-                    <div className="attendance-report-row head">
-                      <span>Student</span>
-                      <span>Email</span>
-                      <span>College</span>
-                      <span>Present</span>
-                      <span>Attendance</span>
-                    </div>
-                    {room.students.map(student => (
-                      <div className="attendance-report-row" key={student.studentId}>
-                        <span>{student.fullName || student.username}</span>
-                        <span>{student.email || '-'}</span>
-                        <span>{student.college_name || '-'}</span>
-                        <span>{student.presentDays}/{student.totalDays}</span>
-                        <span>{student.attendancePercentage}%</span>
-                      </div>
-                    ))}
-                  </div>
+              <div className="attendance-report-wide-table">
+                <div
+                  className="attendance-report-wide-row head"
+                  style={{ gridTemplateColumns: `120px 92px 180px 240px 140px repeat(${reportDatesList.length}, 58px) 130px` }}
+                >
+                  <span>Student</span>
+                  <span>Room No</span>
+                  <span>Full Name</span>
+                  <span>Email</span>
+                  <span>Phone</span>
+                  {reportDatesList.map(day => (
+                    <span key={day.date} title={day.date}>{day.label}</span>
+                  ))}
+                  <span>Total Present</span>
                 </div>
-              ))}
+                {reportStudents.length === 0 ? (
+                  <p className="empty-state">No students found for this report.</p>
+                ) : (
+                  reportStudents.map(student => (
+                    <div
+                      className="attendance-report-wide-row"
+                      key={student.studentId}
+                      style={{ gridTemplateColumns: `120px 92px 180px 240px 140px repeat(${reportDatesList.length}, 58px) 130px` }}
+                    >
+                      <span>{student.username || '-'}</span>
+                      <span>{student.roomNumber || '-'}</span>
+                      <span>{student.fullName || '-'}</span>
+                      <span>{student.email || '-'}</span>
+                      <span>{student.phone || '-'}</span>
+                      {reportDatesList.map(day => {
+                        const mark = student.days?.[day.date] || '-';
+                        return (
+                          <span className={`attendance-mark ${mark === 'P' ? 'present' : mark === 'A' ? 'absent' : ''}`} key={day.date}>
+                            {mark}
+                          </span>
+                        );
+                      })}
+                      <span className="attendance-total-cell">{student.totalText || `${student.presentDays || 0}/${student.markedDays || 0}`}</span>
+                    </div>
+                  ))
+                )}
+                  </div>
             </div>
           ) : null}
         </div>

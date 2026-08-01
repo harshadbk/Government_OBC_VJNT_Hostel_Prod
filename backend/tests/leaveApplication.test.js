@@ -13,6 +13,8 @@ test('leave application defaults to pending status', () => {
   });
 
   assert.equal(leave.status, 'Pending');
+  assert.equal(leave.comebackMarked, false);
+  assert.equal(leave.comebackDate, '');
   assert.equal(leave.adminNote, '');
   assert.equal(leave.attachmentUrl, '');
 });

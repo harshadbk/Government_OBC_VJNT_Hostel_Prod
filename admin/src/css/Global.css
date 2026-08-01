@@ -688,6 +688,74 @@ th, td { text-align:left; padding:.8rem .4rem; border-bottom:1px solid rgba(255,
   min-width: 680px;
 }
 
+.attendance-report-wide-table {
+  width: 100%;
+  max-height: 520px;
+  overflow: auto;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.025);
+}
+
+.attendance-report-wide-row {
+  display: grid;
+  min-width: max-content;
+  border-top: 1px solid rgba(255,255,255,.06);
+  color: var(--text);
+  font-size: .86rem;
+}
+
+.attendance-report-wide-row:first-child {
+  border-top: none;
+}
+
+.attendance-report-wide-row > span {
+  min-width: 0;
+  padding: .68rem .62rem;
+  border-right: 1px solid rgba(255,255,255,.06);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attendance-report-wide-row > span:last-child {
+  border-right: none;
+}
+
+.attendance-report-wide-row.head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  color: var(--muted);
+  font-weight: 800;
+  background: rgba(14, 24, 45, .96);
+}
+
+.attendance-report-wide-row.head > span {
+  text-align: center;
+}
+
+.attendance-mark {
+  text-align: center;
+  font-weight: 800;
+}
+
+.attendance-mark.present {
+  color: #34d399;
+  background: rgba(52,211,153,.08);
+}
+
+.attendance-mark.absent {
+  color: #f87171;
+  background: rgba(248,113,113,.08);
+}
+
+.attendance-total-cell {
+  text-align: center;
+  font-weight: 800;
+  color: #72e3ff;
+}
+
 .attendance-report-row {
   display: grid;
   grid-template-columns: 1.5fr 1.6fr 1.4fr .8fr .8fr;

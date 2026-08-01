@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import ExcelJS from 'exceljs';
 import User from '../models/User.js';
 import Attendance from '../models/Attendance.js';
+import LeaveApplication from '../models/LeaveApplication.js';
 
 const router = express.Router();
 const ROOM_COUNT = 20;
@@ -90,6 +91,60 @@ const getDatesInRange = (startDate, endDate) => {
   }
 
   return dates;
+};
+
+const getDayName = (date) => new Date(`${date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short' });
+
+const buildAttendanceMatrix = (students, records, reportDates) => {
+  const studentsByUsername = new Map(
+    students.map(student => [String(student.username || '').trim().toLowerCase(), student])
+  );
+
+  const attendanceByStudent = new Map();
+  records.forEach((record) => {
+    const studentStatuses = Array.isArray(record.students) ? record.students : [];
+    studentStatuses.forEach((entry) => {
+      const username = String(entry.username || '').trim().toLowerCase();
+      const student = studentsByUsername.get(username);
+      if (!student) return;
+
+      const studentId = student._id.toString();
+      if (!attendanceByStudent.has(studentId)) {
+        attendanceByStudent.set(studentId, {});
+      }
+
+      attendanceByStudent.get(studentId)[record.date] = entry.status === 'Present' ? 'P' : 'A';
+    });
+  });
+
+  const dates = reportDates.map(date => ({
+    date,
+    day: getDayName(date),
+    label: `${date.slice(8, 10)} ${getDayName(date)}`
+  }));
+
+  const rows = students.map((student) => {
+    const dayStatuses = attendanceByStudent.get(student._id.toString()) || {};
+    const presentDays = reportDates.reduce((sum, date) => sum + (dayStatuses[date] === 'P' ? 1 : 0), 0);
+    const markedDays = reportDates.reduce((sum, date) => sum + (dayStatuses[date] ? 1 : 0), 0);
+
+    return {
+      studentId: student._id,
+      username: student.username,
+      roomNumber: String(student.roomNumber || '').trim() || 'Unassigned',
+      rollNumber: student.rollNumber || '-',
+      fullName: student.fullName || student.username || '-',
+      email: student.email || '-',
+      phone: student.phone || student.mobileNumber || student.fathersMobileNumber || '-',
+      days: dayStatuses,
+      presentDays,
+      absentDays: markedDays - presentDays,
+      markedDays,
+      totalText: `${presentDays}/${markedDays}`
+    };
+  });
+
+  return { dates, rows };
 };
 
 const isRecordLocked = (firstSavedAt) => {
@@ -249,7 +304,7 @@ router.post('/range-report', adminAuth, async (req, res) => {
 
     const [students, records] = await Promise.all([
       User.find({ roomNumber: { $ne: '' } })
-        .select('_id username fullName email roomNumber college_name')
+        .select('_id username fullName email phone mobileNumber fathersMobileNumber roomNumber college_name')
         .sort({ roomNumber: 1, fullName: 1, username: 1 })
         .lean(),
       Attendance.find({ date: { $gte: startDate, $lte: endDate } })
@@ -257,51 +312,19 @@ router.post('/range-report', adminAuth, async (req, res) => {
         .lean()
     ]);
 
-    const studentsByUsername = new Map(
-      students.map(student => [String(student.username || '').trim().toLowerCase(), student])
-    );
-
-    const attendanceByStudent = new Map();
-    records.forEach((record) => {
-      const studentStatuses = Array.isArray(record.students) ? record.students : [];
-      studentStatuses.forEach((entry) => {
-        const username = String(entry.username || '').trim().toLowerCase();
-        const student = studentsByUsername.get(username);
-        if (!student) return;
-
-        const studentId = student._id.toString();
-        if (!attendanceByStudent.has(studentId)) {
-          attendanceByStudent.set(studentId, { presentDays: 0, absentDays: 0, markedDays: 0 });
-        }
-        const stats = attendanceByStudent.get(studentId);
-        stats.markedDays += 1;
-        if (entry.status === 'Present') stats.presentDays += 1;
-        if (entry.status === 'Absent') stats.absentDays += 1;
-      });
-    });
+    const matrix = buildAttendanceMatrix(students, records, reportDates);
 
     const rooms = Array.from({ length: ROOM_COUNT }, (_, index) => {
       const roomNumber = String(index + 1);
-      const roomStudents = students
-        .filter(student => String(student.roomNumber || '').trim() === roomNumber)
-        .map((student) => {
-          const stats = attendanceByStudent.get(student._id.toString()) || { presentDays: 0, absentDays: 0, markedDays: 0 };
-          return {
-            studentId: student._id,
-            username: student.username,
-            fullName: student.fullName,
-            email: student.email,
-            college_name: student.college_name,
-            roomNumber,
-            presentDays: stats.presentDays,
-            absentDays: stats.absentDays,
-            markedDays: stats.markedDays,
-            totalDays: reportDates.length,
-            attendancePercentage: reportDates.length > 0
-              ? Number(((stats.presentDays / reportDates.length) * 100).toFixed(1))
-              : 0
-          };
-        });
+      const roomStudents = matrix.rows
+        .filter(student => student.roomNumber === roomNumber)
+        .map(student => ({
+          ...student,
+          totalDays: student.markedDays,
+          attendancePercentage: student.markedDays > 0
+            ? Number(((student.presentDays / student.markedDays) * 100).toFixed(1))
+            : 0
+        }));
 
       return {
         roomNumber,
@@ -318,6 +341,8 @@ router.post('/range-report', adminAuth, async (req, res) => {
       startDate,
       endDate,
       totalDays: reportDates.length,
+      dates: matrix.dates,
+      students: matrix.rows,
       rooms
     });
   } catch (error) {
@@ -434,10 +459,18 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
       return res.status(400).json({ message: 'Present student list contains students outside this room.' });
     }
 
+    const activeLeaves = await LeaveApplication.find({
+      status: 'Approved',
+      comebackMarked: false,
+      startDate: { $lte: targetDate },
+      endDate: { $gte: targetDate }
+    }).select('userId').lean();
+    const leaveUserIds = new Set(activeLeaves.map(leave => String(leave.userId)));
+
     const newRoomEntries = roomUsers.map(user => ({
       username: user.username,
       roomNumber: cleanRoomNum,
-      status: presentSet.has(user._id.toString()) ? 'Present' : 'Absent'
+      status: presentSet.has(user._id.toString()) && !leaveUserIds.has(user._id.toString()) ? 'Present' : 'Absent'
     }));
 
     const existingStudents = Array.isArray(existingDoc?.students) ? existingDoc.students : [];
@@ -464,8 +497,8 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
       date: targetDate,
       roomNumber: cleanRoomNum,
       totalMarked: roomUsers.length,
-      presentCount: presentSet.size,
-      absentCount: roomUsers.length - presentSet.size
+      presentCount: newRoomEntries.filter(entry => entry.status === 'Present').length,
+      absentCount: newRoomEntries.filter(entry => entry.status === 'Absent').length
     });
   } catch (error) {
     console.error('Error saving room attendance:', error);
@@ -604,7 +637,7 @@ router.get('/export', adminAuth, async (req, res) => {
       .lean();
 
     const userProfiles = await User.find({})
-      .select('username fullName email college_name mobileNumber phone fathersMobileNumber roomNumber')
+      .select('username rollNumber fullName email college_name mobileNumber phone fathersMobileNumber roomNumber')
       .lean();
 
     const userProfilesByUsername = new Map(
@@ -617,6 +650,7 @@ router.get('/export', adminAuth, async (req, res) => {
         const username = String(entry.username || '').trim().toLowerCase();
         const student = userProfilesByUsername.get(username) || {
           username: entry.username || '-',
+          rollNumber: '-',
           fullName: '-',
           email: '-',
           college_name: '-',
@@ -641,10 +675,107 @@ router.get('/export', adminAuth, async (req, res) => {
     workbook.creator = 'Government OBC Boys Hostel Admin';
     workbook.created = new Date();
 
+    if (type === 'monthly') {
+      const monthStr = String(selectedMonth).padStart(2, '0');
+      const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+      const reportDates = Array.from({ length: lastDay }, (_, index) => (
+        `${selectedYear}-${monthStr}-${String(index + 1).padStart(2, '0')}`
+      ));
+      const residents = userProfiles
+        .filter(user => String(user.roomNumber || '').trim())
+        .sort((a, b) => {
+          const roomA = Number(a.roomNumber) || 9999;
+          const roomB = Number(b.roomNumber) || 9999;
+          if (roomA !== roomB) return roomA - roomB;
+          return String(a.fullName || a.username || '').localeCompare(String(b.fullName || b.username || ''));
+        });
+      const matrix = buildAttendanceMatrix(residents, attendanceDocs, reportDates);
+      const worksheet = workbook.addWorksheet('Monthly Attendance');
+      const totalColumns = 6 + matrix.dates.length + 1;
+
+      worksheet.mergeCells(1, 1, 1, totalColumns);
+      const titleCell = worksheet.getCell(1, 1);
+      titleCell.value = reportTitle;
+      titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A365D' } };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      worksheet.getRow(1).height = 35;
+
+      const headers = ['Roll No', 'Student', 'Room No', 'Full Name', 'Email', 'Phone', ...matrix.dates.map(day => day.label), 'Total Present'];
+      const headerRow = worksheet.getRow(3);
+      headerRow.values = headers;
+      headerRow.height = 28;
+      headerRow.eachCell((cell) => {
+        cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2B4C7E' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          bottom: { style: 'medium', color: { argb: 'FF0F172A' } },
+          left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+        };
+      });
+
+      matrix.rows.forEach((student, index) => {
+        const row = worksheet.getRow(4 + index);
+        row.values = [
+          student.rollNumber || '-',
+          student.username || '-',
+          student.roomNumber,
+          student.fullName,
+          student.email,
+          student.phone,
+          ...matrix.dates.map(day => student.days[day.date] || '-'),
+          student.totalText
+        ];
+        row.eachCell((cell, colNum) => {
+          const value = String(cell.value || '');
+          cell.font = { name: 'Arial', size: 10 };
+          cell.alignment = { horizontal: colNum >= 7 ? 'center' : 'left', vertical: 'middle' };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+          };
+          if (value === 'P') cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF16A34A' } };
+          if (value === 'A') cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFDC2626' } };
+        });
+      });
+
+      if (matrix.rows.length === 0) {
+        worksheet.getRow(4).values = ['No residents found for this monthly report.'];
+      }
+
+      worksheet.columns = [
+        { width: 18 },
+        { width: 20 },
+        { width: 18 },
+        { width: 24 },
+        { width: 28 },
+        { width: 18 },
+        ...matrix.dates.map(() => ({ width: 12 })),
+        { width: 18 }
+      ];
+      worksheet.views = [{ state: 'frozen', xSplit: 6, ySplit: 3 }];
+      worksheet.autoFilter = {
+        from: { row: 3, column: 1 },
+        to: { row: 3, column: totalColumns }
+      };
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=Attendance_Report_monthly_${selectedYear}-${monthStr}.xlsx`);
+
+      await workbook.xlsx.write(res);
+      res.end();
+      return;
+    }
+
     const worksheet = workbook.addWorksheet('Attendance Report');
 
     // Title Row
-    worksheet.mergeCells('A1', 'H1');
+    worksheet.mergeCells('A1', 'I1');
     const titleCell = worksheet.getCell('A1');
     titleCell.value = reportTitle;
     titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -652,7 +783,7 @@ router.get('/export', adminAuth, async (req, res) => {
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(1).height = 35;
 
-    const headers = ['Date', 'Room No', 'Email', 'Username', 'Full Name', 'College Name', 'Status', 'Marked By'];
+    const headers = ['Date', 'Room No', 'Roll No', 'Email', 'Username', 'Full Name', 'College Name', 'Status', 'Marked By'];
 
     const styleHeaderRow = (row) => {
       row.height = 24;
@@ -692,6 +823,7 @@ router.get('/export', adminAuth, async (req, res) => {
       row.values = [
         rec.date,
         rec.roomNumber ? `Room ${rec.roomNumber}` : 'Unassigned',
+        student.rollNumber || '-',
         student.email || '-',
         student.username || '-',
         student.fullName || '-',
@@ -700,10 +832,10 @@ router.get('/export', adminAuth, async (req, res) => {
         rec.markedBy || 'admin'
       ];
 
-      row.height = 20;
+      row.height = 30;
       row.eachCell((cell, colNum) => {
         cell.font = { name: 'Arial', size: 10 };
-        cell.alignment = { vertical: 'middle', horizontal: colNum === 7 ? 'center' : 'left' };
+        cell.alignment = { vertical: 'middle', horizontal: colNum === 8 ? 'center' : 'left' };
         cell.border = {
           top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
           bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
@@ -711,14 +843,14 @@ router.get('/export', adminAuth, async (req, res) => {
           right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
         };
 
-        if (colNum === 7) {
+        if (colNum === 8) {
           cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: statusColor } };
         }
       });
     };
 
     const writeMergedSection = (rowNumber, label, color) => {
-      worksheet.mergeCells(`A${rowNumber}:H${rowNumber}`);
+      worksheet.mergeCells(`A${rowNumber}:I${rowNumber}`);
       const row = worksheet.getRow(rowNumber);
       row.getCell(1).value = label;
       styleSectionRow(row, color);
@@ -781,8 +913,8 @@ router.get('/export', adminAuth, async (req, res) => {
       worksheet.getRow(rowNumber).values = ['No attendance records found for this report.'];
     }
 
-    // Set Column Widths
     worksheet.columns = [
+      { width: 14 },
       { width: 14 },
       { width: 14 },
       { width: 28 },

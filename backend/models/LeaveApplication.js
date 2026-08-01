@@ -45,6 +45,19 @@ const leaveApplicationSchema = new mongoose.Schema({
     enum: ['Pending', 'Approved', 'Rejected'],
     default: 'Pending'
   },
+  comebackMarked: {
+    type: Boolean,
+    default: false
+  },
+  comebackDate: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  comebackMarkedAt: {
+    type: Date,
+    default: null
+  },
   adminNote: {
     type: String,
     default: ''
