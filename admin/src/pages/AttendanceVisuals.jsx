@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FiCalendar, FiFileText, FiTrendingUp } from 'react-icons/fi';
-import Sidebar from '../components/Sidebar';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { FiCalendar, FiFileText, FiTrendingUp, FiUserX } from "react-icons/fi";
+import Sidebar from "../components/Sidebar";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 
 function AttendanceVisuals({ onLogout }) {
-  const [visualMonth, setVisualMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [visualMonth, setVisualMonth] = useState(() =>
+    new Date().toISOString().slice(0, 7),
+  );
   const [attendanceVisuals, setAttendanceVisuals] = useState(null);
   const [visualsLoading, setVisualsLoading] = useState(false);
   const [reportDates, setReportDates] = useState(() => {
@@ -15,13 +17,19 @@ function AttendanceVisuals({ onLogout }) {
   });
   const [attendanceReport, setAttendanceReport] = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
-  const [reportError, setReportError] = useState('');
+  const [reportError, setReportError] = useState("");
+  const [absentMonth, setAbsentMonth] = useState(() =>
+    new Date().toISOString().slice(0, 7),
+  );
+  const [absentReport, setAbsentReport] = useState(null);
+  const [absentsLoading, setAbsentsLoading] = useState(false);
+  const [absentsError, setAbsentsError] = useState("");
   const navigate = useNavigate();
 
   const getAdminToken = () => {
-    const token = localStorage.getItem('adminToken');
-    if (!token || token === 'null' || token === 'undefined') {
-      localStorage.removeItem('adminToken');
+    const token = localStorage.getItem("adminToken");
+    if (!token || token === "null" || token === "undefined") {
+      localStorage.removeItem("adminToken");
       return null;
     }
     return token;
@@ -32,19 +40,22 @@ function AttendanceVisuals({ onLogout }) {
       try {
         const token = getAdminToken();
         if (!token) {
-          if (typeof onLogout === 'function') onLogout();
-          navigate('/login');
+          if (typeof onLogout === "function") onLogout();
+          navigate("/login");
           return;
         }
         setVisualsLoading(true);
-        const [year, month] = visualMonth.split('-');
-        const response = await fetch(`${apiBaseUrl}/api/attendance/visuals?year=${year}&month=${Number(month)}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const [year, month] = visualMonth.split("-");
+        const response = await fetch(
+          `${apiBaseUrl}/api/attendance/visuals?year=${year}&month=${Number(month)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         if (response.status === 401 || response.status === 403) {
-          localStorage.removeItem('adminToken');
-          if (typeof onLogout === 'function') onLogout();
-          navigate('/login');
+          localStorage.removeItem("adminToken");
+          if (typeof onLogout === "function") onLogout();
+          navigate("/login");
           return;
         }
         if (response.ok) {
@@ -52,7 +63,7 @@ function AttendanceVisuals({ onLogout }) {
           setAttendanceVisuals(data);
         }
       } catch (err) {
-        console.error('Failed to fetch attendance visuals:', err);
+        console.error("Failed to fetch attendance visuals:", err);
       } finally {
         setVisualsLoading(false);
       }
@@ -61,24 +72,58 @@ function AttendanceVisuals({ onLogout }) {
     fetchAttendanceVisuals();
   }, [visualMonth, navigate, onLogout]);
 
+  useEffect(() => {
+    const fetchAbsents = async () => {
+      try {
+        const token = getAdminToken();
+        if (!token) return;
+        setAbsentsLoading(true);
+        setAbsentsError("");
+        const [year, month] = absentMonth.split("-");
+        const response = await fetch(
+          `${apiBaseUrl}/api/attendance/absents?year=${year}&month=${Number(month)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.message || "Unable to load absent students.");
+        }
+        setAbsentReport(data);
+      } catch (err) {
+        setAbsentsError(err.message);
+      } finally {
+        setAbsentsLoading(false);
+      }
+    };
+
+    fetchAbsents();
+  }, [absentMonth]);
+
   const generateAttendanceReport = async (event) => {
     event.preventDefault();
     setReportLoading(true);
-    setReportError('');
+    setReportError("");
     try {
       const token = getAdminToken();
       if (!token) return;
-      const response = await fetch(`${apiBaseUrl}/api/attendance/range-report`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+      const response = await fetch(
+        `${apiBaseUrl}/api/attendance/range-report`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(reportDates),
         },
-        body: JSON.stringify(reportDates)
-      });
+      );
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data.message || 'Unable to generate attendance report.');
+        throw new Error(
+          data.message || "Unable to generate attendance report.",
+        );
       }
       setAttendanceReport(data);
     } catch (err) {
@@ -89,18 +134,25 @@ function AttendanceVisuals({ onLogout }) {
   };
 
   const chartData = attendanceVisuals?.dailyPresent || [];
-  const maxPresent = Math.max(...chartData.map(item => item.presentCount), 1);
+  const maxPresent = Math.max(...chartData.map((item) => item.presentCount), 1);
   const chartWidth = 720;
   const chartHeight = 220;
   const chartPadding = 28;
   const chartPoints = chartData.map((item, index) => {
-    const x = chartData.length <= 1
-      ? chartPadding
-      : chartPadding + (index / (chartData.length - 1)) * (chartWidth - chartPadding * 2);
-    const y = chartHeight - chartPadding - (item.presentCount / maxPresent) * (chartHeight - chartPadding * 2);
+    const x =
+      chartData.length <= 1
+        ? chartPadding
+        : chartPadding +
+          (index / (chartData.length - 1)) * (chartWidth - chartPadding * 2);
+    const y =
+      chartHeight -
+      chartPadding -
+      (item.presentCount / maxPresent) * (chartHeight - chartPadding * 2);
     return { ...item, x, y };
   });
-  const chartPolyline = chartPoints.map(point => `${point.x},${point.y}`).join(' ');
+  const chartPolyline = chartPoints
+    .map((point) => `${point.x},${point.y}`)
+    .join(" ");
   const reportDatesList = attendanceReport?.dates || [];
   const reportStudents = attendanceReport?.students || [];
 
@@ -123,21 +175,44 @@ function AttendanceVisuals({ onLogout }) {
             </div>
             <label className="attendance-filter">
               <FiCalendar />
-              <input type="month" value={visualMonth} onChange={(e) => setVisualMonth(e.target.value)} />
+              <input
+                type="month"
+                value={visualMonth}
+                onChange={(e) => setVisualMonth(e.target.value)}
+              />
             </label>
           </div>
 
           {visualsLoading ? (
-            <p style={{ padding: '1rem', color: 'var(--muted)' }}>Loading attendance graph...</p>
+            <p style={{ padding: "1rem", color: "var(--muted)" }}>
+              Loading attendance graph...
+            </p>
           ) : chartData.length === 0 ? (
-            <p style={{ padding: '1rem', color: 'var(--muted)' }}>No attendance records found for this month.</p>
+            <p style={{ padding: "1rem", color: "var(--muted)" }}>
+              No attendance records found for this month.
+            </p>
           ) : (
             <div className="attendance-line-chart-wrap">
-              <svg className="attendance-line-chart" viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Monthly attendance present count line graph">
-                <line x1={chartPadding} y1={chartHeight - chartPadding} x2={chartWidth - chartPadding} y2={chartHeight - chartPadding} />
-                <line x1={chartPadding} y1={chartPadding} x2={chartPadding} y2={chartHeight - chartPadding} />
+              <svg
+                className="attendance-line-chart"
+                viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                role="img"
+                aria-label="Monthly attendance present count line graph"
+              >
+                <line
+                  x1={chartPadding}
+                  y1={chartHeight - chartPadding}
+                  x2={chartWidth - chartPadding}
+                  y2={chartHeight - chartPadding}
+                />
+                <line
+                  x1={chartPadding}
+                  y1={chartPadding}
+                  x2={chartPadding}
+                  y2={chartHeight - chartPadding}
+                />
                 <polyline points={chartPolyline} />
-                {chartPoints.map(point => (
+                {chartPoints.map((point) => (
                   <g key={point.date}>
                     <circle cx={point.x} cy={point.y} r="4" />
                     <title>{`${point.date}: ${point.presentCount} present`}</title>
@@ -145,7 +220,10 @@ function AttendanceVisuals({ onLogout }) {
                 ))}
               </svg>
               <div className="attendance-chart-meta">
-                <span><FiTrendingUp /> Total present marks: {attendanceVisuals?.totalPresentMarks ?? 0}</span>
+                <span>
+                  <FiTrendingUp /> Total present marks:{" "}
+                  {attendanceVisuals?.totalPresentMarks ?? 0}
+                </span>
                 <span>Peak day: {maxPresent}</span>
               </div>
             </div>
@@ -160,72 +238,191 @@ function AttendanceVisuals({ onLogout }) {
             </div>
           </div>
 
-          <form className="attendance-report-form" onSubmit={generateAttendanceReport}>
+          <form
+            className="attendance-report-form"
+            onSubmit={generateAttendanceReport}
+          >
             <label>
               Start Date
-              <input type="date" value={reportDates.startDate} onChange={(e) => setReportDates(prev => ({ ...prev, startDate: e.target.value }))} />
+              <input
+                type="date"
+                value={reportDates.startDate}
+                onChange={(e) =>
+                  setReportDates((prev) => ({
+                    ...prev,
+                    startDate: e.target.value,
+                  }))
+                }
+              />
             </label>
             <label>
               End Date
-              <input type="date" value={reportDates.endDate} onChange={(e) => setReportDates(prev => ({ ...prev, endDate: e.target.value }))} />
+              <input
+                type="date"
+                value={reportDates.endDate}
+                onChange={(e) =>
+                  setReportDates((prev) => ({
+                    ...prev,
+                    endDate: e.target.value,
+                  }))
+                }
+              />
             </label>
-            <button className="primary-btn" type="submit" disabled={reportLoading}>
-              <FiFileText /> {reportLoading ? 'Generating...' : 'Generate Report'}
+            <button
+              className="primary-btn"
+              type="submit"
+              disabled={reportLoading}
+            >
+              <FiFileText />{" "}
+              {reportLoading ? "Generating..." : "Generate Report"}
             </button>
           </form>
 
-          {reportError ? <p className="attendance-report-error">{reportError}</p> : null}
+          {reportError ? (
+            <p className="attendance-report-error">{reportError}</p>
+          ) : null}
 
           {attendanceReport ? (
             <div className="attendance-report-results">
               <div className="attendance-report-summary">
-                <strong>{attendanceReport.startDate} to {attendanceReport.endDate}</strong>
-                <span>{attendanceReport.totalDays} days shown, totals count marked days only</span>
+                <strong>
+                  {attendanceReport.startDate} to {attendanceReport.endDate}
+                </strong>
+                <span>
+                  {attendanceReport.totalDays} days shown, totals count marked
+                  days only
+                </span>
               </div>
               <div className="attendance-report-wide-table">
                 <div
                   className="attendance-report-wide-row head"
-                  style={{ gridTemplateColumns: `120px 92px 180px 240px 140px repeat(${reportDatesList.length}, 58px) 130px` }}
+                  style={{
+                    gridTemplateColumns: `120px 92px 180px 240px 140px repeat(${reportDatesList.length}, 100px) 130px`,
+                  }}
                 >
-                  <span>Student</span>
+                  <span>Roll Number</span>
                   <span>Room No</span>
-                  <span>Full Name</span>
+                  <span>username</span>
                   <span>Email</span>
                   <span>Phone</span>
-                  {reportDatesList.map(day => (
-                    <span key={day.date} title={day.date}>{day.label}</span>
+                  {reportDatesList.map((day) => (
+                    <span key={day.date} title={day.date}>
+                      {new Date(day.date).toLocaleDateString("en-IN", {
+                        weekday:"short",
+                        day: "2-digit",
+                        month: "short",
+                      })}
+                    </span>
                   ))}
                   <span>Total Present</span>
                 </div>
                 {reportStudents.length === 0 ? (
-                  <p className="empty-state">No students found for this report.</p>
+                  <p className="empty-state">
+                    No students found for this report.
+                  </p>
                 ) : (
-                  reportStudents.map(student => (
+                  reportStudents.map((student) => (
                     <div
                       className="attendance-report-wide-row"
                       key={student.studentId}
-                      style={{ gridTemplateColumns: `120px 92px 180px 240px 140px repeat(${reportDatesList.length}, 58px) 130px` }}
+                      style={{
+                        gridTemplateColumns: `120px 92px 180px 240px 140px repeat(${reportDatesList.length}, 100px) 130px`,
+                      }}
                     >
-                      <span>{student.username || '-'}</span>
-                      <span>{student.roomNumber || '-'}</span>
-                      <span>{student.fullName || '-'}</span>
-                      <span>{student.email || '-'}</span>
-                      <span>{student.phone || '-'}</span>
-                      {reportDatesList.map(day => {
-                        const mark = student.days?.[day.date] || '-';
+                      <span>{student.rollNumber || "-"}</span>
+                      <span>{student.roomNumber || "-"}</span>
+                      <span>{student.username || "-"}</span>
+                      <span>{student.email || "-"}</span>
+                      <span>{student.phone || "-"}</span>
+                      {reportDatesList.map((day) => {
+                        const mark = student.days?.[day.date] || "-";
                         return (
-                          <span className={`attendance-mark ${mark === 'P' ? 'present' : mark === 'A' ? 'absent' : ''}`} key={day.date}>
+                          <span
+                            className={`attendance-mark ${mark === "P" ? "present" : mark === "A" ? "absent" : ""}`}
+                            key={day.date}
+                          >
                             {mark}
                           </span>
                         );
                       })}
-                      <span className="attendance-total-cell">{student.totalText || `${student.presentDays || 0}/${student.markedDays || 0}`}</span>
+                      <span className="attendance-total-cell">
+                        {student.totalText ||
+                          `${student.presentDays || 0}/${student.markedDays || 0}`}
+                      </span>
                     </div>
                   ))
                 )}
-                  </div>
+              </div>
             </div>
           ) : null}
+        </div>
+
+        <div className="panel-card attendance-report-panel">
+          <div className="panel-head">
+            <div>
+              <h3>
+                <FiUserX /> Absents Without Leave
+              </h3>
+              <small>
+                Students marked absent in selected month without approved leave
+                application.
+              </small>
+            </div>
+            <label className="attendance-filter">
+              <FiCalendar />
+              <input
+                type="month"
+                value={absentMonth}
+                onChange={(e) => setAbsentMonth(e.target.value)}
+              />
+            </label>
+          </div>
+
+          {absentsLoading ? (
+            <p style={{ padding: "1rem", color: "var(--muted)" }}>
+              Loading absent students...
+            </p>
+          ) : absentsError ? (
+            <p className="attendance-report-error">{absentsError}</p>
+          ) : !absentReport || (absentReport.students || []).length === 0 ? (
+            <p className="empty-state">
+              No absent-without-leave records found for this month.
+            </p>
+          ) : (
+            <div className="table-wrapper">
+              <table className="user-table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Room</th>
+                    <th>Absent Count</th>
+                    <th>Absent Dates</th>
+                    <th>Phone</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {absentReport.students.map((student) => (
+                    <tr key={student.userId}>
+                      <td>
+                        <strong>{student.fullName}</strong>
+                        <div className="staff-info-row">
+                          @{student.username}
+                        </div>
+                      </td>
+                      <td>{student.roomNumber || "N/A"}</td>
+                      <td>
+                        <strong className="absent-text">
+                          {student.absentCount}
+                        </strong>
+                      </td>
+                      <td>{(student.absentDates || []).join(", ")}</td>
+                      <td>{student.phone || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
     </div>

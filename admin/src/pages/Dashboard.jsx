@@ -14,6 +14,18 @@ function Dashboard({ onLogout }) {
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const navigate = useNavigate();
 
+  const renderNotificationMessage = (item) => {
+    if (item.type === "frequent-unapproved-absence") {
+      return `Room ${item.roomNumber || "N/A"} - ${item.absentCount} absences in last ${item.windowDays} days`;
+    }
+
+    if (item.expectedReturnDate) {
+      return `Room ${item.roomNumber || "N/A"} - expected back on ${item.expectedReturnDate}`;
+    }
+
+    return `Room ${item.roomNumber || "N/A"} - expected back after ${item.endDate}`;
+  };
+
   const getAdminToken = () => {
     const token = localStorage.getItem("adminToken");
     if (!token || token === "null" || token === "undefined") {
@@ -24,85 +36,57 @@ function Dashboard({ onLogout }) {
   };
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const runDashboardLoad = async () => {
+      const token = getAdminToken();
+      if (!token) {
+        if (typeof onLogout === "function") onLogout();
+        navigate("/login");
+        return;
+      }
+
+      const headers = { Authorization: `Bearer ${token}` };
+
       try {
-        const token = getAdminToken();
-        if (!token) {
-          if (typeof onLogout === "function") onLogout();
-          navigate("/login");
-          return;
-        }
-        const response = await fetch(`${apiBaseUrl}/api/admin/users`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (response.status === 401 || response.status === 403) {
+        const [usersResponse, roomsResponse, leaveResponse, absenceResponse] = await Promise.all([
+          fetch(`${apiBaseUrl}/api/admin/users`, { headers }),
+          fetch(`${apiBaseUrl}/api/admin/rooms-overview`, { headers }),
+          fetch(`${apiBaseUrl}/api/leaves/notifications`, { headers }),
+          fetch(`${apiBaseUrl}/api/attendance/absence-alerts`, { headers }),
+        ]);
+
+        if (usersResponse.status === 401 || usersResponse.status === 403) {
           localStorage.removeItem("adminToken");
           if (typeof onLogout === "function") onLogout();
           navigate("/login");
           return;
         }
-        if (response.ok) {
-          const data = await response.json();
-          setUsers(data.users || []);
+
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json();
+          setUsers(usersData.users || []);
         }
+
+        if (roomsResponse.ok) {
+          const roomsData = await roomsResponse.json();
+          setRooms(roomsData.overview || []);
+        }
+
+        const leaveData = leaveResponse.ok ? await leaveResponse.json() : { notifications: [] };
+        const absenceData = absenceResponse.ok ? await absenceResponse.json() : { alerts: [] };
+        setNotifications([
+          ...(leaveData.notifications || []),
+          ...(absenceData.alerts || []),
+        ]);
       } catch (err) {
-        console.error("Failed to fetch users for dashboard:", err);
+        console.error("Failed to fetch dashboard data:", err);
       } finally {
         setLoading(false);
-      }
-    };
-
-    const fetchRooms = async () => {
-      try {
-        const token = getAdminToken();
-        if (!token) return;
-        const response = await fetch(`${apiBaseUrl}/api/admin/rooms-overview`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (response.status === 401 || response.status === 403) {
-          localStorage.removeItem("adminToken");
-          if (typeof onLogout === "function") onLogout();
-          navigate("/login");
-          return;
-        }
-        if (response.ok) {
-          const data = await response.json();
-          setRooms(data.overview || []);
-        }
-      } catch (err) {
-        console.error("Failed to fetch room overview:", err);
-      } finally {
         setRoomsLoading(false);
-      }
-    };
-
-    const fetchNotifications = async () => {
-      try {
-        const token = getAdminToken();
-        if (!token) return;
-        const response = await fetch(`${apiBaseUrl}/api/leaves/notifications`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setNotifications(data.notifications || []);
-        }
-      } catch (err) {
-        console.error("Failed to fetch leave notifications:", err);
-      } finally {
         setNotificationsLoading(false);
       }
     };
 
-    fetchUsers();
-    fetchRooms();
-    fetchNotifications();
+    runDashboardLoad();
   }, [navigate, onLogout]);
 
   const recentUsers = users.slice(0, 4);
@@ -206,7 +190,7 @@ function Dashboard({ onLogout }) {
                         {item.studentName}
                       </span>
                       <small style={{ color: "var(--muted)" }}>
-                        Room {item.roomNumber || "N/A"} - expected back after {item.endDate}
+                        {renderNotificationMessage(item)}
                       </small>
                     </div>
                     <button className="table-action" onClick={() => navigate("/leaves")}>

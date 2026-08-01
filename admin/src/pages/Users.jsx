@@ -267,6 +267,8 @@ function Users({ onLogout }) {
                               >
                                 View
                               </button>
+                              </td>
+                              <td>
                               <button 
                                 className="table-action" 
                                 onClick={(e) => {

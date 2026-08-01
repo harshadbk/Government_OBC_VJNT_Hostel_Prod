@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { FiRefreshCcw, FiCheckCircle, FiXCircle, FiClipboard, FiEye, FiX } from 'react-icons/fi';
+import { FiRefreshCcw, FiCheckCircle, FiClipboard, FiEye, FiX, FiCalendar, FiUser, FiHome, FiPhone } from 'react-icons/fi';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -62,28 +62,6 @@ function LeaveManagement({ onLogout }) {
     return 'download';
   };
 
-  const updateStatus = async (id, status) => {
-    const token = getAdminToken();
-    if (!token) return;
-    setBusyId(id);
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/leaves/${id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setLeaves((current) => current.map((item) => item._id === id ? { ...item, ...data.leaveApplication } : item));
-      }
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   const openComebackPrompt = (leave) => {
     setComebackLeave(leave);
     setComebackDate(new Date().toISOString().slice(0, 10));
@@ -127,7 +105,7 @@ function LeaveManagement({ onLogout }) {
 
         <div className="panel-card">
           <div className="panel-head">
-            <h3><FiClipboard /> Pending and reviewed leave requests</h3>
+            <h3><FiClipboard /> Leave requests and comeback status</h3>
             <small>{leaves.length} total</small>
           </div>
           {loading ? (
@@ -141,9 +119,9 @@ function LeaveManagement({ onLogout }) {
                   <tr>
                     <th>Student</th>
                     <th>Room</th>
+                    <th>Phone</th>
                     <th>Dates</th>
                     <th>Reason</th>
-                    <th>Status</th>
                     <th>Comeback</th>
                     <th>Attachment</th>
                     <th>Action</th>
@@ -157,13 +135,11 @@ function LeaveManagement({ onLogout }) {
                         <div className="staff-info-row">{leave.username} - Room {leave.userId?.roomNumber || leave.roomNumber || 'N/A'}</div>
                       </td>
                       <td><strong>{leave.userId?.roomNumber || leave.roomNumber || 'N/A'}</strong></td>
+                      <td>
+                        {leave.userId?.mobileNumber || leave.mobileNumber || leave.phone || '-' }
+                      </td>
                       <td>{leave.startDate} to {leave.endDate}</td>
                       <td>{leave.reason}</td>
-                      <td>
-                        <span className={`status-pill ${leave.status?.toLowerCase() || 'pending'}`}>
-                          {leave.status || 'Pending'}
-                        </span>
-                      </td>
                       <td>
                         {leave.status === 'Approved' ? (
                           leave.comebackMarked ? (
@@ -180,11 +156,9 @@ function LeaveManagement({ onLogout }) {
                       </td>
                       <td>
                         <div className="staff-card-actions">
-                          <button className="table-action" disabled={busyId === leave._id} onClick={() => updateStatus(leave._id, 'Approved')}><FiCheckCircle /> Approve</button>
-                          <button className="table-action" disabled={busyId === leave._id} onClick={() => updateStatus(leave._id, 'Rejected')}><FiXCircle /> Reject</button>
                           {leave.status === 'Approved' && !leave.comebackMarked ? (
                             <button className="table-action" disabled={busyId === leave._id} onClick={() => openComebackPrompt(leave)}><FiCheckCircle /> Comeback</button>
-                          ) : null}
+                          ) : <span className="staff-info-row">No action</span>}
                         </div>
                       </td>
                     </tr>
@@ -229,8 +203,8 @@ function LeaveManagement({ onLogout }) {
 
       {comebackLeave && (
         <div className="leave-modal-overlay" onClick={(e) => e.target === e.currentTarget && setComebackLeave(null)}>
-          <div className="leave-modal-card attachment-only">
-            <div className="leave-modal-header">
+          <div className="leave-modal-card comeback-modal-card">
+            <div className="leave-modal-header comeback-modal-header">
               <div>
                 <h3><FiCheckCircle /> Mark Comeback</h3>
                 <p>{comebackLeave.fullName} - Room {comebackLeave.userId?.roomNumber || comebackLeave.roomNumber || 'N/A'}</p>
@@ -238,15 +212,23 @@ function LeaveManagement({ onLogout }) {
               <button type="button" className="leave-modal-close" onClick={() => setComebackLeave(null)}><FiX /></button>
             </div>
 
-            <div className="leave-form-grid">
-              <label className="leave-field leave-field-full">
+            <div className="comeback-summary-grid">
+              <div><FiUser /><span>Student</span><strong>{comebackLeave.fullName}</strong></div>
+              <div><FiHome /><span>Room</span><strong>{comebackLeave.userId?.roomNumber || comebackLeave.roomNumber || 'N/A'}</strong></div>
+              <div><FiPhone /><span>Phone</span><strong>{comebackLeave.userId?.mobileNumber || comebackLeave.mobileNumber || comebackLeave.phone || 'N/A'}</strong></div>
+              <div><FiCalendar /><span>Leave</span><strong>{comebackLeave.startDate} to {comebackLeave.endDate}</strong></div>
+            </div>
+
+            <div className="leave-form-grid comeback-form-grid">
+              <label className="leave-field leave-field-full comeback-date-field">
                 <span>Comeback date</span>
                 <input type="date" value={comebackDate} onChange={(e) => setComebackDate(e.target.value)} required />
               </label>
-              <p className="attendance-muted leave-field-full">
-                Are you sure? From this date, attendance marking will start again for this student.
-              </p>
-              <div className="leave-actions leave-field-full">
+              <div className="comeback-confirm-box leave-field-full">
+                <strong>Are you sure?</strong>
+                <p>From the selected date, attendance marking will start again for this student.</p>
+              </div>
+              <div className="leave-actions leave-field-full comeback-actions">
                 <button type="button" className="leave-submit-btn primary-btn" disabled={busyId === comebackLeave._id || !comebackDate} onClick={markComeback}>
                   <span className="leave-submit-label">{busyId === comebackLeave._id ? 'Saving...' : 'Yes, Mark Comeback'}</span>
                 </button>

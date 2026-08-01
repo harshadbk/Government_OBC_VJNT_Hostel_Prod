@@ -93,6 +93,82 @@ const getDatesInRange = (startDate, endDate) => {
   return dates;
 };
 
+const getRecentDateStrings = (days, endDateObj = new Date()) => {
+  const dates = [];
+  const current = new Date(endDateObj);
+  current.setHours(0, 0, 0, 0);
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const date = new Date(current);
+    date.setDate(current.getDate() - index);
+    dates.push(getFormattedDate(date));
+  }
+  return dates;
+};
+
+const isDateCoveredByLeave = (leave, date) => {
+  if (!leave || leave.status !== 'Approved') return false;
+  if (leave.startDate > date || leave.endDate < date) return false;
+  if (leave.comebackMarked && leave.comebackDate && leave.comebackDate <= date) return false;
+  return true;
+};
+
+const getUnapprovedAbsenceRows = async (startDate, endDate) => {
+  const [attendanceDocs, users, approvedLeaves] = await Promise.all([
+    Attendance.find({ date: { $gte: startDate, $lte: endDate } }).select('date students').lean(),
+    User.find({}).select('_id username fullName roomNumber mobileNumber phone createdAt').lean(),
+    LeaveApplication.find({
+      status: 'Approved',
+      startDate: { $lte: endDate },
+      endDate: { $gte: startDate }
+    }).select('userId startDate endDate status').lean()
+  ]);
+
+  const usersByUsername = new Map(
+    users.map(user => [String(user.username || '').trim().toLowerCase(), user])
+  );
+
+  const leavesByUserId = new Map();
+  approvedLeaves.forEach((leave) => {
+    const userId = String(leave.userId);
+    if (!leavesByUserId.has(userId)) leavesByUserId.set(userId, []);
+    leavesByUserId.get(userId).push(leave);
+  });
+
+  const absenceByUserId = new Map();
+  attendanceDocs.forEach((doc) => {
+    const studentEntries = Array.isArray(doc.students) ? doc.students : [];
+    studentEntries.forEach((entry) => {
+      if (entry.status !== 'Absent') return;
+      const username = String(entry.username || '').trim().toLowerCase();
+      const user = usersByUsername.get(username);
+      if (!user) return;
+
+      const userLeaves = leavesByUserId.get(String(user._id)) || [];
+      const hasApprovedLeave = userLeaves.some((leave) => isDateCoveredByLeave(leave, doc.date));
+      if (hasApprovedLeave) return;
+
+      const userId = String(user._id);
+      if (!absenceByUserId.has(userId)) {
+        absenceByUserId.set(userId, {
+          userId,
+          username: user.username,
+          fullName: user.fullName || user.username,
+          roomNumber: user.roomNumber || entry.roomNumber || '',
+          phone: user.mobileNumber || user.phone || '',
+          absentDates: []
+        });
+      }
+      absenceByUserId.get(userId).absentDates.push(doc.date);
+    });
+  });
+
+  return [...absenceByUserId.values()].map((student) => ({
+    ...student,
+    absentDates: [...new Set(student.absentDates)].sort(),
+    absentCount: new Set(student.absentDates).size
+  })).sort((a, b) => b.absentCount - a.absentCount || String(a.fullName).localeCompare(String(b.fullName)));
+};
+
 const getDayName = (date) => new Date(`${date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short' });
 
 const buildAttendanceMatrix = (students, records, reportDates) => {
@@ -286,6 +362,63 @@ router.get('/visuals', adminAuth, async (req, res) => {
   }
 });
 
+router.get('/absence-alerts', adminAuth, async (req, res) => {
+  try {
+    const threshold = Number(req.query.threshold) || 5;
+    const windowDays = Number(req.query.days) || 10;
+    const recentDates = getRecentDateStrings(windowDays);
+    const rows = await getUnapprovedAbsenceRows(recentDates[0], recentDates[recentDates.length - 1]);
+    const alerts = rows
+      .filter((student) => student.absentCount >= threshold)
+      .map((student) => ({
+        _id: student.userId,
+        type: 'frequent-unapproved-absence',
+        title: 'Frequent absence without leave',
+        message: `${student.fullName} was absent ${student.absentCount} times in the last ${windowDays} days without approved leave.`,
+        userId: student.userId,
+        ...student,
+        windowDays,
+        threshold
+      }));
+
+    res.json({ alerts, windowDays, threshold });
+  } catch (error) {
+    console.error('Error fetching absence alerts:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/absents', adminAuth, async (req, res) => {
+  try {
+    const selectedYear = Number(req.query.year) || new Date().getFullYear();
+    const selectedMonth = Number(req.query.month) || (new Date().getMonth() + 1);
+
+    if (!Number.isInteger(selectedYear) || selectedYear < 2000 || selectedYear > 2100) {
+      return res.status(400).json({ message: 'Year must be between 2000 and 2100.' });
+    }
+    if (!Number.isInteger(selectedMonth) || selectedMonth < 1 || selectedMonth > 12) {
+      return res.status(400).json({ message: 'Month must be between 1 and 12.' });
+    }
+
+    const monthStr = String(selectedMonth).padStart(2, '0');
+    const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+    const startDate = `${selectedYear}-${monthStr}-01`;
+    const endDate = `${selectedYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+    const students = await getUnapprovedAbsenceRows(startDate, endDate);
+
+    res.json({
+      year: selectedYear,
+      month: selectedMonth,
+      startDate,
+      endDate,
+      students
+    });
+  } catch (error) {
+    console.error('Error fetching unapproved absents:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 router.post('/range-report', adminAuth, async (req, res) => {
   try {
     const startDate = normalizeDate(req.body.startDate);
@@ -304,8 +437,8 @@ router.post('/range-report', adminAuth, async (req, res) => {
 
     const [students, records] = await Promise.all([
       User.find({ roomNumber: { $ne: '' } })
-        .select('_id username fullName email phone mobileNumber fathersMobileNumber roomNumber college_name')
-        .sort({ roomNumber: 1, fullName: 1, username: 1 })
+        .select('_id rollNumber username email phone mobileNumber fathersMobileNumber roomNumber college_name')
+        .sort({ rollNumber : 0 })
         .lean(),
       Attendance.find({ date: { $gte: startDate, $lte: endDate } })
         .select('date students')
@@ -461,16 +594,24 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
 
     const activeLeaves = await LeaveApplication.find({
       status: 'Approved',
-      comebackMarked: false,
       startDate: { $lte: targetDate }
-    }).select('userId').lean();
-    const leaveUserIds = new Set(activeLeaves.map(leave => String(leave.userId)));
+    }).select('userId startDate endDate comebackMarked comebackDate status').lean();
+    const leaveUserIds = new Set(
+      activeLeaves
+        .filter(leave => isDateCoveredByLeave(leave, targetDate))
+        .map(leave => String(leave.userId))
+    );
 
-    const newRoomEntries = roomUsers.map(user => ({
-      username: user.username,
-      roomNumber: cleanRoomNum,
-      status: presentSet.has(user._id.toString()) && !leaveUserIds.has(user._id.toString()) ? 'Present' : 'Absent'
-    }));
+    const newRoomEntries = roomUsers.map(user => {
+      const userId = user._id.toString();
+      const isOnLeave = leaveUserIds.has(userId);
+      const isPresent = presentSet.has(userId) && !isOnLeave;
+      return {
+        username: user.username,
+        roomNumber: cleanRoomNum,
+        status: isOnLeave ? 'Absent' : (isPresent ? 'Present' : 'Absent')
+      };
+    });
 
     const existingStudents = Array.isArray(existingDoc?.students) ? existingDoc.students : [];
     const filteredStudents = existingStudents.filter((entry) => String(entry.roomNumber || '').trim() !== cleanRoomNum);

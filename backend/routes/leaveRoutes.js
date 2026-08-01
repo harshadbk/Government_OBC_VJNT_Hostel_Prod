@@ -68,6 +68,48 @@ const getDatesInRange = (startDate, endDate) => {
   return dates;
 };
 
+const getLeaveAttendanceDates = (leaveApplication) => {
+  const leaveDates = getDatesInRange(leaveApplication.startDate, leaveApplication.endDate);
+  if (!leaveApplication.comebackMarked || !leaveApplication.comebackDate) {
+    return leaveDates;
+  }
+
+  const comebackDate = parseLeaveDate(leaveApplication.comebackDate);
+  if (!comebackDate) return leaveDates;
+
+  return leaveDates.filter((date) => parseLeaveDate(date) < comebackDate);
+};
+
+const isLeaveActiveOnDate = (leave, targetDate) => {
+  if (!leave || leave.status !== 'Approved') return false;
+
+  const parsedTargetDate = parseLeaveDate(targetDate);
+  const parsedStartDate = parseLeaveDate(leave.startDate);
+  const parsedEndDate = parseLeaveDate(leave.endDate);
+
+  if (!parsedTargetDate || !parsedStartDate || !parsedEndDate) return false;
+  if (parsedTargetDate < parsedStartDate || parsedTargetDate > parsedEndDate) return false;
+
+  if (leave.comebackMarked && leave.comebackDate) {
+    const parsedComebackDate = parseLeaveDate(leave.comebackDate);
+    if (parsedComebackDate && parsedTargetDate >= parsedComebackDate) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const getExpectedReturnDate = (leave) => {
+  if (!leave || leave.status !== 'Approved') return null;
+  if (leave.comebackMarked && leave.comebackDate) return null;
+
+  const comebackDate = parseLeaveDate(leave.comebackDate);
+  if (comebackDate) return leave.comebackDate;
+
+  return leave.endDate;
+};
+
 const isValidDateRange = (startDate, endDate) => {
   const parsedStart = parseLeaveDate(startDate);
   const parsedEnd = parseLeaveDate(endDate);
@@ -91,7 +133,7 @@ const markApprovedLeaveAttendance = async (leaveApplication) => {
   const user = await User.findById(leaveApplication.userId).select('username roomNumber').lean();
   if (!user?.username || !user?.roomNumber) return;
 
-  const leaveDates = getDatesInRange(leaveApplication.startDate, leaveApplication.endDate);
+  const leaveDates = getLeaveAttendanceDates(leaveApplication);
   await Promise.all(leaveDates.map(async (date) => {
     const attendanceDoc = await Attendance.findOne({ date }).lean();
     const existingStudents = Array.isArray(attendanceDoc?.students) ? attendanceDoc.students : [];
@@ -120,6 +162,35 @@ const markApprovedLeaveAttendance = async (leaveApplication) => {
       },
       { upsert: true, new: true }
     );
+  }));
+};
+
+const syncAttendanceAfterComeback = async (leaveApplication) => {
+  if (!leaveApplication || leaveApplication.status !== 'Approved' || !leaveApplication.comebackDate) return;
+
+  const user = await User.findById(leaveApplication.userId).select('username').lean();
+  if (!user?.username) return;
+
+  const usernameKey = String(user.username).trim().toLowerCase();
+  const attendanceDocs = await Attendance.find({
+    date: { $gte: leaveApplication.comebackDate },
+    markedBy: 'leave-auto'
+  }).lean();
+
+  await Promise.all(attendanceDocs.map(async (attendanceDoc) => {
+    const existingStudents = Array.isArray(attendanceDoc?.students) ? attendanceDoc.students : [];
+    const filteredStudents = existingStudents.filter((entry) => (
+      String(entry.username || '').trim().toLowerCase() !== usernameKey
+    ));
+
+    if (filteredStudents.length === existingStudents.length) return;
+
+    await Attendance.findByIdAndUpdate(attendanceDoc._id, {
+      $set: {
+        students: filteredStudents,
+        markedBy: attendanceDoc.markedBy || 'leave-auto'
+      }
+    });
   }));
 };
 
@@ -210,8 +281,10 @@ router.post('/submit', authMiddleware, upload.single('attachment'), async (req, 
       endDate,
       mobileNumber: mobileNumber || user.mobileNumber || '',
       attachmentUrl,
-      status: 'Pending'
+      status: 'Approved'
     });
+
+    await markApprovedLeaveAttendance(leaveApplication);
 
     res.status(201).json({
       message: 'Leave application submitted successfully.',
@@ -276,6 +349,9 @@ router.patch('/:id/status', async (req, res) => {
       leaveApplication.comebackMarked = false;
       leaveApplication.comebackDate = '';
       leaveApplication.comebackMarkedAt = null;
+      leaveApplication.comebackReminderSent = false;
+      leaveApplication.comebackReminderSentAt = null;
+      leaveApplication.notificationCount = 0;
     }
     await leaveApplication.save();
 
@@ -305,10 +381,20 @@ router.patch('/:id/comeback', async (req, res) => {
       return res.status(400).json({ message: 'Only approved leave can be marked as comeback.' });
     }
 
+    const startDate = parseLeaveDate(leaveApplication.startDate);
+    const selectedComebackDate = parseLeaveDate(comebackDate);
+    if (!startDate || !selectedComebackDate || selectedComebackDate < startDate) {
+      return res.status(400).json({ message: 'Comeback date must be on or after the leave start date.' });
+    }
+
     leaveApplication.comebackMarked = true;
     leaveApplication.comebackDate = comebackDate;
     leaveApplication.comebackMarkedAt = new Date();
+    leaveApplication.comebackReminderSent = true;
+    leaveApplication.comebackReminderSentAt = leaveApplication.comebackMarkedAt;
     await leaveApplication.save();
+
+    await syncAttendanceAfterComeback(leaveApplication);
 
     res.json({ message: 'Student comeback marked.', leaveApplication });
   } catch (error) {
@@ -324,20 +410,53 @@ router.get('/notifications', async (req, res) => {
     const overdueLeaves = await LeaveApplication.find({
       status: 'Approved',
       comebackMarked: false,
-      endDate: { $lt: today }
-    }).sort({ endDate: 1 }).populate('userId', 'username fullName roomNumber');
+      $or: [
+        { endDate: { $lte: today } },
+        { comebackDate: { $exists: true, $ne: '' }, comebackDate: { $lte: today } }
+      ]
+    }).sort({ endDate: 1, comebackDate: 1 }).populate('userId', 'username fullName roomNumber');
 
-    const notifications = overdueLeaves.map((leave) => ({
-      _id: leave._id,
-      type: 'leave-overdue',
-      title: 'Student has not returned from leave',
-      message: `${leave.fullName} was expected back after ${leave.endDate}. Mark comeback when the student reports to sir.`,
-      studentName: leave.fullName,
-      username: leave.username,
-      roomNumber: leave.userId?.roomNumber || '',
-      startDate: leave.startDate,
-      endDate: leave.endDate
-    }));
+    const notifications = [];
+
+    for (const leave of overdueLeaves) {
+      const expectedReturnDate = getExpectedReturnDate(leave);
+      if (!expectedReturnDate) continue;
+
+      const parsedToday = parseLeaveDate(today);
+      const parsedExpectedDate = parseLeaveDate(expectedReturnDate);
+      if (!parsedToday || !parsedExpectedDate || parsedExpectedDate > parsedToday) continue;
+
+      const targetDate = expectedReturnDate;
+      const reminderMessage = leave.comebackDate && leave.comebackDate <= today
+        ? `${leave.fullName} was expected to report back on ${leave.comebackDate}. Mark comeback when the student arrives.`
+        : `${leave.fullName} was expected back after ${leave.endDate}. Mark comeback when the student reports to sir.`;
+
+      await LeaveApplication.updateOne(
+        { _id: leave._id },
+        {
+          $set: {
+            comebackReminderSent: true,
+            comebackReminderSentAt: new Date(),
+            notificationCount: (leave.notificationCount || 0) + 1
+          }
+        }
+      );
+
+      notifications.push({
+        _id: leave._id,
+        type: 'leave-overdue',
+        title: 'Student has not returned from leave',
+        message: reminderMessage,
+        userId: leave.userId?._id || leave.userId,
+        studentName: leave.fullName,
+        username: leave.username,
+        roomNumber: leave.userId?.roomNumber || '',
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+        comebackDate: leave.comebackDate || '',
+        expectedReturnDate: targetDate
+      });
+    }
 
     res.json({ notifications });
   } catch (error) {

@@ -58,6 +58,18 @@ const leaveApplicationSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  comebackReminderSent: {
+    type: Boolean,
+    default: false
+  },
+  comebackReminderSentAt: {
+    type: Date,
+    default: null
+  },
+  notificationCount: {
+    type: Number,
+    default: 0
+  },
   adminNote: {
     type: String,
     default: ''

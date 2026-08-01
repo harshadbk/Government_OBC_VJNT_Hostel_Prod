@@ -15,6 +15,9 @@ test('leave application defaults to pending status', () => {
   assert.equal(leave.status, 'Pending');
   assert.equal(leave.comebackMarked, false);
   assert.equal(leave.comebackDate, '');
+  assert.equal(leave.comebackReminderSent, false);
+  assert.equal(leave.comebackReminderSentAt, null);
+  assert.equal(leave.notificationCount, 0);
   assert.equal(leave.adminNote, '');
   assert.equal(leave.attachmentUrl, '');
 });
