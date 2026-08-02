@@ -454,7 +454,7 @@ router.post('/range-report', adminAuth, async (req, res) => {
     const [students, records] = await Promise.all([
       User.find({ roomNumber: { $ne: '' } })
         .select('_id rollNumber username email phone mobileNumber fathersMobileNumber roomNumber college_name')
-        .sort({ rollNumber : 0 })
+        .sort({ rollNumber: 0 })
         .lean(),
       Attendance.find({ date: { $gte: startDate, $lte: endDate } })
         .select('date students')
