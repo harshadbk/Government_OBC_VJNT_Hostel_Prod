@@ -11,11 +11,13 @@ import Document from '../models/Document.js';
 import Upload from '../models/Upload.js';
 import Attendance from '../models/Attendance.js';
 import { createOtpPayload, verifyOtp } from '../utils/passwordOtp.js';
+import { validatePasswordResetPayload } from '../utils/passwordReset.js';
 
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const passwordOtpStore = new Map();
+const passwordResetOtpStore = new Map();
 
 const configureSendGrid = () => {
   const apiKey = process.env.SENDGRID_API_KEY;
@@ -443,6 +445,69 @@ router.post('/login', async (req, res) => {
   }
 });
 
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username || !String(username).trim()) {
+      return res.status(400).json({ message: 'Username is required.' });
+    }
+
+    const normalizedUsername = String(username).trim();
+    const user = await User.findOne({ username: normalizedUsername });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found for this username.' });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({ message: 'No registered email is available for this account.' });
+    }
+
+    const otpPayload = createOtpPayload();
+    passwordResetOtpStore.set(normalizedUsername, {
+      otpHash: otpPayload.otpHash,
+      expiresAt: otpPayload.expiresAt,
+      userId: user._id.toString(),
+    });
+
+    await sendPasswordOtpEmail(user.email, otpPayload.otp);
+
+    res.json({ message: 'Password reset OTP has been sent to your registered email.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to send password reset email.', error: error.message });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { username, otp, newPassword, confirmPassword } = req.body;
+    const validation = validatePasswordResetPayload({ username, otp, newPassword, confirmPassword });
+    if (!validation.ok) {
+      return res.status(400).json({ message: validation.message });
+    }
+
+    const normalizedUsername = String(username).trim();
+    const otpEntry = passwordResetOtpStore.get(normalizedUsername);
+    if (!otpEntry || !verifyOtp(otpEntry, otp)) {
+      return res.status(400).json({ message: 'Invalid or expired OTP.' });
+    }
+
+    const user = await User.findOne({ username: normalizedUsername });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found for this username.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(String(newPassword), 10);
+    await User.findByIdAndUpdate(user._id, { $set: { password: hashedPassword } }, { runValidators: true });
+    passwordResetOtpStore.delete(normalizedUsername);
+
+    res.json({ message: 'Password updated successfully.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to reset password.', error: error.message });
+  }
+});
+
 router.get('/profile', authMiddleware, async (req, res) => {
   try {
     const user = await findAuthenticatedUser(req.user);
@@ -794,7 +859,6 @@ router.post('/documents', authMiddleware, upload.any(), async (req, res) => {
       return res.status(400).json({ message: 'No document file was provided.' });
     }
 
-    // Process uploaded files
     for (const file of req.files) {
       const fieldName = normalizeDocumentField(file.fieldname);
       const uniqueFilename = `${currentUser._id}_${fieldName}_${Date.now()}`;

@@ -93,7 +93,7 @@ const normalizeDate = (date) => {
 
 const isAttendanceWindowOpen = (dateObj = new Date()) => {
   const hour = dateObj.getHours();
-  return hour >= 12 && hour <= 24;
+  return hour >= 20 && hour <= 24;
 };
 
 const getDatesInRange = (startDate, endDate) => {

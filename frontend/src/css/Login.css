@@ -152,6 +152,50 @@ textarea:disabled {
   color: var(--primary);
   text-decoration: none;
   font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.reset-trigger {
+  font-size: 0.95rem;
+}
+
+.reset-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(26, 54, 93, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.6);
+  display: grid;
+  gap: 0.8rem;
+}
+
+.reset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.reset-header h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.reset-close {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.form-error.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.2);
 }
 
 .button {
