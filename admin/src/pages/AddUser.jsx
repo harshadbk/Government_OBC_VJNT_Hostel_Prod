@@ -5,6 +5,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 
 function AddUser({ onLogout }) {
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [tempPassword, setTempPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [roomNumber, setRoomNumber] = useState("");
@@ -13,23 +14,29 @@ function AddUser({ onLogout }) {
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editRoomNumber, setEditRoomNumber] = useState("");
+  const [editingEmailUserId, setEditingEmailUserId] = useState(null);
+  const [editEmailValue, setEditEmailValue] = useState("");
+  const [isUpdatingRoom, setIsUpdatingRoom] = useState(false);
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
+
+  const refreshUsers = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${apiBaseUrl}/api/admin/users`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
+    }
+  };
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const token = localStorage.getItem('adminToken');
-        const response = await fetch(`${apiBaseUrl}/api/admin/users`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setUsers(data.users || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch users:', err);
-      }
-    };
-
     const fetchRooms = async () => {
       try {
         const token = localStorage.getItem('adminToken');
@@ -47,7 +54,7 @@ function AddUser({ onLogout }) {
       }
     };
 
-    fetchUsers();
+    refreshUsers();
     fetchRooms();
   }, []);
 
@@ -71,6 +78,7 @@ function AddUser({ onLogout }) {
         },
         body: JSON.stringify({
           username: username.trim(),
+          email: email.trim(),
           password: tempPassword,
           roomNumber: roomNumber.trim(),
         }),
@@ -85,23 +93,99 @@ function AddUser({ onLogout }) {
 
       setStatus(`User "${username}" saved to the database.`);
       setUsername("");
+      setEmail("");
       setTempPassword("");
       setRoomNumber("");
-      const refreshedResponse = await fetch(`${apiBaseUrl}/api/admin/users`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
-        },
-      });
-      if (refreshedResponse.ok) {
-        const refreshedData = await refreshedResponse.json();
-        setUsers(refreshedData.users || []);
-      }
+      await refreshUsers();
     } catch (error) {
       console.error(error);
       setStatus("Network error. Could not reach the backend.");
     } finally {
       setIsSaving(false);
       setTimeout(() => setStatus(""), 4000);
+    }
+  };
+
+  const handleEmailUpdate = async (user) => {
+    const userId = user._id || user.username;
+    if (!editEmailValue.trim()) {
+      setStatus('Please enter an email before saving.');
+      return;
+    }
+
+    setIsUpdatingEmail(true);
+    setStatus(`Updating email for "${user.username}"...`);
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${apiBaseUrl}/api/admin/users/${userId}/email`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ email: editEmailValue.trim() }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        setStatus(result.message || 'Unable to update email.');
+        return;
+      }
+
+      setStatus(`Email updated for "${user.username}".`);
+      setEditingEmailUserId(null);
+      setEditEmailValue('');
+      await refreshUsers();
+    } catch (error) {
+      console.error(error);
+      setStatus('Network error. Could not update email.');
+    } finally {
+      setIsUpdatingEmail(false);
+      setTimeout(() => setStatus(''), 4000);
+    }
+  };
+
+  const handleRoomUpdate = async (user) => {
+    const userId = user._id || user.username;
+    if (!editRoomNumber.trim()) {
+      setStatus('Please select a room before saving.');
+      return;
+    }
+
+    setIsUpdatingRoom(true);
+    setStatus(`Updating room for "${user.username}"...`);
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${apiBaseUrl}/api/admin/users/${userId}/room`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          roomNumber: editRoomNumber.trim(),
+          confirmAttendanceChange: true,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        setStatus(result.message || 'Unable to update room.');
+        return;
+      }
+
+      setStatus(`Room updated for "${user.username}".`);
+      setEditingUserId(null);
+      setEditRoomNumber('');
+      await refreshUsers();
+    } catch (error) {
+      console.error(error);
+      setStatus('Network error. Could not update room.');
+    } finally {
+      setIsUpdatingRoom(false);
+      setTimeout(() => setStatus(''), 4000);
     }
   };
 
@@ -125,6 +209,16 @@ function AddUser({ onLogout }) {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder=" "
+                />
+              </label>
+              <br />
+              <label className="profile-field">
+                <span className="label-text">Email</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="user@example.com"
                 />
               </label>
               <br />
@@ -188,6 +282,7 @@ function AddUser({ onLogout }) {
                 type="button"
                 onClick={() => {
                   setUsername("");
+                  setEmail("");
                   setTempPassword("");
                   setStatus("");
                 }}
@@ -219,18 +314,88 @@ function AddUser({ onLogout }) {
                 <thead>
                   <tr>
                     <th>Username</th>
+                    <th>Email</th>
                     <th>Room</th>
                     <th>Present Days</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user, index) => (
-                    <tr key={`${user.username}-${index}`}>
-                      <td>{user.username}</td>
-                      <td>{user.roomNumber || 'N/A'}</td>
-                      <td>{user.presentDaysSinceCreated ?? 0}/{user.totalAttendanceDaysSinceCreated ?? 0}</td>
-                    </tr>
-                  ))}
+                  {users.map((user, index) => {
+                    const userId = user._id || user.username;
+                    const isEditing = editingUserId === userId;
+                    const isEditingEmail = editingEmailUserId === userId;
+                    return (
+                      <tr key={`${user.username}-${index}`}>
+                        <td>{user.username}</td>
+                        <td>
+                          {isEditingEmail ? (
+                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <input
+                                type="email"
+                                value={editEmailValue}
+                                onChange={(e) => setEditEmailValue(e.target.value)}
+                                placeholder="user@example.com"
+                                style={{ minWidth: '180px' }}
+                              />
+                              <button className="secondary-btn" type="button" onClick={() => handleEmailUpdate(user)} disabled={isUpdatingEmail}>
+                                {isUpdatingEmail ? 'Saving...' : 'Save'}
+                              </button>
+                              <button className="secondary-btn" type="button" onClick={() => { setEditingEmailUserId(null); setEditEmailValue(''); }}>
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <span>{user.email || '—'}</span>
+                              <button className="secondary-btn" type="button" onClick={() => { setEditingEmailUserId(userId); setEditEmailValue(user.email || ''); }}>
+                                Edit Email
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {isEditing ? (
+                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <select value={editRoomNumber} onChange={(e) => setEditRoomNumber(e.target.value)}>
+                                {roomsLoading ? (
+                                  <option value="">Loading rooms...</option>
+                                ) : rooms.length > 0 ? (
+                                  rooms.map((room) => {
+                                    const isCurrentRoom = room.roomNumber === (user.roomNumber || '');
+                                    return (
+                                      <option
+                                        key={room.roomNumber}
+                                        value={room.roomNumber}
+                                        disabled={room.occupancy >= room.capacity && !isCurrentRoom}
+                                      >
+                                        Room {room.roomNumber} ({room.occupancy}/{room.capacity}){room.occupancy >= room.capacity && !isCurrentRoom ? ' - Full' : ''}
+                                      </option>
+                                    );
+                                  })
+                                ) : (
+                                  <option value="">No rooms available</option>
+                                )}
+                              </select>
+                              <button className="secondary-btn" type="button" onClick={() => handleRoomUpdate(user)} disabled={isUpdatingRoom}>
+                                {isUpdatingRoom ? 'Saving...' : 'Save'}
+                              </button>
+                              <button className="secondary-btn" type="button" onClick={() => { setEditingUserId(null); setEditRoomNumber(''); }}>
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <span>{user.roomNumber || 'N/A'}</span>
+                              <button className="secondary-btn" type="button" onClick={() => { setEditingUserId(userId); setEditRoomNumber(user.roomNumber || ''); }}>
+                                Edit Room
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                        <td>{user.presentDaysSinceCreated ?? 0}/{user.totalAttendanceDaysSinceCreated ?? 0}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

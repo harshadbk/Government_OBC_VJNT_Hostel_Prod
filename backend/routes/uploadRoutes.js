@@ -5,6 +5,7 @@ import fs from 'fs';
 import Upload from '../models/Upload.js';
 import User from '../models/User.js';
 import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
 import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
 
@@ -43,6 +44,42 @@ const adminAuth = (req, res, next) => {
   }
 };
 
+const getUserAccessDate = (user) => {
+  if (!user) return null;
+  const candidateDate = user.createdAt || user.created_at || user.admissionDate || user.admission_date;
+  if (candidateDate === null || candidateDate === undefined || candidateDate === '') return null;
+  const parsedDate = new Date(candidateDate);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const isAdmittedUser = (user) => {
+  return Boolean(getUserAccessDate(user));
+};
+
+const isUploadVisibleToUser = (upload, user) => {
+  if (!upload || !isAdmittedUser(user)) return false;
+  const accessDate = getUserAccessDate(user);
+  const uploadDate = new Date(upload.createdAt || upload.created_at || upload.updatedAt || upload.updated_at || 0);
+  if (!accessDate || Number.isNaN(uploadDate.getTime())) return false;
+
+  const normalizedAccessDate = new Date(accessDate);
+  normalizedAccessDate.setHours(0, 0, 0, 0);
+  const normalizedUploadDate = new Date(uploadDate);
+  normalizedUploadDate.setHours(0, 0, 0, 0);
+
+  return normalizedUploadDate >= normalizedAccessDate;
+};
+
+const getUserLookupQuery = (tokenUser = {}) => {
+  const query = [];
+  const rawUserId = tokenUser.userId || tokenUser._id || tokenUser.id;
+  const userId = typeof rawUserId === 'string' && mongoose.isValidObjectId(rawUserId) ? rawUserId : null;
+  if (userId) query.push({ _id: userId });
+  if (tokenUser.username) query.push({ username: tokenUser.username });
+  if (tokenUser.email) query.push({ email: tokenUser.email });
+  return query.length ? { $or: query } : {};
+};
+
 router.get('/', async (req, res) => {
   let currentUser = null;
   const authHeader = req.headers.authorization;
@@ -58,9 +95,15 @@ router.get('/', async (req, res) => {
     const uploads = await Upload.find().sort({ createdAt: -1 }).limit(10).lean();
     if (!currentUser) return res.json({ uploads });
 
-    const userId = currentUser.userId || currentUser._id || currentUser.id || currentUser.username;
-    const enhanced = uploads.map((upload) => {
-      const submission = upload.submissions?.find((s) => s.userId === userId.toString() || s.username === currentUser.username);
+    const currentUserRecord = await User.findOne(getUserLookupQuery(currentUser)).select('username fullName email _id createdAt admissionDate').lean();
+    if (!isAdmittedUser(currentUserRecord)) {
+      return res.json({ uploads: [], pendingCount: 0, message: 'Only admitted students can access uploads.' });
+    }
+
+    const visibleUploads = uploads.filter((upload) => isUploadVisibleToUser(upload, currentUserRecord));
+    const userId = currentUserRecord?._id?.toString() || currentUser.userId || currentUser._id || currentUser.id || currentUser.username;
+    const enhanced = visibleUploads.map((upload) => {
+      const submission = upload.submissions?.find((s) => s.userId === userId.toString() || s.username === currentUserRecord?.username || s.username === currentUser.username);
       return {
         ...upload,
         submitted: Boolean(submission),
@@ -105,13 +148,31 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const uploadDoc = await Upload.findById(req.params.id).lean();
     if (!uploadDoc) return res.status(404).json({ message: 'Upload not found.' });
     const isAdmin = req.user?.role?.toString().toLowerCase() === 'admin' || req.user?.username?.toString().toLowerCase() === 'admin' || req.user?.userId === 'hardcoded-admin';
+    const currentUserRecord = await User.findOne(getUserLookupQuery(req.user)).select('username fullName email _id createdAt admissionDate').lean();
+    if (!isAdmin && !isAdmittedUser(currentUserRecord)) {
+      return res.status(403).json({ message: 'Only admitted students can access uploads.' });
+    }
+    if (!isAdmin && !isUploadVisibleToUser(uploadDoc, currentUserRecord)) {
+      return res.status(404).json({ message: 'Upload not found.' });
+    }
     if (!isAdmin) {
       // for normal users, only return their submission (if any)
       const userSubmission = uploadDoc.submissions?.find((s) => s.userId === (req.user.userId || req.user._id || req.user.id) || s.username === req.user.username);
       return res.json({ upload: { ...uploadDoc, submissions: userSubmission ? [userSubmission] : [] } });
     }
 
-    const users = await User.find().select('username fullName email _id').lean();
+    const users = await User.find().select('username fullName email _id createdAt admissionDate').lean();
+    const uploadDate = new Date(uploadDoc.createdAt || uploadDoc.created_at || uploadDoc.updatedAt || uploadDoc.updated_at || 0);
+    const admittedUsers = users.filter((user) => {
+      if (!isAdmittedUser(user)) return false;
+      const accessDate = getUserAccessDate(user);
+      if (!accessDate || Number.isNaN(uploadDate.getTime())) return false;
+      const normalizedAccessDate = new Date(accessDate);
+      normalizedAccessDate.setHours(0, 0, 0, 0);
+      const normalizedUploadDate = new Date(uploadDate);
+      normalizedUploadDate.setHours(0, 0, 0, 0);
+      return normalizedAccessDate <= normalizedUploadDate;
+    });
     const submissionMap = new Map();
     uploadDoc.submissions?.forEach((submission) => {
       if (submission.userId) submissionMap.set(submission.userId.toString(), submission);
@@ -122,7 +183,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const pending = [];
     const matchedKeys = new Set();
 
-    users.forEach((user) => {
+    admittedUsers.forEach((user) => {
       const keyById = user._id?.toString();
       const keyByUsername = user.username;
       const submission = submissionMap.get(keyById) || submissionMap.get(keyByUsername);
@@ -160,7 +221,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
         others: otherSubmissions,
       },
       summary: {
-        totalStudents: users.length,
+        totalStudents: admittedUsers.length,
         submittedCount: submitted.length,
         remainingCount: pending.length,
       },
@@ -236,11 +297,16 @@ router.post('/:id/submit', authMiddleware, upload.single('document'), async (req
       publicUrl = `/uploads/${filename}`;
     }
 
-    const username = req.user.username || req.user.email || req.user.userId || 'unknown';
-    const userId = req.user.userId || req.user._id || req.user.id || username;
+    const currentUserRecord = await User.findOne(getUserLookupQuery(req.user)).select('username fullName email _id createdAt admissionDate').lean();
+    if (!isAdmittedUser(currentUserRecord)) {
+      return res.status(403).json({ message: 'Only admitted students can upload documents.' });
+    }
+
+    const username = currentUserRecord?.username || req.user.username || req.user.email || req.user.userId || 'unknown';
+    const userId = currentUserRecord?._id?.toString() || req.user.userId || req.user._id || req.user.id || username;
 
     // remove previous submission by same user if exists
-    uploadDoc.submissions = uploadDoc.submissions.filter((s) => s.userId !== userId.toString());
+    uploadDoc.submissions = (uploadDoc.submissions || []).filter((s) => s.userId !== userId.toString());
     uploadDoc.submissions.push({ userId: userId.toString(), username: username.toString(), fileUrl: publicUrl, publicId: publicId || null, uploadedAt: new Date() });
     await uploadDoc.save();
 
@@ -251,4 +317,5 @@ router.post('/:id/submit', authMiddleware, upload.single('document'), async (req
   }
 });
 
+export { isAdmittedUser, isUploadVisibleToUser };
 export default router;

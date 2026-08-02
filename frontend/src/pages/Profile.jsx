@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FiCamera, FiSave, FiEdit3, FiXCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiUpload, FiCheckCircle, FiCalendar, FiKey, FiTrendingUp, FiClock, FiX } from 'react-icons/fi';
+import { FiCamera, FiSave, FiEdit3, FiXCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiUpload, FiCheckCircle, FiCalendar, FiKey, FiTrendingUp, FiClock, FiX, FiSend } from 'react-icons/fi';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import ProfileCard from '../components/ProfileCard';
@@ -46,7 +46,10 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [passwordStep, setPasswordStep] = useState('input');
   const [newPassword, setNewPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
   
   const [documents, setDocuments] = useState(null);
   const [docUploading, setDocUploading] = useState(false);
@@ -294,6 +297,8 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
       ifscCode: user?.ifscCode || ''
     });
     setNewPassword('');
+    setOtpCode('');
+    setPasswordStep('input');
     setPreview(profileImage || '');
   }, [user, profileImage]);
 
@@ -344,10 +349,6 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
       if (selectedPhoto) {
         payload.append('studentPhoto', selectedPhoto);
       }
-      if (newPassword) {
-        payload.append('newPassword', newPassword);
-      }
-
       const response = await fetch(`${apiBaseUrl}/api/admin/profile`, {
         method: 'POST',
         headers: {
@@ -369,13 +370,90 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
       setMessage('Profile saved successfully.');
       setMessageType('success');
       setEditable(false);
-      setNewPassword('');
     } catch (error) {
       console.error('Save exception', error);
       setMessage('Unable to save profile. Please try again.');
       setMessageType('error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      setMessage('Please enter a new password with at least 6 characters.');
+      setMessageType('error');
+      return;
+    }
+
+    if (!token) {
+      setMessage('Authentication token is missing. Please log in again.');
+      setMessageType('error');
+      return;
+    }
+
+    setPasswordLoading(true);
+    setMessage('');
+    setMessageType('');
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/profile/password/otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ newPassword, email: formData.email }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to send verification code.');
+      }
+      setPasswordStep('verify');
+      setMessage(data.message || 'Verification code sent to your email.');
+      setMessageType('success');
+    } catch (error) {
+      setMessage(error.message || 'Unable to send verification code.');
+      setMessageType('error');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode.trim()) {
+      setMessage('Please enter the verification code.');
+      setMessageType('error');
+      return;
+    }
+
+    setPasswordLoading(true);
+    setMessage('');
+    setMessageType('');
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/profile/password/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ otp: otpCode, newPassword }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to verify code.');
+      }
+      setPasswordStep('input');
+      setNewPassword('');
+      setOtpCode('');
+      setMessage(data.message || 'Password updated successfully.');
+      setMessageType('success');
+    } catch (error) {
+      setMessage(error.message || 'Unable to verify code.');
+      setMessageType('error');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -493,7 +571,7 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
               <InputField label="Stream" id="stream" name="stream" value={formData.stream} onChange={handleChange} icon={<FiUser />} />
               <InputField label="Department" id="department" name="department" value={formData.department} onChange={handleChange} error={errors.department} icon={<FiUser />} required />
               <InputField label="Course Duration" id="year" name="year" value={formData.year} onChange={handleChange} error={errors.year} icon={<FiUser />} required />
-              <InputField label="Email" id="email" name="email" type="email" value={formData.email} onChange={handleChange} error={errors.email} icon={<FiMail />} required />
+              <InputField label="Email" id="email" name="email" type="email" value={formData.email} onChange={handleChange} error={errors.email} icon={<FiMail />} required disabled />
               <InputField label="Phone" id="phone" name="phone" value={formData.phone} onChange={handleChange} error={errors.phone} icon={<FiPhone />} required />
               <InputField label="Friends Number" id="mobileNumber" name="mobileNumber" value={formData.mobileNumber} onChange={handleChange} icon={<FiPhone />} />
               <InputField label="Father's Mobile Number" id="fathersMobileNumber" name="fathersMobileNumber" value={formData.fathersMobileNumber} onChange={handleChange} icon={<FiPhone />} />
@@ -507,7 +585,6 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
               <InputField label="Account Number" id="accountNumber" name="accountNumber" value={formData.accountNumber} onChange={handleChange} icon={<FiUser />} />
               <InputField label="IFSC Code" id="ifscCode" name="ifscCode" value={formData.ifscCode} onChange={handleChange} icon={<FiUser />} />
               <InputField label="Admission Date" id="admissionDate" name="admissionDate" type="date" value={formData.admissionDate} onChange={handleChange} icon={<FiCalendar />} />
-              <InputField label="New Password" id="newPassword" name="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} icon={<FiKey />} placeholder="Leave blank to keep current password" />
               <InputField label="Address" id="address" name="address" value={formData.address} onChange={handleChange} icon={<FiMapPin />} textarea />
             </div>
           ) : null}
@@ -515,6 +592,26 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
           {editable ? <div className="profile-actions" style={{ marginTop: '0.7rem' }}><Button label={saving ? 'Saving...' : 'Save Changes'} variant="primary" onClick={handleSave} loading={saving} icon={<FiSave />} /> </div> : null}
         </div>
       </section>
+
+      {editable ? (
+        <section className="password-section glass-card" style={{ margin: '1rem 0 0', padding: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 0.7rem', color: 'var(--accent)' }}>Change Password</h3>
+          <p style={{ margin: '0 0 0.9rem', color: 'var(--muted)', fontSize: '0.92rem' }}>Enter a new password and verify it through an OTP sent to your email.</p>
+          <div className="password-verification-card" style={{ border: '1px solid rgba(114, 227, 255, 0.25)', borderRadius: '12px', padding: '1rem', background: 'rgba(255,255,255,0.05)' }}>
+            <InputField label="New Password" id="newPassword" name="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} icon={<FiKey />} placeholder="Enter new password" />
+            {passwordStep === 'verify' ? (
+              <InputField label="Verification OTP" id="otpCode" name="otpCode" value={otpCode} onChange={(e) => setOtpCode(e.target.value)} icon={<FiSend />} placeholder="Enter 6-digit OTP" />
+            ) : null}
+            <div className="profile-actions" style={{ marginTop: '0.8rem', justifyContent: 'flex-start' }}>
+              {passwordStep === 'verify' ? (
+                <Button label={passwordLoading ? 'Verifying...' : 'Verify OTP'} variant="primary" onClick={handleVerifyOtp} loading={passwordLoading} icon={<FiSend />} />
+              ) : (
+                <Button label={passwordLoading ? 'Sending...' : 'Send OTP'} variant="primary" onClick={handleSendOtp} loading={passwordLoading} icon={<FiSend />} />
+              )}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* --- Documents Section --- */}
       <section className="documents-section glass-card">

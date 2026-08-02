@@ -12,9 +12,10 @@ import staffRoutes from './routes/staffRoutes.js';
 import attendanceRoutes from './routes/attendanceRoutes.js';
 import leaveRoutes from './routes/leaveRoutes.js';
 import User from './models/User.js';
+import Document from './models/Document.js';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const DEFAULT_PORT = Number(process.env.PORT || 5000);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -48,6 +49,37 @@ const ensureUsernameIndex = async () => {
   }
 };
 
+const ensureDocumentIndexes = async () => {
+  try {
+    await Document.collection.dropIndex('email_1').catch(() => {});
+    await Document.collection.createIndex({ userId: 1 }, { unique: true });
+  } catch (error) {
+    console.warn('Unable to ensure document indexes:', error.message);
+  }
+};
+
+const startServer = (port = DEFAULT_PORT, attempt = 0) => {
+  const server = app.listen(port, () => {
+    console.log(`Server listening on port ${port}`);
+  });
+
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE' && attempt < 5) {
+      const nextPort = port + 1;
+      console.warn(`Port ${port} is busy. Trying ${nextPort} instead.`);
+      if (server.listening) {
+        server.close(() => startServer(nextPort, attempt + 1));
+      } else {
+        startServer(nextPort, attempt + 1);
+      }
+      return;
+    }
+
+    console.error('Server error:', error.message);
+    process.exit(1);
+  });
+};
+
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -55,9 +87,8 @@ mongoose.connect(process.env.MONGODB_URI, {
   .then(async () => {
     console.log('Connected to MongoDB');
     await ensureUsernameIndex();
-    app.listen(PORT, () => {
-      console.log(`Server listening on port ${PORT}`);
-    });
+    await ensureDocumentIndexes();
+    startServer();
   })
   .catch((error) => {
     console.error('MongoDB connection error:', error.message);

@@ -20,6 +20,7 @@ export default function UploadsWidget() {
   const [messageType, setMessageType] = useState('');
   const [loginRequired, setLoginRequired] = useState(false);
   const [uploadingId, setUploadingId] = useState(null);
+  const [serverMessage, setServerMessage] = useState('');
 
   const fetchUploads = async () => {
     setLoading(true);
@@ -32,6 +33,7 @@ export default function UploadsWidget() {
         setUploads(data.uploads || []);
         const newCount = typeof data.pendingCount === 'number' ? data.pendingCount : (data.uploads || []).filter((u) => !u.submitted).length;
         setCount(newCount);
+        setServerMessage(data.message || '');
         if (lastCountRef.current && newCount < lastCountRef.current) {
           setPulse(true);
           setTimeout(() => setPulse(false), 2200);
@@ -139,7 +141,7 @@ export default function UploadsWidget() {
               ) : uploads.length === 0 ? (
                 <div className="upload-empty">
                   <FiFile className="upload-empty-icon" />
-                  <p>No uploads available</p>
+                  <p>{serverMessage || 'No uploads available'}</p>
                 </div>
               ) : (
                 uploads.map(u => (

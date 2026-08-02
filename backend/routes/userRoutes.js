@@ -5,14 +5,38 @@ import streamifier from 'streamifier';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import sgMail from '@sendgrid/mail';
 import User from '../models/User.js';
 import Document from '../models/Document.js';
 import Upload from '../models/Upload.js';
 import Attendance from '../models/Attendance.js';
+import { createOtpPayload, verifyOtp } from '../utils/passwordOtp.js';
 
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const passwordOtpStore = new Map();
+
+const configureSendGrid = () => {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) {
+    throw new Error('SENDGRID_API_KEY is not configured.');
+  }
+  sgMail.setApiKey(apiKey);
+};
+
+const sendPasswordOtpEmail = async (toEmail, otp) => {
+  configureSendGrid();
+  const fromEmail = process.env.EMAIL_FROM || 'harshad.khatale@walchandsangli.ac.in';
+  const msg = {
+    to: toEmail,
+    from: fromEmail,
+    subject: 'Government OBC VJNT Hostel Management System , Sangli Password Verification',
+    text: `Your OTP for password verification is ${otp}. It expires in 5 minutes.`,
+    html: `<p>Your OTP for password verification is <strong>${otp}</strong>. It expires in 5 minutes.</p>`,
+  };
+  await sgMail.send(msg);
+};
 
 const configureCloudinary = () => {
   const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
@@ -204,13 +228,17 @@ const authMiddleware = (req, res, next) => {
 
 router.post('/add-user', adminAuth, async (req, res) => {
   try {
-    const { username, password, roomNumber } = req.body;
+    const { username, password, roomNumber, email } = req.body;
     if (!username || !password || !roomNumber) {
       return res.status(400).json({ message: 'Username, password, and room number are required.' });
     }
 
     const normalizedUsername = username.trim();
     const normalizedRoom = roomNumber.trim();
+    const normalizedEmail = typeof email === 'string' ? email.trim() : '';
+    if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please provide a valid email address.' });
+    }
     const existingUser = await User.findOne({ username: normalizedUsername });
     if (existingUser) {
       return res.status(409).json({ message: 'Username already exists.' });
@@ -236,13 +264,118 @@ router.post('/add-user', adminAuth, async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ username: normalizedUsername, password: hashedPassword, tempPassword: password, roomNumber: normalizedRoom });
+    const user = new User({
+      username: normalizedUsername,
+      password: hashedPassword,
+      tempPassword: password,
+      roomNumber: normalizedRoom,
+      email: normalizedEmail,
+    });
     await user.save();
 
     res.status(201).json({
       message: 'User created',
-      user: { id: user._id, username: user.username, roomNumber: user.roomNumber },
+      user: { id: user._id, username: user.username, roomNumber: user.roomNumber, email: user.email },
       tempPassword: password,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.put('/users/:id/email', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: 'User id is required.' });
+    }
+
+    const normalizedEmail = typeof email === 'string' ? email.trim() : '';
+    if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please provide a valid email address.' });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    user.email = normalizedEmail;
+    await user.save();
+
+    res.json({
+      message: 'Email updated successfully.',
+      user: { id: user._id, username: user.username, email: user.email },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.put('/users/:id/room', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { roomNumber, confirmAttendanceChange = false } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: 'User id is required.' });
+    }
+
+    if (!roomNumber || !String(roomNumber).trim()) {
+      return res.status(400).json({ message: 'Room number is required.' });
+    }
+
+    const normalizedRoom = String(roomNumber).trim();
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
+    const rooms = roomConfig.split(',').map((item) => {
+      const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
+      return {
+        roomNumber: roomNumberRaw || '',
+        capacity: Number(capacityRaw) || 4,
+      };
+    }).filter((item) => item.roomNumber);
+
+    const selectedRoom = rooms.find((room) => String(room.roomNumber) === normalizedRoom);
+    if (!selectedRoom) {
+      return res.status(400).json({ message: 'Selected room is not valid.' });
+    }
+
+    const currentOccupancy = await User.countDocuments({ roomNumber: normalizedRoom, _id: { $ne: user._id } });
+    if (currentOccupancy >= selectedRoom.capacity) {
+      return res.status(400).json({ message: 'Capacity full: selected room is already full.' });
+    }
+
+    const attendanceDocs = await Attendance.find({
+      $or: [
+        { 'students.username': user.username },
+        { 'students.userId': user._id.toString() },
+      ],
+    }).select('_id date students').lean();
+
+    const hasAttendanceHistory = attendanceDocs.length > 0;
+    if (hasAttendanceHistory && !confirmAttendanceChange) {
+      return res.status(409).json({
+        message: 'This user already has attendance history. Confirm the room change to update their room for future attendance records.',
+        requiresConfirmation: true,
+        attendanceCount: attendanceDocs.length,
+      });
+    }
+
+    user.roomNumber = normalizedRoom;
+    await user.save();
+
+    res.json({
+      message: 'Room updated successfully.',
+      user: { id: user._id, username: user.username, roomNumber: user.roomNumber },
     });
   } catch (error) {
     console.error(error);
@@ -323,12 +456,78 @@ router.get('/profile', authMiddleware, async (req, res) => {
   }
 });
 
+router.post('/profile/password/otp', authMiddleware, async (req, res) => {
+  try {
+    const currentUser = await findAuthenticatedUser(req.user);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const emailAddress = String(req.body.email || currentUser.email || '').trim();
+    if (!emailAddress) {
+      return res.status(400).json({ message: 'A valid email address is required to send the verification OTP.' });
+    }
+
+    const newPassword = String(req.body.newPassword || '').trim();
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+    }
+
+    const otpPayload = createOtpPayload();
+    passwordOtpStore.set(currentUser._id.toString(), {
+      otpHash: otpPayload.otpHash,
+      expiresAt: otpPayload.expiresAt,
+      newPassword,
+      email: emailAddress,
+    });
+
+    await sendPasswordOtpEmail(emailAddress, otpPayload.otp);
+
+    res.json({ message: 'Verification code sent to your email.', email: emailAddress });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to send verification email.', error: error.message });
+  }
+});
+
+router.post('/profile/password/verify', authMiddleware, async (req, res) => {
+  try {
+    const currentUser = await findAuthenticatedUser(req.user);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const otp = String(req.body.otp || '').trim();
+    const newPassword = String(req.body.newPassword || '').trim();
+    if (!otp || !newPassword) {
+      return res.status(400).json({ message: 'OTP and a new password are required.' });
+    }
+
+    const otpEntry = passwordOtpStore.get(currentUser._id.toString());
+    if (!otpEntry || !verifyOtp(otpEntry, otp)) {
+      return res.status(400).json({ message: 'Invalid or expired verification code.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.findByIdAndUpdate(currentUser._id, { $set: { password: hashedPassword } }, { runValidators: true });
+    passwordOtpStore.delete(currentUser._id.toString());
+
+    res.json({ message: 'Password updated successfully.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to update password.', error: error.message });
+  }
+});
+
 router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (req, res) => {
   try {
     const profileFields = [
       'fullName',
       'rollNumber',
-      'email',
       'phone',
       'college_name',
       'stream',
@@ -366,14 +565,6 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       }
       return data;
     }, {});
-
-    if (req.body.newPassword) {
-      if (typeof req.body.newPassword !== 'string' || req.body.newPassword.length < 6) {
-        return res.status(400).json({ message: 'Password must be at least 6 characters.' });
-      }
-      const hashedNewPassword = await bcrypt.hash(req.body.newPassword, 10);
-      profileData.password = hashedNewPassword;
-    }
 
     const currentUser = await findAuthenticatedUser(req.user);
     if (!currentUser) {
@@ -556,7 +747,15 @@ router.get('/documents', authMiddleware, async (req, res) => {
         email: currentUser.email || currentUser.username, // Fallback if no email
         userId: currentUser._id,
       });
-      await doc.save();
+      try {
+        await doc.save();
+      } catch (error) {
+        if (error?.code === 11000) {
+          doc = await Document.findOne({ userId: currentUser._id });
+        } else {
+          throw error;
+        }
+      }
     }
     
     const plainDoc = doc.toObject ? doc.toObject() : doc;
@@ -580,6 +779,15 @@ router.post('/documents', authMiddleware, upload.any(), async (req, res) => {
         email: currentUser.email || currentUser.username,
         userId: currentUser._id,
       });
+      try {
+        await doc.save();
+      } catch (error) {
+        if (error?.code === 11000) {
+          doc = await Document.findOne({ userId: currentUser._id });
+        } else {
+          throw error;
+        }
+      }
     }
 
     if (!req.files || req.files.length === 0) {

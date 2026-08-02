@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 
 const documentSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true, trim: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  email: { type: String, required: true, trim: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   aadharCardUrl: { type: String, default: '' },
   casteCertificateUrl: { type: String, default: '' },
   incomeCertificateUrl: { type: String, default: '' },

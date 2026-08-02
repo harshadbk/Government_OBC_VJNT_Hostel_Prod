@@ -8,6 +8,7 @@ export default function UploadsPage() {
   const [uploads, setUploads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -22,6 +23,7 @@ export default function UploadsPage() {
         if (res.ok) {
           setUploads(data.uploads || []);
           setPendingCount(typeof data.pendingCount === 'number' ? data.pendingCount : (data.uploads || []).filter((u) => !u.submitted).length);
+          setMessage(data.message || '');
         }
       } catch (err) {
         console.error(err);
@@ -39,8 +41,15 @@ export default function UploadsPage() {
             <div><strong>Pending uploads:</strong> {pendingCount}</div>
             <div style={{ color: '#20c997', fontWeight: 700 }}>{uploads.filter((u) => u.submitted).length} completed</div>
           </div>
+          {message && (
+            <div style={{ marginBottom: '1rem', padding: '.8rem 1rem', borderRadius: 12, background: 'rgba(245, 158, 11, 0.14)', color: '#fbbf24' }}>{message}</div>
+          )}
           <div style={{ display: 'grid', gap: '.9rem' }}>
-            {uploads.map(u => (
+            {uploads.length === 0 ? (
+              <div style={{ padding: '1rem', borderRadius: 12, background: 'rgba(255,255,255,.02)', color: 'var(--muted)' }}>
+                {message || 'No uploads available'}
+              </div>
+            ) : uploads.map(u => (
               <div key={u._id} style={{ padding: '.9rem', borderRadius: 12, background: 'rgba(255,255,255,.02)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>

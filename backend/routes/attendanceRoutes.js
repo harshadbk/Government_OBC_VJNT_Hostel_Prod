@@ -55,10 +55,26 @@ const adminAuth = (req, res, next) => {
 
 
 const getFormattedDate = (dateObj = new Date()) => {
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
+  const normalizedDate = new Date(dateObj);
+  const year = normalizedDate.getFullYear();
+  const month = String(normalizedDate.getMonth() + 1).padStart(2, '0');
+  const day = String(normalizedDate.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const normalizeDateString = (dateValue) => {
+  if (!dateValue) return null;
+  if (typeof dateValue === 'string') {
+    const trimmed = dateValue.trim();
+    if (!DATE_PATTERN.test(trimmed)) return null;
+    return trimmed;
+  }
+
+  if (dateValue instanceof Date) {
+    return getFormattedDate(dateValue);
+  }
+
+  return null;
 };
 
 const normalizeRoomNumber = (roomNumber) => {
@@ -77,7 +93,7 @@ const normalizeDate = (date) => {
 
 const isAttendanceWindowOpen = (dateObj = new Date()) => {
   const hour = dateObj.getHours();
-  return hour >= 12 && hour < 24;
+  return hour >= 12 && hour <= 24;
 };
 
 const getDatesInRange = (startDate, endDate) => {
@@ -551,7 +567,8 @@ router.post('/room/:roomNumber', adminAuth, async (req, res) => {
     if (!targetDate) {
       return res.status(400).json({ message: 'Date must be in YYYY-MM-DD format.' });
     }
-    if (targetDate !== getFormattedDate()) {
+    const todayDate = getFormattedDate();
+    if (targetDate !== todayDate) {
       return res.status(403).json({ message: 'Attendance can be marked only for today. Use reports to view/download older attendance.' });
     }
     if (!isAttendanceWindowOpen()) {
@@ -711,7 +728,6 @@ router.get('/student/my-attendance', authMiddleware, async (req, res) => {
       ? Number(((yearPresentCount / yearRecords.length) * 100).toFixed(1))
       : 0;
 
-    // Build GitHub/LeetCode style Heatmap Data for entire selected year (Jan 1 to Dec 31)
     const heatmapData = [];
     const isLeapYear = (selectedYear % 4 === 0 && selectedYear % 100 !== 0) || (selectedYear % 400 === 0);
     const daysInYear = isLeapYear ? 366 : 365;
