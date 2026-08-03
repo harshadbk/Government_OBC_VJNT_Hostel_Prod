@@ -12,7 +12,7 @@ import Upload from '../models/Upload.js';
 import Attendance from '../models/Attendance.js';
 import { createOtpPayload, verifyOtp } from '../utils/passwordOtp.js';
 import { validatePasswordResetPayload } from '../utils/passwordReset.js';
-import { normalizeRoomNumber, roomNumberMatches } from '../utils/roomUtils.js';
+import { normalizeRoomNumber, roomNumberMatches, parseRoomOverview } from '../utils/roomUtils.js';
 
 
 const router = express.Router();
@@ -247,15 +247,7 @@ router.post('/add-user', adminAuth, async (req, res) => {
       return res.status(409).json({ message: 'Username already exists.' });
     }
 
-    const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
-    const rooms = roomConfig.split(',').map((item) => {
-      const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
-      const roomNumber = normalizeRoomNumber(roomNumberRaw);
-      return {
-        roomNumber,
-        capacity: Number(capacityRaw) || 4,
-      };
-    }).filter((item) => item.roomNumber);
+    const rooms = parseRoomOverview(process.env.ROOM_OVERVIEW);
 
     const selectedRoom = rooms.find((room) => room.roomNumber === normalizedRoom);
     if (!selectedRoom) {
@@ -339,15 +331,7 @@ router.put('/users/:id/room', adminAuth, async (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
-    const rooms = roomConfig.split(',').map((item) => {
-      const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
-      const roomNumber = normalizeRoomNumber(roomNumberRaw);
-      return {
-        roomNumber,
-        capacity: Number(capacityRaw) || 4,
-      };
-    }).filter((item) => item.roomNumber);
+    const rooms = parseRoomOverview(process.env.ROOM_OVERVIEW);
 
     const selectedRoom = rooms.find((room) => room.roomNumber === normalizedRoom);
     if (!selectedRoom) {
@@ -705,12 +689,7 @@ router.get('/users', adminAuth, async (req, res) => {
 router.get('/rooms-overview', adminAuth, async (req, res) => {
   try {
 
-    const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
-    const rooms = roomConfig.split(',').map((item) => {
-      const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
-      const roomNumber = normalizeRoomNumber(roomNumberRaw);
-      return { roomNumber, capacity: Number(capacityRaw) || 4 };
-    }).filter((item) => item.roomNumber);
+    const rooms = parseRoomOverview(process.env.ROOM_OVERVIEW);
 
     const users = await User.find().select('roomNumber');
     const occupancyByRoom = users.reduce((acc, user) => {
