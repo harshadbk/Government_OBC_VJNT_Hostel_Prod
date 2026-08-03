@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FiCamera, FiSave, FiEdit3, FiXCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiUpload, FiCheckCircle, FiCalendar, FiKey, FiTrendingUp, FiClock, FiX, FiSend } from 'react-icons/fi';
+import compressImageFile from '../utils/compressImage';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import ProfileCard from '../components/ProfileCard';
@@ -457,11 +458,12 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
     }
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const objectUrl = URL.createObjectURL(file);
-    setSelectedPhoto(file);
+    const compressed = await compressImageFile(file, { maxSizeMB: 0.8, maxWidthOrHeight: 2400 });
+    const objectUrl = URL.createObjectURL(compressed);
+    setSelectedPhoto(compressed);
     setPreview(objectUrl);
     onProfileImageChange(objectUrl);
     setMessage('');
@@ -520,7 +522,8 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
       payload.append('startDate', leaveForm.startDate);
       payload.append('endDate', leaveForm.endDate);
       payload.append('mobileNumber', leaveForm.mobileNumber || '');
-      payload.append('attachment', leaveAttachment);
+      const attachmentFile = await compressImageFile(leaveAttachment, { maxSizeMB: 0.8, maxWidthOrHeight: 2400 });
+      payload.append('attachment', attachmentFile);
 
       const response = await fetch(`${apiBaseUrl}/api/leaves/submit`, {
         method: 'POST',
