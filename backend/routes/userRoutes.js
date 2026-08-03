@@ -12,6 +12,7 @@ import Upload from '../models/Upload.js';
 import Attendance from '../models/Attendance.js';
 import { createOtpPayload, verifyOtp } from '../utils/passwordOtp.js';
 import { validatePasswordResetPayload } from '../utils/passwordReset.js';
+import { normalizeRoomNumber, roomNumberMatches } from '../utils/roomUtils.js';
 
 
 const router = express.Router();
@@ -236,7 +237,7 @@ router.post('/add-user', adminAuth, async (req, res) => {
     }
 
     const normalizedUsername = username.trim();
-    const normalizedRoom = roomNumber.trim();
+    const normalizedRoom = normalizeRoomNumber(roomNumber);
     const normalizedEmail = typeof email === 'string' ? email.trim() : '';
     if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return res.status(400).json({ message: 'Please provide a valid email address.' });
@@ -249,13 +250,14 @@ router.post('/add-user', adminAuth, async (req, res) => {
     const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
     const rooms = roomConfig.split(',').map((item) => {
       const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
+      const roomNumber = normalizeRoomNumber(roomNumberRaw);
       return {
-        roomNumber: roomNumberRaw || '',
+        roomNumber,
         capacity: Number(capacityRaw) || 4,
       };
     }).filter((item) => item.roomNumber);
 
-    const selectedRoom = rooms.find((room) => String(room.roomNumber) === normalizedRoom);
+    const selectedRoom = rooms.find((room) => room.roomNumber === normalizedRoom);
     if (!selectedRoom) {
       return res.status(400).json({ message: 'Selected room is not valid.' });
     }
@@ -331,7 +333,7 @@ router.put('/users/:id/room', adminAuth, async (req, res) => {
       return res.status(400).json({ message: 'Room number is required.' });
     }
 
-    const normalizedRoom = String(roomNumber).trim();
+    const normalizedRoom = normalizeRoomNumber(roomNumber);
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
@@ -340,13 +342,14 @@ router.put('/users/:id/room', adminAuth, async (req, res) => {
     const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
     const rooms = roomConfig.split(',').map((item) => {
       const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
+      const roomNumber = normalizeRoomNumber(roomNumberRaw);
       return {
-        roomNumber: roomNumberRaw || '',
+        roomNumber,
         capacity: Number(capacityRaw) || 4,
       };
     }).filter((item) => item.roomNumber);
 
-    const selectedRoom = rooms.find((room) => String(room.roomNumber) === normalizedRoom);
+    const selectedRoom = rooms.find((room) => room.roomNumber === normalizedRoom);
     if (!selectedRoom) {
       return res.status(400).json({ message: 'Selected room is not valid.' });
     }
@@ -705,21 +708,21 @@ router.get('/rooms-overview', adminAuth, async (req, res) => {
     const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
     const rooms = roomConfig.split(',').map((item) => {
       const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
-      const roomNumber = roomNumberRaw || '';
-      const capacity = Number(capacityRaw) || 4;
-      return { roomNumber, capacity };
+      const roomNumber = normalizeRoomNumber(roomNumberRaw);
+      return { roomNumber, capacity: Number(capacityRaw) || 4 };
     }).filter((item) => item.roomNumber);
 
     const users = await User.find().select('roomNumber');
     const occupancyByRoom = users.reduce((acc, user) => {
-      const roomKey = String(user.roomNumber || '').trim();
+      const roomKey = normalizeRoomNumber(user.roomNumber);
       if (!roomKey) return acc;
       acc[roomKey] = (acc[roomKey] || 0) + 1;
       return acc;
     }, {});
 
     const overview = rooms.map(({ roomNumber, capacity }) => {
-      const occupancy = occupancyByRoom[roomNumber] || 0;
+      const normalizedRoomNumber = normalizeRoomNumber(roomNumber);
+      const occupancy = occupancyByRoom[normalizedRoomNumber] || 0;
       return {
         roomNumber,
         capacity,
