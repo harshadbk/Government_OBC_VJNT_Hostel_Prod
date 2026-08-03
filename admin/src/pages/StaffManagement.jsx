@@ -86,8 +86,10 @@ export default function StaffManagement() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Delete failed.');
       setStaff((prev) => prev.filter((item) => item._id !== id));
+      setFeedback('Staff member deleted.');
+      setTimeout(() => setFeedback(''), 3500);
     } catch (err) {
-      alert(err.message);
+      setFeedback(err.message);
     }
   };
 

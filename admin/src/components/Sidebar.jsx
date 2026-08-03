@@ -7,6 +7,8 @@ function Sidebar({ onLogout }) {
   const [uploadsCount, setUploadsCount] = useState(0);
   const [pulse, setPulse] = useState(false);
   const lastCountRef = useRef(0);
+  const role = localStorage.getItem('adminRole') || 'admin';
+  const isAttendanceTaker = role === 'attendance_taker';
 
   useEffect(() => {
     let mounted = true;
@@ -26,7 +28,6 @@ function Sidebar({ onLogout }) {
         }
         lastCountRef.current = count;
       } catch (err) {
-        // ignore
       }
     };
     fetchCount();
@@ -49,23 +50,25 @@ function Sidebar({ onLogout }) {
         </div>
       </div>
       <nav className="sidebar-nav">
-        <NavLink to="/dashboard"><FiGrid /> Dashboard</NavLink>
-        <NavLink to="/users"><FiUsers /> Users</NavLink>
+        {!isAttendanceTaker && <NavLink to="/dashboard"><FiGrid /> Dashboard</NavLink>}
+        {!isAttendanceTaker && <NavLink to="/users"><FiUsers /> Users</NavLink>}
         <NavLink to="/attendance"><FiCheckSquare /> Attendance</NavLink>
-        <NavLink to="/add-user"><FiUserPlus /> Add User</NavLink>
-        <NavLink to="/notices"><FiBell /> Notice Board</NavLink>
-        <NavLink to="/staff"><FiUsers /> Staff</NavLink>
-        <NavLink to="/uploads" className={({isActive}) => isActive ? 'active' : ''}>
+        {isAttendanceTaker && <NavLink to="/attendance-visuals"><FiCheckSquare /> Attendance Visuals</NavLink>}
+        {!isAttendanceTaker && <NavLink to="/add-user"><FiUserPlus /> Add User</NavLink>}
+        {!isAttendanceTaker && <NavLink to="/notices"><FiBell /> Notice Board</NavLink>}
+        {!isAttendanceTaker && <NavLink to="/staff"><FiUsers /> Staff</NavLink>}
+        {!isAttendanceTaker && <NavLink to="/uploads" className={({isActive}) => isActive ? 'active' : ''}>
           <FiUpload /> Uploads
           {uploadsCount > 0 && (
             <span className={`sidebar-badge ${pulse ? 'pulse' : ''}`}>{uploadsCount}</span>
           )}
-        </NavLink>
-        {/* <NavLink to="/profile"><FiSettings /> Profile</NavLink> */}
+        </NavLink>}
+        {!isAttendanceTaker && <NavLink to="/admin-users"><FiUsers /> Admin Users</NavLink>}
         <button className="sidebar-logout" onClick={() => {
           if (typeof onLogout === 'function') return onLogout();
           localStorage.removeItem('adminToken');
           localStorage.removeItem('adminUsername');
+          localStorage.removeItem('adminRole');
           window.location.href = '#/login';
         }}><FiLogOut /> Logout</button>
       </nav>

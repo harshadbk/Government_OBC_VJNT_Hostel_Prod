@@ -62,7 +62,7 @@ export default function HeroSection() {
             <FiHome /> Student Residence
           </div>
           <div className="hero-card-info">
-            <h3>Samaj Kalyan OBC Hostel</h3>
+            <h3>Government OBC Hostel</h3>
             <p>Safe, disciplined student accommodation under Govt. of Maharashtra.</p>
           </div>
         </div>

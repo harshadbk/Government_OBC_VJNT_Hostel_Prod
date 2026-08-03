@@ -38,13 +38,11 @@ const adminAuth = (req, res, next) => {
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_super_secret_key_here');
-    const isAdmin =
-      decoded?.role?.toString().toLowerCase() === 'admin' ||
-      decoded?.username?.toString().toLowerCase() === 'admin' ||
-      decoded?.userId === 'hardcoded-admin';
+    const role = decoded?.role?.toString().toLowerCase();
+    const isAllowed = role === 'admin' || role === 'attendance_taker';
 
-    if (!isAdmin) {
-      return res.status(403).json({ message: 'Admin access required.' });
+    if (!isAllowed) {
+      return res.status(403).json({ message: 'Access denied.' });
     }
     req.user = decoded;
     next();
@@ -862,7 +860,7 @@ router.get('/student/:id/attendance', adminAuth, async (req, res) => {
   }
 });
 
-// ─── GET /api/attendance/export (Export Excel Reports) ─────────────────
+
 router.get('/export', adminAuth, async (req, res) => {
   try {
     const { type = 'daily', date, month, year } = req.query;

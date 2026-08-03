@@ -9,17 +9,17 @@ function AddUser({ onLogout }) {
   const [tempPassword, setTempPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [roomNumber, setRoomNumber] = useState("");
+  const [rollNumber, setRollNumber] = useState("");
   const [status, setStatus] = useState("");
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
-  const [editRoomNumber, setEditRoomNumber] = useState("");
-  const [editingEmailUserId, setEditingEmailUserId] = useState(null);
   const [editEmailValue, setEditEmailValue] = useState("");
+  const [editRollNumberValue, setEditRollNumberValue] = useState("");
+  const [editRoomNumber, setEditRoomNumber] = useState("");
   const [isUpdatingRoom, setIsUpdatingRoom] = useState(false);
-  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
 
   const refreshUsers = async () => {
     try {
@@ -81,6 +81,7 @@ function AddUser({ onLogout }) {
           email: email.trim(),
           password: tempPassword,
           roomNumber: roomNumber.trim(),
+          rollNumber: rollNumber.trim(),
         }),
       });
 
@@ -96,6 +97,7 @@ function AddUser({ onLogout }) {
       setEmail("");
       setTempPassword("");
       setRoomNumber("");
+      setRollNumber("");
       await refreshUsers();
     } catch (error) {
       console.error(error);
@@ -106,83 +108,80 @@ function AddUser({ onLogout }) {
     }
   };
 
-  const handleEmailUpdate = async (user) => {
+  const startEditingUser = (user) => {
+    const userId = user._id || user.username;
+    setEditingUserId(userId);
+    setEditEmailValue(user.email || "");
+    setEditRollNumberValue(user.rollNumber || "");
+    setEditRoomNumber(user.roomNumber || "");
+  };
+
+  const cancelEditingUser = () => {
+    setEditingUserId(null);
+    setEditEmailValue("");
+    setEditRollNumberValue("");
+    setEditRoomNumber("");
+  };
+
+  const handleUserUpdate = async (user) => {
     const userId = user._id || user.username;
     if (!editEmailValue.trim()) {
       setStatus('Please enter an email before saving.');
       return;
     }
-
-    setIsUpdatingEmail(true);
-    setStatus(`Updating email for "${user.username}"...`);
-
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${apiBaseUrl}/api/admin/users/${userId}/email`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ email: editEmailValue.trim() }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        setStatus(result.message || 'Unable to update email.');
-        return;
-      }
-
-      setStatus(`Email updated for "${user.username}".`);
-      setEditingEmailUserId(null);
-      setEditEmailValue('');
-      await refreshUsers();
-    } catch (error) {
-      console.error(error);
-      setStatus('Network error. Could not update email.');
-    } finally {
-      setIsUpdatingEmail(false);
-      setTimeout(() => setStatus(''), 4000);
-    }
-  };
-
-  const handleRoomUpdate = async (user) => {
-    const userId = user._id || user.username;
     if (!editRoomNumber.trim()) {
       setStatus('Please select a room before saving.');
       return;
     }
 
     setIsUpdatingRoom(true);
-    setStatus(`Updating room for "${user.username}"...`);
+    setStatus(`Updating "${user.username}"...`);
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${apiBaseUrl}/api/admin/users/${userId}/room`, {
-        method: 'PUT',
-        headers: {
+      const headers = {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          roomNumber: editRoomNumber.trim(),
-          confirmAttendanceChange: true,
-        }),
-      });
+      };
 
-      const result = await response.json();
-      if (!response.ok) {
-        setStatus(result.message || 'Unable to update room.');
-        return;
+      const updates = [
+        {
+          url: `${apiBaseUrl}/api/admin/users/${userId}/email`,
+          body: { email: editEmailValue.trim() },
+          error: 'Unable to update email.',
+        },
+        {
+          url: `${apiBaseUrl}/api/admin/users/${userId}/rollnumber`,
+          body: { rollNumber: editRollNumberValue.trim() },
+          error: 'Unable to update roll number.',
+        },
+        {
+          url: `${apiBaseUrl}/api/admin/users/${userId}/room`,
+          body: { roomNumber: editRoomNumber.trim(), confirmAttendanceChange: true },
+          error: 'Unable to update room.',
+        },
+      ];
+
+      for (const update of updates) {
+        const response = await fetch(update.url, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(update.body),
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          setStatus(result.message || update.error);
+          return;
+        }
       }
 
-      setStatus(`Room updated for "${user.username}".`);
-      setEditingUserId(null);
-      setEditRoomNumber('');
+      setStatus(`User "${user.username}" updated.`);
+      cancelEditingUser();
       await refreshUsers();
     } catch (error) {
       console.error(error);
-      setStatus('Network error. Could not update room.');
+      setStatus('Network error. Could not update user.');
     } finally {
       setIsUpdatingRoom(false);
       setTimeout(() => setStatus(''), 4000);
@@ -211,7 +210,6 @@ function AddUser({ onLogout }) {
                   placeholder=" "
                 />
               </label>
-              <br />
               <label className="profile-field">
                 <span className="label-text">Email</span>
                 <input
@@ -221,7 +219,6 @@ function AddUser({ onLogout }) {
                   placeholder="user@example.com"
                 />
               </label>
-              <br />
               <label className="profile-field">
                 <span className="label-text">Temporary Password</span>
                 <div className="password-toggle-field" style={{ position: 'relative' }}>
@@ -251,7 +248,14 @@ function AddUser({ onLogout }) {
                   </button>
                 </div>
               </label>
-              <br />
+              <label className="profile-field">
+                <span className="label-text">Roll Number</span>
+                <input
+                  value={rollNumber}
+                  onChange={(e) => setRollNumber(e.target.value)}
+                  placeholder="Enter roll number"
+                />
+              </label>
               <label className="profile-field">
                 <span className="label-text">Room Number</span>
                 <select value={roomNumber} onChange={(e) => setRoomNumber(e.target.value)}>
@@ -284,6 +288,7 @@ function AddUser({ onLogout }) {
                   setUsername("");
                   setEmail("");
                   setTempPassword("");
+                  setRollNumber("");
                   setStatus("");
                 }}
               >
@@ -315,47 +320,49 @@ function AddUser({ onLogout }) {
                   <tr>
                     <th>Username</th>
                     <th>Email</th>
+                    <th>Roll No</th>
                     <th>Room</th>
                     <th>Present Days</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user, index) => {
                     const userId = user._id || user.username;
                     const isEditing = editingUserId === userId;
-                    const isEditingEmail = editingEmailUserId === userId;
                     return (
                       <tr key={`${user.username}-${index}`}>
                         <td>{user.username}</td>
                         <td>
-                          {isEditingEmail ? (
-                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {isEditing ? (
+                            <div className="table-edit-field">
                               <input
                                 type="email"
                                 value={editEmailValue}
                                 onChange={(e) => setEditEmailValue(e.target.value)}
                                 placeholder="user@example.com"
-                                style={{ minWidth: '180px' }}
                               />
-                              <button className="secondary-btn" type="button" onClick={() => handleEmailUpdate(user)} disabled={isUpdatingEmail}>
-                                {isUpdatingEmail ? 'Saving...' : 'Save'}
-                              </button>
-                              <button className="secondary-btn" type="button" onClick={() => { setEditingEmailUserId(null); setEditEmailValue(''); }}>
-                                Cancel
-                              </button>
                             </div>
                           ) : (
-                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                              <span>{user.email || '—'}</span>
-                              <button className="secondary-btn" type="button" onClick={() => { setEditingEmailUserId(userId); setEditEmailValue(user.email || ''); }}>
-                                Edit Email
-                              </button>
-                            </div>
+                            <span>{user.email || '-'}</span>
                           )}
                         </td>
                         <td>
                           {isEditing ? (
-                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <div className="table-edit-field">
+                              <input
+                                value={editRollNumberValue}
+                                onChange={(e) => setEditRollNumberValue(e.target.value)}
+                                placeholder="Roll number"
+                              />
+                            </div>
+                          ) : (
+                            <span>{user.rollNumber || '-'}</span>
+                          )}
+                        </td>
+                        <td>
+                          {isEditing ? (
+                            <div className="table-edit-field">
                               <select value={editRoomNumber} onChange={(e) => setEditRoomNumber(e.target.value)}>
                                 {roomsLoading ? (
                                   <option value="">Loading rooms...</option>
@@ -376,23 +383,28 @@ function AddUser({ onLogout }) {
                                   <option value="">No rooms available</option>
                                 )}
                               </select>
-                              <button className="secondary-btn" type="button" onClick={() => handleRoomUpdate(user)} disabled={isUpdatingRoom}>
+                            </div>
+                          ) : (
+                            <span>{user.roomNumber || 'N/A'}</span>
+                          )}
+                        </td>
+                        <td>{user.presentDaysSinceCreated ?? 0}/{user.totalAttendanceDaysSinceCreated ?? 0}</td>
+                        <td>
+                          {isEditing ? (
+                            <div className="table-row-actions">
+                              <button className="secondary-btn compact-btn" type="button" onClick={() => handleUserUpdate(user)} disabled={isUpdatingRoom}>
                                 {isUpdatingRoom ? 'Saving...' : 'Save'}
                               </button>
-                              <button className="secondary-btn" type="button" onClick={() => { setEditingUserId(null); setEditRoomNumber(''); }}>
+                              <button className="secondary-btn compact-btn" type="button" onClick={cancelEditingUser}>
                                 Cancel
                               </button>
                             </div>
                           ) : (
-                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                              <span>{user.roomNumber || 'N/A'}</span>
-                              <button className="secondary-btn" type="button" onClick={() => { setEditingUserId(userId); setEditRoomNumber(user.roomNumber || ''); }}>
-                                Edit Room
-                              </button>
-                            </div>
+                            <button className="secondary-btn compact-btn" type="button" onClick={() => startEditingUser(user)}>
+                              Edit
+                            </button>
                           )}
                         </td>
-                        <td>{user.presentDaysSinceCreated ?? 0}/{user.totalAttendanceDaysSinceCreated ?? 0}</td>
                       </tr>
                     );
                   })}
@@ -407,3 +419,4 @@ function AddUser({ onLogout }) {
 }
 
 export default AddUser;
+
