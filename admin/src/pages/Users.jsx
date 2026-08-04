@@ -9,6 +9,7 @@ function Users({ onLogout }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [feedback, setFeedback] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
@@ -93,8 +94,10 @@ function Users({ onLogout }) {
         }
 
         setUsers(prev => prev.filter(user => user._id !== id));
+        setFeedback('User deleted successfully.');
+        setTimeout(() => setFeedback(''), 3500);
       } catch (err) {
-        alert(err.message);
+        setFeedback(err.message);
       }
     }
   };
@@ -172,6 +175,7 @@ function Users({ onLogout }) {
           </div>
         ) : (
           <div className="room-groups-container" style={{ display: 'grid', gap: '1.5rem', maxHeight: '70vh', overflowY: 'auto', paddingRight: '0.25rem' }}>
+            {feedback ? <div className="status-message">{feedback}</div> : null}
             {sortedRoomKeys.map(roomKey => {
               const roomStudents = groupedByRoom[roomKey];
               const isUnassigned = roomKey === 'Unassigned';
@@ -223,9 +227,9 @@ function Users({ onLogout }) {
                       <thead>
                         <tr>
                           <th>Username</th>
+                          <th>Roll Number</th>
                           <th>Full Name</th>
                           <th>College</th>
-                          <th>Stream</th>
                           <th>Phone No</th>
                           <th>Father's No</th>
                           <th>Present Days</th>
@@ -238,14 +242,14 @@ function Users({ onLogout }) {
                             <td onClick={() => handleRowClick(student._id)} style={{ fontWeight: '600', color: '#72e3ff' }}>
                               @{student.username}
                             </td>
+                            <td onClick={() => handleRowClick(student._id)}>
+                              {student.rollNumber || '-'}
+                            </td>
                             <td onClick={() => handleRowClick(student._id)} style={{ fontWeight: '600' }}>
                               {student.fullName || '-'}
                             </td>
                             <td onClick={() => handleRowClick(student._id)}>
                               {student.college_name || '-'}
-                            </td>
-                            <td onClick={() => handleRowClick(student._id)}>
-                              {student.stream || '-'}
                             </td>
                             <td onClick={() => handleRowClick(student._id)}>
                               {student.mobileNumber || student.phone || '-'}

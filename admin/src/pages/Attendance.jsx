@@ -191,7 +191,6 @@ function Attendance({ onLogout }) {
     if (!token) return;
     const url = `${apiBaseUrl}/api/attendance/export?type=${type}&date=${exportDate}&year=${exportDate.slice(0, 4)}&month=${parseInt(exportDate.slice(5, 7))}`;
     
-    // Trigger file download
     fetch(url, {
       headers: { Authorization: `Bearer ${token}` }
     })
@@ -204,8 +203,13 @@ function Attendance({ onLogout }) {
         document.body.appendChild(a);
         a.click();
         a.remove();
+        setSaveMessage(`${type.charAt(0).toUpperCase() + type.slice(1)} attendance report downloaded.`);
+        setSaveMessageType('success');
       })
-      .catch(err => alert('Failed to export Excel report'));
+      .catch(() => {
+        setSaveMessage('Failed to export Excel report.');
+        setSaveMessageType('error');
+      });
   };
 
   return (
@@ -306,7 +310,7 @@ function Attendance({ onLogout }) {
                 type="date"
                 value={exportDate}
                 onChange={(e) => setExportDate(e.target.value)}
-                style={{ background: 'none', border: 'none', color: '#fff', fontWeight: '600', cursor: 'pointer', outline: 'none' }}
+                style={{ background: 'none', border: 'none', color: 'var(--text)', fontWeight: '600', cursor: 'pointer', outline: 'none' }}
               />
             </label>
             <button className="secondary-btn" onClick={() => handleExport('daily')} style={{ flex: '1 1 140px' }}>
@@ -349,7 +353,7 @@ function Attendance({ onLogout }) {
                   className="room-attendance-card"
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <FiHome style={{ color: '#72e3ff' }} /> Room {rm.roomNumber}
                     </h4>
                     {rm.isLocked ? (
@@ -397,7 +401,7 @@ function Attendance({ onLogout }) {
               {/* Modal Header */}
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <FiHome style={{ color: '#72e3ff' }} /> Room {activeRoom} Attendance ({todayDate})
                   </h3>
                   <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
@@ -474,7 +478,7 @@ function Attendance({ onLogout }) {
                                 style={{ width: '20px', height: '20px', accentColor: '#34d399', cursor: 'pointer' }}
                               />
                               <div>
-                                <div style={{ fontWeight: '700', fontSize: '1rem', color: '#fff' }}>
+                                <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text)' }}>
                                   {student.fullName || student.username}
                                 </div>
                                 <div style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>

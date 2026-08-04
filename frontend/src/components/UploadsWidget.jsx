@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUpload, FiX, FiFile, FiCheckCircle, FiClock, FiImage, FiExternalLink } from 'react-icons/fi';
+import compressImageFile from '../utils/compressImage';
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 import './uploadwidget.css';
 
@@ -66,8 +67,9 @@ export default function UploadsWidget() {
     setMessageType('info');
     setUploadingId(uploadId);
     try {
+      const compressedFile = await compressImageFile(file, { maxSizeMB: 0.8, maxWidthOrHeight: 2400 });
       const formData = new FormData();
-      formData.append('document', file);
+      formData.append('document', compressedFile);
       const res = await fetch(`${apiBaseUrl}/api/uploads/${uploadId}/submit`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },

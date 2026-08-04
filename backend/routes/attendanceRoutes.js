@@ -9,7 +9,6 @@ const router = express.Router();
 const ROOM_COUNT = 20;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-// Authentication middleware
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
@@ -38,13 +37,11 @@ const adminAuth = (req, res, next) => {
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_super_secret_key_here');
-    const isAdmin =
-      decoded?.role?.toString().toLowerCase() === 'admin' ||
-      decoded?.username?.toString().toLowerCase() === 'admin' ||
-      decoded?.userId === 'hardcoded-admin';
+    const role = decoded?.role?.toString().toLowerCase();
+    const isAllowed = role === 'admin' || role === 'attendance_taker';
 
-    if (!isAdmin) {
-      return res.status(403).json({ message: 'Admin access required.' });
+    if (!isAllowed) {
+      return res.status(403).json({ message: 'Access denied.' });
     }
     req.user = decoded;
     next();
@@ -92,8 +89,13 @@ const normalizeDate = (date) => {
 };
 
 const isAttendanceWindowOpen = (dateObj = new Date()) => {
-  const hour = dateObj.getHours();
-  return hour >= 20 && hour <= 24;
+  const istDate = new Date(
+    dateObj.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+  const hour = istDate.getHours();
+  const minute = istDate.getMinutes();
+  const currentMinutes = hour * 60 + minute;
+  return currentMinutes >= 1260 && currentMinutes < 1440;
 };
 
 const getDatesInRange = (startDate, endDate) => {
@@ -862,7 +864,7 @@ router.get('/student/:id/attendance', adminAuth, async (req, res) => {
   }
 });
 
-// ─── GET /api/attendance/export (Export Excel Reports) ─────────────────
+
 router.get('/export', adminAuth, async (req, res) => {
   try {
     const { type = 'daily', date, month, year } = req.query;

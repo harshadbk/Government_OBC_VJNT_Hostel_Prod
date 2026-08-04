@@ -276,10 +276,6 @@ function Dashboard({ onLogout }) {
                 <FiUsers />
                 Staffs
               </button>
-              <button onClick={() => navigate("/attendance-visuals")}>
-                <FiBarChart2 />
-                Attendance Visuals
-              </button>
               <button onClick={() => navigate("/leaves")}>
                 <FiBarChart2 />
                 Leaves

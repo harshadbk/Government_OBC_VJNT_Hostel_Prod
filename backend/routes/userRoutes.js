@@ -7,17 +7,21 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import sgMail from '@sendgrid/mail';
 import User from '../models/User.js';
+import Admin from '../models/Admin.js';
 import Document from '../models/Document.js';
 import Upload from '../models/Upload.js';
 import Attendance from '../models/Attendance.js';
 import { createOtpPayload, verifyOtp } from '../utils/passwordOtp.js';
 import { validatePasswordResetPayload } from '../utils/passwordReset.js';
+import { normalizeRoomNumber, roomNumberMatches, parseRoomOverview } from '../utils/roomUtils.js';
 
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const passwordOtpStore = new Map();
 const passwordResetOtpStore = new Map();
+const adminRegistrationOtpStore = new Map();
+const adminDeleteOtpStore = new Map();
 
 const configureSendGrid = () => {
   const apiKey = process.env.SENDGRID_API_KEY;
@@ -36,6 +40,24 @@ const sendPasswordOtpEmail = async (toEmail, otp) => {
     subject: 'Government OBC VJNT Hostel Management System , Sangli Password Verification',
     text: `Your OTP for password verification is ${otp}. It expires in 5 minutes.`,
     html: `<p>Your OTP for password verification is <strong>${otp}</strong>. It expires in 5 minutes.</p>`,
+  };
+  await sgMail.send(msg);
+};
+
+const getRootAdminEmail = () => process.env.ADMIN_ROOT_EMAIL || process.env.EMAIL_FROM || 'khataleharshad26@gmail.com';
+
+const sendAdminOtpEmail = async (otp, purpose = 'verification') => {
+  configureSendGrid();
+  const rootEmail = getRootAdminEmail();
+  const subject = purpose === 'delete'
+    ? 'Admin account deletion verification'
+    : 'Admin registration verification';
+  const msg = {
+    to: rootEmail,
+    from: process.env.EMAIL_FROM || 'harshad.khatale@walchandsangli.ac.in',
+    subject,
+    text: `An admin verification request has been initiated. Your OTP is ${otp}. It expires in 5 minutes.`,
+    html: `<p>An admin verification request has been initiated.</p><p>Your OTP is <strong>${otp}</strong>. It expires in 5 minutes.</p>`,
   };
   await sgMail.send(msg);
 };
@@ -196,7 +218,7 @@ const findAuthenticatedUser = async (tokenUser) => {
   return null;
 };
 
-const adminAuth = (req, res, next) => {
+const adminAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer')) {
     return res.status(401).json({ message: 'Missing authorization header.' });
@@ -205,9 +227,40 @@ const adminAuth = (req, res, next) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_super_secret_key_here');
-    const isAdmin = decoded?.role?.toString().toLowerCase() === 'admin' || decoded?.username?.toString().toLowerCase() === 'admin' || decoded?.userId === 'hardcoded-admin';
+    const isAdmin = decoded?.role?.toString().toLowerCase() === 'admin';
     if (!isAdmin) return res.status(403).json({ message: 'Admin access required.' });
-    req.user = decoded;
+
+    const adminAccount = await Admin.findById(decoded.userId).select('_id username role isActive status');
+    if (!adminAccount || !adminAccount.isActive || adminAccount.status !== 'active') {
+      return res.status(403).json({ message: 'Your admin account is inactive.' });
+    }
+
+    req.user = { ...decoded, role: adminAccount.role };
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid or expired token.' });
+  }
+};
+
+const attendanceAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer')) {
+    return res.status(401).json({ message: 'Missing authorization header.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_super_secret_key_here');
+    const role = decoded?.role?.toString().toLowerCase();
+    const isAllowed = role === 'admin' || role === 'attendance_taker';
+    if (!isAllowed) return res.status(403).json({ message: 'Access denied.' });
+
+    const adminAccount = await Admin.findById(decoded.userId).select('_id username role isActive status');
+    if (!adminAccount || !adminAccount.isActive || adminAccount.status !== 'active') {
+      return res.status(403).json({ message: 'Your admin account is inactive.' });
+    }
+
+    req.user = { ...decoded, role: adminAccount.role };
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Invalid or expired token.' });
@@ -230,14 +283,15 @@ const authMiddleware = (req, res, next) => {
 
 router.post('/add-user', adminAuth, async (req, res) => {
   try {
-    const { username, password, roomNumber, email } = req.body;
+    const { username, password, roomNumber, email, rollNumber } = req.body;
     if (!username || !password || !roomNumber) {
       return res.status(400).json({ message: 'Username, password, and room number are required.' });
     }
 
     const normalizedUsername = username.trim();
-    const normalizedRoom = roomNumber.trim();
+    const normalizedRoom = normalizeRoomNumber(roomNumber);
     const normalizedEmail = typeof email === 'string' ? email.trim() : '';
+    const normalizedRollNumber = typeof rollNumber === 'string' ? rollNumber.trim() : '';
     if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return res.status(400).json({ message: 'Please provide a valid email address.' });
     }
@@ -246,16 +300,9 @@ router.post('/add-user', adminAuth, async (req, res) => {
       return res.status(409).json({ message: 'Username already exists.' });
     }
 
-    const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
-    const rooms = roomConfig.split(',').map((item) => {
-      const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
-      return {
-        roomNumber: roomNumberRaw || '',
-        capacity: Number(capacityRaw) || 4,
-      };
-    }).filter((item) => item.roomNumber);
+    const rooms = parseRoomOverview(process.env.ROOM_OVERVIEW);
 
-    const selectedRoom = rooms.find((room) => String(room.roomNumber) === normalizedRoom);
+    const selectedRoom = rooms.find((room) => room.roomNumber === normalizedRoom);
     if (!selectedRoom) {
       return res.status(400).json({ message: 'Selected room is not valid.' });
     }
@@ -272,6 +319,7 @@ router.post('/add-user', adminAuth, async (req, res) => {
       tempPassword: password,
       roomNumber: normalizedRoom,
       email: normalizedEmail,
+      rollNumber: normalizedRollNumber,
     });
     await user.save();
 
@@ -318,6 +366,34 @@ router.put('/users/:id/email', adminAuth, async (req, res) => {
   }
 });
 
+router.put('/users/:id/rollnumber', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rollNumber } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: 'User id is required.' });
+    }
+
+    const normalizedRollNumber = typeof rollNumber === 'string' ? rollNumber.trim() : '';
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    user.rollNumber = normalizedRollNumber;
+    await user.save();
+
+    res.json({
+      message: 'Roll number updated successfully.',
+      user: { id: user._id, username: user.username, rollNumber: user.rollNumber },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 router.put('/users/:id/room', adminAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -331,22 +407,15 @@ router.put('/users/:id/room', adminAuth, async (req, res) => {
       return res.status(400).json({ message: 'Room number is required.' });
     }
 
-    const normalizedRoom = String(roomNumber).trim();
+    const normalizedRoom = normalizeRoomNumber(roomNumber);
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
-    const rooms = roomConfig.split(',').map((item) => {
-      const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
-      return {
-        roomNumber: roomNumberRaw || '',
-        capacity: Number(capacityRaw) || 4,
-      };
-    }).filter((item) => item.roomNumber);
+    const rooms = parseRoomOverview(process.env.ROOM_OVERVIEW);
 
-    const selectedRoom = rooms.find((room) => String(room.roomNumber) === normalizedRoom);
+    const selectedRoom = rooms.find((room) => room.roomNumber === normalizedRoom);
     if (!selectedRoom) {
       return res.status(400).json({ message: 'Selected room is not valid.' });
     }
@@ -385,8 +454,98 @@ router.put('/users/:id/room', adminAuth, async (req, res) => {
   }
 });
 
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+router.post('/register', async (req, res) => {
+  try {
+    const { username, password, confirmPassword, role, phone, email } = req.body;
+    if (!username || !password || !confirmPassword || !role || !phone || !email) {
+      return res.status(400).json({ message: 'Username, password, role, phone, and email are required.' });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: 'Passwords do not match.' });
+    }
+
+    const normalizedUsername = String(username).trim().toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedRole = String(role).trim().toLowerCase();
+    if (!['admin', 'attendance_taker'].includes(normalizedRole)) {
+      return res.status(400).json({ message: 'Role must be admin or attendance_taker.' });
+    }
+
+    const existingAdmin = await Admin.findOne({ $or: [{ username: normalizedUsername }, { email: normalizedEmail }] });
+    if (existingAdmin) {
+      return res.status(409).json({ message: 'An admin account with that username or email already exists.' });
+    }
+
+    const otpPayload = createOtpPayload();
+    adminRegistrationOtpStore.set(normalizedUsername, {
+      otpHash: otpPayload.otpHash,
+      expiresAt: otpPayload.expiresAt,
+      username: normalizedUsername,
+      password,
+      role: normalizedRole,
+      phone: String(phone).trim(),
+      email: normalizedEmail,
+    });
+
+    await sendAdminOtpEmail(otpPayload.otp, 'registration');
+
+    return res.json({
+      message: 'Verification code sent to the root admin email.',
+      requiresOtp: true,
+      username: normalizedUsername,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to start admin registration.', error: error.message });
+  }
+});
+
+router.post('/register/verify', async (req, res) => {
+  try {
+    const { username, otp } = req.body;
+    const normalizedUsername = String(username || '').trim().toLowerCase();
+    const otpEntry = adminRegistrationOtpStore.get(normalizedUsername);
+
+    if (!otpEntry || !verifyOtp(otpEntry, otp)) {
+      return res.status(400).json({ message: 'Invalid or expired verification code.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(String(otpEntry.password), 10);
+    const newAdmin = await Admin.create({
+      username: normalizedUsername,
+      password: hashedPassword,
+      email: otpEntry.email,
+      phone: otpEntry.phone,
+      role: otpEntry.role,
+      isActive: true,
+      status: 'active',
+    });
+
+    adminRegistrationOtpStore.delete(normalizedUsername);
+
+    const token = jwt.sign(
+      { userId: newAdmin._id.toString(), username: newAdmin.username, role: newAdmin.role },
+      process.env.JWT_SECRET || 'your_super_secret_key_here',
+      { expiresIn: '7d' }
+    );
+
+    return res.json({
+      message: 'Admin account created successfully.',
+      token,
+      user: {
+        _id: newAdmin._id,
+        username: newAdmin.username,
+        role: newAdmin.role,
+        email: newAdmin.email,
+        phone: newAdmin.phone,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to verify admin registration.', error: error.message });
+  }
+});
 
 router.post('/login', async (req, res) => {
   try {
@@ -395,50 +554,43 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Username and password are required.' });
     }
 
-    if (ADMIN_USERNAME && ADMIN_PASSWORD && username.trim() === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      const token = jwt.sign(
-        { userId: 'hardcoded-admin', username: ADMIN_USERNAME, role: 'admin' },
-        process.env.JWT_SECRET || 'your_super_secret_key_here',
-        { expiresIn: '7d' }
-      );
-      return res.json({
-        message: 'Login successful',
-        token,
-        user: { _id: 'hardcoded-admin', username: ADMIN_USERNAME, role: 'admin' },
-      });
-    }
-
-    const user = await User.findOne({ username: username.trim() });
-    if (!user) {
+    const normalizedUsername = String(username).trim().toLowerCase();
+    const admin = await Admin.findOne({ username: normalizedUsername });
+    if (!admin) {
       return res.status(401).json({ message: 'Invalid username or password.' });
     }
 
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!admin.isActive || admin.status !== 'active') {
+      return res.status(403).json({ message: 'This admin account is inactive.' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, admin.password);
     if (!passwordMatch) {
       return res.status(401).json({ message: 'Invalid username or password.' });
     }
 
+    admin.lastLoginAt = new Date();
+    await admin.save();
+
     const tokenPayload = {
-      userId: user._id.toString(),
-      username: user.username,
+      userId: admin._id.toString(),
+      username: admin.username,
+      role: admin.role,
     };
 
-    if (user.username?.trim().toLowerCase() === ADMIN_USERNAME) {
-      tokenPayload.role = 'admin';
-    }
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET || 'your_super_secret_key_here', { expiresIn: '7d' });
 
-    const token = jwt.sign(
-      tokenPayload,
-      process.env.JWT_SECRET || 'your_super_secret_key_here',
-      { expiresIn: '7d' }
-    );
-
-    const userData = getPublicUserData(user);
-    if (tokenPayload.role === 'admin') {
-      userData.role = 'admin';
-    }
-
-    res.json({ message: 'Login successful', token, user: userData });
+    res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        _id: admin._id,
+        username: admin.username,
+        role: admin.role,
+        email: admin.email,
+        phone: admin.phone,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -452,13 +604,13 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(400).json({ message: 'Username is required.' });
     }
 
-    const normalizedUsername = String(username).trim();
-    const user = await User.findOne({ username: normalizedUsername });
-    if (!user) {
+    const normalizedUsername = String(username).trim().toLowerCase();
+    const admin = await Admin.findOne({ username: normalizedUsername });
+    if (!admin) {
       return res.status(404).json({ message: 'No account found for this username.' });
     }
 
-    if (!user.email) {
+    if (!admin.email) {
       return res.status(400).json({ message: 'No registered email is available for this account.' });
     }
 
@@ -466,10 +618,10 @@ router.post('/forgot-password', async (req, res) => {
     passwordResetOtpStore.set(normalizedUsername, {
       otpHash: otpPayload.otpHash,
       expiresAt: otpPayload.expiresAt,
-      userId: user._id.toString(),
+      userId: admin._id.toString(),
     });
 
-    await sendPasswordOtpEmail(user.email, otpPayload.otp);
+    await sendPasswordOtpEmail(admin.email, otpPayload.otp);
 
     res.json({ message: 'Password reset OTP has been sent to your registered email.' });
   } catch (error) {
@@ -486,25 +638,96 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ message: validation.message });
     }
 
-    const normalizedUsername = String(username).trim();
+    const normalizedUsername = String(username).trim().toLowerCase();
     const otpEntry = passwordResetOtpStore.get(normalizedUsername);
     if (!otpEntry || !verifyOtp(otpEntry, otp)) {
       return res.status(400).json({ message: 'Invalid or expired OTP.' });
     }
 
-    const user = await User.findOne({ username: normalizedUsername });
-    if (!user) {
+    const admin = await Admin.findOne({ username: normalizedUsername });
+    if (!admin) {
       return res.status(404).json({ message: 'No account found for this username.' });
     }
 
     const hashedPassword = await bcrypt.hash(String(newPassword), 10);
-    await User.findByIdAndUpdate(user._id, { $set: { password: hashedPassword } }, { runValidators: true });
+    await Admin.findByIdAndUpdate(admin._id, { $set: { password: hashedPassword } }, { runValidators: true });
     passwordResetOtpStore.delete(normalizedUsername);
 
     res.json({ message: 'Password updated successfully.' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Unable to reset password.', error: error.message });
+  }
+});
+
+router.get('/admin-users', adminAuth, async (req, res) => {
+  try {
+    const admins = await Admin.find().select('-password -__v').sort({ createdAt: -1 }).lean();
+    res.json({ users: admins });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to load admin users.', error: error.message });
+  }
+});
+
+router.post('/admin-users/:id/request-delete-otp', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const targetAdmin = await Admin.findById(id).select('_id username email');
+    if (!targetAdmin) {
+      return res.status(404).json({ message: 'Admin user not found.' });
+    }
+
+    if (targetAdmin._id.toString() === req.user.userId) {
+      return res.status(400).json({ message: 'You cannot delete your own account.' });
+    }
+
+    const otpPayload = createOtpPayload();
+    adminDeleteOtpStore.set(targetAdmin._id.toString(), {
+      otpHash: otpPayload.otpHash,
+      expiresAt: otpPayload.expiresAt,
+      targetAdminId: targetAdmin._id.toString(),
+      deletedBy: req.user.userId,
+    });
+
+    await sendAdminOtpEmail(otpPayload.otp, 'delete');
+    res.json({ message: 'Deletion verification OTP has been sent to the root admin email.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to send deletion verification.', error: error.message });
+  }
+});
+
+router.delete('/admin-users/:id', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { otp } = req.body;
+
+    if (!otp) {
+      return res.status(400).json({ message: 'OTP is required.' });
+    }
+
+    const targetAdmin = await Admin.findById(id).select('_id username');
+    if (!targetAdmin) {
+      return res.status(404).json({ message: 'Admin user not found.' });
+    }
+
+    if (targetAdmin._id.toString() === req.user.userId) {
+      return res.status(400).json({ message: 'You cannot delete your own account.' });
+    }
+
+    const otpEntry = adminDeleteOtpStore.get(targetAdmin._id.toString());
+    if (!otpEntry || !verifyOtp(otpEntry, otp)) {
+      return res.status(400).json({ message: 'Invalid or expired deletion verification code.' });
+    }
+
+    await Admin.findByIdAndDelete(targetAdmin._id);
+    adminDeleteOtpStore.delete(targetAdmin._id.toString());
+
+    res.json({ message: 'Admin user deleted successfully.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to delete admin user.', error: error.message });
   }
 });
 
@@ -702,24 +925,19 @@ router.get('/users', adminAuth, async (req, res) => {
 router.get('/rooms-overview', adminAuth, async (req, res) => {
   try {
 
-    const roomConfig = process.env.ROOM_OVERVIEW || Array.from({ length: 20 }, (_, i) => `${i + 1}:4`).join(',');
-    const rooms = roomConfig.split(',').map((item) => {
-      const [roomNumberRaw, capacityRaw] = item.split(':').map((v) => v.trim());
-      const roomNumber = roomNumberRaw || '';
-      const capacity = Number(capacityRaw) || 4;
-      return { roomNumber, capacity };
-    }).filter((item) => item.roomNumber);
+    const rooms = parseRoomOverview(process.env.ROOM_OVERVIEW);
 
     const users = await User.find().select('roomNumber');
     const occupancyByRoom = users.reduce((acc, user) => {
-      const roomKey = String(user.roomNumber || '').trim();
+      const roomKey = normalizeRoomNumber(user.roomNumber);
       if (!roomKey) return acc;
       acc[roomKey] = (acc[roomKey] || 0) + 1;
       return acc;
     }, {});
 
     const overview = rooms.map(({ roomNumber, capacity }) => {
-      const occupancy = occupancyByRoom[roomNumber] || 0;
+      const normalizedRoomNumber = normalizeRoomNumber(roomNumber);
+      const occupancy = occupancyByRoom[normalizedRoomNumber] || 0;
       return {
         roomNumber,
         capacity,

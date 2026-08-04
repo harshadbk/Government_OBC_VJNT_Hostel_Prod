@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import compressImageFile from '../utils/compressImage';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -52,7 +53,10 @@ export default function StaffManagement() {
       body.append('position', form.position.trim());
       body.append('email', form.email.trim());
       body.append('phone', form.phone.trim());
-      if (form.image) body.append('image', form.image);
+      if (form.image) {
+        const compressedImage = await compressImageFile(form.image, { maxSizeMB: 0.8, maxWidthOrHeight: 2400 });
+        body.append('image', compressedImage);
+      }
 
       const method = editing ? 'PUT' : 'POST';
       const url = editing ? `${apiBaseUrl}/api/staff/${editing._id}` : `${apiBaseUrl}/api/staff`;
@@ -82,8 +86,10 @@ export default function StaffManagement() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Delete failed.');
       setStaff((prev) => prev.filter((item) => item._id !== id));
+      setFeedback('Staff member deleted.');
+      setTimeout(() => setFeedback(''), 3500);
     } catch (err) {
-      alert(err.message);
+      setFeedback(err.message);
     }
   };
 
