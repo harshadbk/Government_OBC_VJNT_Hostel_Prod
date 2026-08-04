@@ -9,7 +9,6 @@ const router = express.Router();
 const ROOM_COUNT = 20;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-// Authentication middleware
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
@@ -90,8 +89,13 @@ const normalizeDate = (date) => {
 };
 
 const isAttendanceWindowOpen = (dateObj = new Date()) => {
-  const hour = dateObj.getHours();
-  return hour >= 20 && hour <= 24;
+  const istDate = new Date(
+    dateObj.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+  const hour = istDate.getHours();
+  const minute = istDate.getMinutes();
+  const currentMinutes = hour * 60 + minute;
+  return currentMinutes >= 1260 && currentMinutes < 1440;
 };
 
 const getDatesInRange = (startDate, endDate) => {

@@ -191,7 +191,6 @@ function Attendance({ onLogout }) {
     if (!token) return;
     const url = `${apiBaseUrl}/api/attendance/export?type=${type}&date=${exportDate}&year=${exportDate.slice(0, 4)}&month=${parseInt(exportDate.slice(5, 7))}`;
     
-    // Trigger file download
     fetch(url, {
       headers: { Authorization: `Bearer ${token}` }
     })
