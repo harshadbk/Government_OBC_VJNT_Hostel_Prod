@@ -46,7 +46,7 @@ function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/login`, {
+      const response = await fetch(`${apiBaseUrl}/api/user/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ function Login({ onLogin }) {
     setResetLoading(true);
     try {
       if (resetMode === 'request') {
-        const response = await fetch(`${apiBaseUrl}/api/admin/forgot-password`, {
+        const response = await fetch(`${apiBaseUrl}/api/user/forgot-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: resetData.username.trim() }),
@@ -96,7 +96,7 @@ function Login({ onLogin }) {
         setResetMode('verify');
         setResetMessage(data.message || 'OTP sent to your registered email.');
       } else {
-        const response = await fetch(`${apiBaseUrl}/api/admin/reset-password`, {
+        const response = await fetch(`${apiBaseUrl}/api/user/reset-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

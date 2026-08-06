@@ -569,7 +569,7 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
           {editable ? (
             <div className="profile-form">
               <InputField label="Full Name" id="fullName" name="fullName" value={formData.fullName} onChange={handleChange} error={errors.fullName} icon={<FiUser />} required />
-              <InputField label="Roll Number" id="rollNumber" name="rollNumber" value={formData.rollNumber} onChange={handleChange} icon={<FiUser />} />
+              <InputField label="Roll Number" id="rollNumber" name="rollNumber" value={formData.rollNumber} onChange={handleChange} icon={<FiUser />} disabled/>
               <InputField label="College Name" id="college_name" name="college_name" value={formData.college_name} onChange={handleChange} icon={<FiUser />} />
               <InputField label="Stream" id="stream" name="stream" value={formData.stream} onChange={handleChange} icon={<FiUser />} />
               <InputField label="Department" id="department" name="department" value={formData.department} onChange={handleChange} error={errors.department} icon={<FiUser />} required />
