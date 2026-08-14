@@ -1,0 +1,1337 @@
+/* =========================================================
+   HOSTEL NEXUS
+   Modern Floating AI Widget
+   ========================================================= */
+
+.hostelnexus-widget {
+  --hn-primary: #2563eb;
+  --hn-primary-dark: #1d4ed8;
+  --hn-primary-light: #eff6ff;
+
+  --hn-bg: #ffffff;
+  --hn-surface: #f8fafc;
+  --hn-border: #e5e7eb;
+
+  --hn-text: #111827;
+  --hn-muted: #6b7280;
+
+  width: 370px;
+  height: 500px;
+
+  background: var(--hn-bg);
+
+  border: 1px solid var(--hn-border);
+  border-radius: 20px;
+
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+
+  z-index: 99999;
+
+  box-shadow:
+    0 20px 60px rgba(15, 23, 42, 0.18),
+    0 5px 15px rgba(15, 23, 42, 0.08);
+
+  animation: hostelNexusEntrance 0.45s cubic-bezier(
+    0.16,
+    1,
+    0.3,
+    1
+  );
+
+  transition:
+    width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.3s ease,
+    box-shadow 0.3s ease;
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+
+/* =========================================================
+   ENTRANCE
+   ========================================================= */
+
+@keyframes hostelNexusEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* =========================================================
+   FLOATING EFFECT
+   ========================================================= */
+
+.hostelnexus-widget.minimized {
+  width: 56px;
+  height: 36px;
+  right: 10px;
+  bottom: 10px;
+  border-radius: 999px;
+  z-index: 900;
+  padding: 6px;
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.hostelnexus-widget.minimized .hostelnexus-widget-body { display: none; }
+.hostelnexus-widget.minimized .hostelnexus-title-area strong,
+.hostelnexus-widget.minimized .hostelnexus-status { display: none !important; }
+.hostelnexus-widget.minimized .hostelnexus-logo { width: 18px; height: 18px; font-size: 11px; }
+.hostelnexus-widget.minimized .icon-btn { display: none; }
+.hostelnexus-widget.minimized .hostelnexus-header-actions { display: none !important; }
+.hostelnexus-widget.minimized .hostelnexus-widget-body { pointer-events: none; }
+
+/* expand on hover to show full name */
+.hostelnexus-widget.minimized:hover,
+.hostelnexus-widget.minimized:focus-within {
+  max-width: 220px; /* reveal full name */
+  box-shadow: 0 10px 30px rgba(2,6,23,0.35);
+  transform: translateY(-4px);
+  background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(79,124,255,0.06));
+}
+
+.hostelnexus-widget.minimized:hover .hostelnexus-title-area strong {
+  opacity: 1;
+}
+
+@keyframes hostelNexusFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+
+/* Don't animate while dragging */
+
+.hostelnexus-widget.dragging {
+  animation: none !important;
+
+  cursor: grabbing !important;
+
+  transition: none;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.hostelnexus-widget-header {
+  min-height: 68px;
+
+  padding: 0 15px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  color: white;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb 0%,
+      #3b82f6 50%,
+      #1d4ed8 100%
+    );
+
+  position: relative;
+
+  user-select: none;
+
+  cursor: grab;
+}
+
+
+/* Subtle shine */
+
+.hostelnexus-widget-header::after {
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      120deg,
+      transparent 20%,
+      rgba(255, 255, 255, 0.12),
+      transparent 70%
+    );
+
+  animation: headerShine 5s ease-in-out infinite;
+}
+
+@keyframes headerShine {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  40%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+
+/* =========================================================
+   TITLE
+   ========================================================= */
+
+.hostelnexus-title-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  position: relative;
+  z-index: 2;
+}
+
+.hostelnexus-title-area strong {
+  display: block;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  letter-spacing: -0.2px;
+}
+
+.hostelnexus-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  margin-top: 3px;
+
+  color: rgba(255, 255, 255, 0.78);
+
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   LOGO
+   ========================================================= */
+
+.hostelnexus-logo {
+  width: 38px;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 11px;
+
+  background: rgba(255, 255, 255, 0.16);
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  font-size: 19px;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.1);
+
+  animation: logoPulse 3s ease-in-out infinite;
+}
+
+@keyframes logoPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+
+/* =========================================================
+   STATUS DOT
+   ========================================================= */
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: #86efac;
+
+  box-shadow:
+    0 0 0 3px rgba(134, 239, 172, 0.15);
+
+  animation: statusPulse 2s infinite;
+}
+
+@keyframes statusPulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(134, 239, 172, 0.5);
+  }
+
+  70% {
+    box-shadow:
+      0 0 0 5px rgba(134, 239, 172, 0);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(134, 239, 172, 0);
+  }
+}
+
+
+/* =========================================================
+   HEADER BUTTON
+   ========================================================= */
+
+.hostelnexus-header-actions {
+  position: relative;
+  z-index: 5;
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+
+  border: 1px solid rgba(255, 255, 255, 0.18);
+
+  border-radius: 9px;
+
+  background: rgba(255, 255, 255, 0.12);
+
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  font-size: 17px;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+
+  transform: scale(1.05);
+}
+
+.icon-btn:active {
+  transform: scale(0.92);
+}
+
+/* Maximize button specific styling */
+.maximize-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.maximize-btn svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  color: white;
+}
+
+.maximize-btn:hover {
+  background: rgba(255,255,255,0.16);
+  transform: translateY(-2px);
+}
+
+.hostelnexus-widget.maximized .maximize-btn {
+  transform: rotate(180deg);
+}
+
+
+/* =========================================================
+   BODY
+   ========================================================= */
+
+.hostelnexus-widget-body {
+  flex: 1;
+
+  height: 200px;
+
+  display: flex;
+  flex-direction: column;
+
+  background: var(--hn-bg);
+
+  padding: 10px;
+
+  animation: bodyFade 0.3s ease;
+}
+
+@keyframes bodyFade {
+  from {
+    opacity: 0.5;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+
+/* =========================================================
+   TABS
+   ========================================================= */
+
+.hostelnexus-tabs {
+  display: flex;
+
+  gap: 3px;
+
+  padding: 4px;
+
+  margin-bottom: 8px;
+
+  background: var(--hn-surface);
+
+  border: 1px solid var(--hn-border);
+
+  border-radius: 11px;
+}
+
+.hostelnexus-tabs .tab {
+  flex: 1;
+
+  height: 34px;
+
+  border: none;
+
+  border-radius: 8px;
+
+  background: transparent;
+
+  color: var(--hn-muted);
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 5px;
+
+  transition:
+    color 0.2s ease,
+    background 0.25s ease,
+    transform 0.2s ease;
+}
+
+.hostelnexus-tabs .tab:hover {
+  color: var(--hn-primary);
+
+  transform: translateY(-1px);
+}
+
+.hostelnexus-tabs .tab.active {
+  background: var(--hn-bg);
+
+  color: var(--hn-primary);
+
+  box-shadow:
+    0 2px 5px rgba(15, 23, 42, 0.08);
+
+  animation: tabActive 0.25s ease;
+}
+
+@keyframes tabActive {
+  from {
+    transform: scale(0.96);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+
+/* =========================================================
+   CHAT CONTAINER
+   ========================================================= */
+
+.hostelnexus-chat-container {
+  flex: 1;
+
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* =========================================================
+   MESSAGES
+   ========================================================= */
+
+.hostelnexus-messages {
+  flex: 1;
+
+  min-height: 0;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  padding: 8px 3px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+
+  scroll-behavior: smooth;
+}
+
+.hostelnexus-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.hostelnexus-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hostelnexus-messages::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+
+  border-radius: 20px;
+}
+
+
+/* =========================================================
+   MESSAGE
+   ========================================================= */
+
+.hostelnexus-msg {
+  width: 100%;
+
+  display: flex;
+  align-items: flex-end;
+
+  gap: 7px;
+
+  animation: messageAppear 0.3s cubic-bezier(
+    0.16,
+    1,
+    0.3,
+    1
+  );
+}
+
+@keyframes messageAppear {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hostelnexus-msg.user {
+  justify-content: flex-end;
+}
+
+.hostelnexus-msg.bot {
+  justify-content: flex-start;
+}
+
+
+/* =========================================================
+   BOT AVATAR
+   ========================================================= */
+
+.bot-avatar {
+  flex-shrink: 0;
+
+  width: 27px;
+  height: 27px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 9px;
+
+  background: var(--hn-primary-light);
+
+  color: var(--hn-primary);
+
+  font-size: 13px;
+
+  animation: avatarAppear 0.35s ease;
+}
+
+@keyframes avatarAppear {
+  from {
+    transform: scale(0);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+
+/* =========================================================
+   MESSAGE BUBBLE
+   ========================================================= */
+
+.hostelnexus-msg-text {
+  max-width: 78%;
+
+  padding: 9px 11px;
+
+  font-size: 12.5px;
+
+  line-height: 1.5;
+
+  word-break: break-word;
+
+  border-radius: 13px;
+}
+
+
+/* Bot */
+
+.hostelnexus-msg.bot .hostelnexus-msg-text {
+  background: var(--hn-surface);
+
+  border: 1px solid var(--hn-border);
+
+  color: var(--hn-text);
+
+  border-bottom-left-radius: 4px;
+}
+
+
+/* User */
+
+.hostelnexus-msg.user .hostelnexus-msg-text {
+  background: linear-gradient(
+    135deg,
+    #2563eb,
+    #3b82f6
+  );
+
+  color: white;
+
+  border-bottom-right-radius: 4px;
+
+  box-shadow:
+    0 3px 8px rgba(37, 99, 235, 0.18);
+}
+
+
+/* =========================================================
+   TYPING INDICATOR
+   ========================================================= */
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+
+  gap: 4px;
+
+  padding: 10px 13px;
+
+  background: var(--hn-surface);
+
+  border: 1px solid var(--hn-border);
+
+  border-radius: 13px;
+
+  border-bottom-left-radius: 4px;
+}
+
+.typing-indicator span {
+  width: 5px;
+  height: 5px;
+
+  background: #9ca3af;
+
+  border-radius: 50%;
+
+  animation: typingBounce 1.2s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+
+    opacity: 0.45;
+  }
+
+  30% {
+    transform: translateY(-4px);
+
+    opacity: 1;
+  }
+}
+
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+
+.hostelnexus-input-row {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  margin-top: 7px;
+
+  padding-top: 8px;
+
+  border-top: 1px solid var(--hn-border);
+}
+
+.hostelnexus-input-row input {
+  flex: 1;
+
+  min-width: 0;
+
+  height: 40px;
+
+  padding: 0 12px;
+
+  border-radius: 10px;
+
+  border: 1px solid var(--hn-border);
+
+  background: var(--hn-bg);
+
+  color: var(--hn-text);
+
+  outline: none;
+
+  font-size: 12px;
+
+  transition:
+    border 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.hostelnexus-input-row input::placeholder {
+  color: #9ca3af;
+}
+
+.hostelnexus-input-row input:focus {
+  border-color: var(--hn-primary);
+
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.1);
+
+  transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   SEND BUTTON
+   ========================================================= */
+
+.primary-btn {
+  width: 40px;
+  height: 40px;
+
+  flex-shrink: 0;
+
+  border: none;
+
+  border-radius: 10px;
+
+  background: linear-gradient(
+    135deg,
+    #2563eb,
+    #3b82f6
+  );
+
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 16px;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 4px 10px rgba(37, 99, 235, 0.22);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 7px 15px rgba(37, 99, 235, 0.3);
+}
+
+.primary-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.primary-btn:disabled {
+  opacity: 0.45;
+
+  cursor: not-allowed;
+
+  box-shadow: none;
+}
+
+
+/* =========================================================
+   SEND LOADER
+   ========================================================= */
+
+.send-loader {
+  width: 14px;
+  height: 14px;
+
+  border: 2px solid rgba(255, 255, 255, 0.35);
+
+  border-top-color: white;
+
+  border-radius: 50%;
+
+  animation: sendSpin 0.7s linear infinite;
+}
+
+@keyframes sendSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* =========================================================
+   INPUT HINT
+   ========================================================= */
+
+.input-hint {
+  text-align: center;
+
+  margin-top: 5px;
+
+  color: #9ca3af;
+
+  font-size: 9px;
+}
+
+
+/* =========================================================
+   TAB CONTENT
+   ========================================================= */
+
+.hostelnexus-tab-content {
+  flex: 1;
+
+  min-height: 0;
+
+  overflow-y: auto;
+
+  padding: 6px 3px;
+
+  animation: tabContentAppear 0.3s ease;
+}
+
+@keyframes tabContentAppear {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+
+/* =========================================================
+   SECTION TITLE
+   ========================================================= */
+
+.section-title {
+  display: flex;
+
+  justify-content: space-between;
+
+  margin-bottom: 12px;
+}
+
+.section-title h4 {
+  margin: 0;
+
+  color: var(--hn-text);
+
+  font-size: 14px;
+}
+
+.section-title span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: var(--hn-muted);
+
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   HISTORY
+   ========================================================= */
+
+.user-list {
+  list-style: none;
+
+  margin: 0;
+  padding: 0;
+}
+
+.user-list li {
+  display: flex;
+
+  gap: 10px;
+
+  padding: 11px;
+
+  border: 1px solid var(--hn-border);
+
+  border-radius: 12px;
+
+  background: var(--hn-surface);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.user-list li:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 5px 15px rgba(15, 23, 42, 0.07);
+}
+
+.history-icon {
+  width: 32px;
+  height: 32px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 9px;
+
+  background: var(--hn-primary-light);
+
+  color: var(--hn-primary);
+}
+
+.history-content {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.history-content strong {
+  color: var(--hn-text);
+
+  font-size: 12px;
+}
+
+.history-content span {
+  color: var(--hn-muted);
+
+  font-size: 10px;
+}
+
+.history-content small {
+  margin-top: 3px;
+
+  color: #9ca3af;
+
+  font-size: 9px;
+}
+
+
+/* =========================================================
+   STUDENT COUNTS
+   ========================================================= */
+
+.student-count-list {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 7px;
+}
+
+.student-count-item {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: 9px 10px;
+
+  border: 1px solid var(--hn-border);
+
+  border-radius: 11px;
+
+  background: var(--hn-surface);
+
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.student-count-item:hover {
+  transform: translateX(3px);
+
+  background: var(--hn-primary-light);
+
+  box-shadow:
+    0 4px 12px rgba(37, 99, 235, 0.08);
+}
+
+.category-info {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  color: var(--hn-text);
+
+  font-size: 12px;
+}
+
+.category-icon {
+  width: 29px;
+  height: 29px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 8px;
+
+  background: white;
+
+  border: 1px solid var(--hn-border);
+
+  font-size: 13px;
+}
+
+.student-count-item strong {
+  min-width: 30px;
+
+  text-align: right;
+
+  color: var(--hn-primary);
+
+  font-size: 14px;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.empty-state {
+  height: 180px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+
+  color: var(--hn-muted);
+}
+
+.empty-icon {
+  width: 55px;
+  height: 55px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 10px;
+
+  border-radius: 15px;
+
+  background: var(--hn-primary-light);
+
+  font-size: 22px;
+
+  animation: emptyFloat 3s ease-in-out infinite;
+}
+
+@keyframes emptyFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.empty-state strong {
+  color: var(--hn-text);
+
+  font-size: 12px;
+}
+
+.empty-state span {
+  margin-top: 4px;
+
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   MAXIMIZED
+   ========================================================= */
+
+.hostelnexus-widget.maximized {
+  width: min(760px, calc(100vw - 30px));
+
+  height: min(720px, calc(100vh - 30px));
+
+  left: 50% !important;
+  top: 50% !important;
+
+  right: auto !important;
+  bottom: auto !important;
+
+  transform: translate(-50%, -50%);
+
+  border-radius: 20px;
+
+  box-shadow:
+    0 35px 100px rgba(15, 23, 42, 0.28);
+
+  animation: maximizeWidget 0.35s
+    cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes maximizeWidget {
+  from {
+    opacity: 0.7;
+
+    transform:
+      translate(-50%, -50%)
+      scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      scale(1);
+  }
+}
+
+.hostelnexus-widget.maximized
+  .hostelnexus-widget-body {
+  padding: 14px;
+}
+
+
+/* =========================================================
+   MAXIMIZED CHAT
+   ========================================================= */
+
+.hostelnexus-widget.maximized
+  .hostelnexus-msg-text {
+  max-width: 65%;
+
+  font-size: 13px;
+
+  padding: 10px 13px;
+}
+
+.hostelnexus-widget.maximized
+  .hostelnexus-messages {
+  padding: 12px 5px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .hostelnexus-widget {
+    width: calc(100vw - 20px);
+
+    height: 500px;
+
+    right: 10px !important;
+    bottom: 10px !important;
+    left: auto !important;
+    top: auto !important;
+
+    border-radius: 18px;
+  }
+
+  .hostelnexus-widget.maximized {
+    width: calc(100vw - 14px);
+
+    height: calc(100vh - 14px);
+
+    left: 50% !important;
+    top: 50% !important;
+
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  .hostelnexus-msg-text {
+    max-width: 84%;
+  }
+}
+
+
+/* =========================================================
+   DARK MODE
+   ========================================================= */
+
+@media (prefers-color-scheme: dark) {
+  .hostelnexus-widget {
+    --hn-bg: #111827;
+    --hn-surface: #1f2937;
+    --hn-border: #374151;
+
+    --hn-text: #f9fafb;
+    --hn-muted: #9ca3af;
+
+    --hn-primary-light: rgba(
+      59,
+      130,
+      246,
+      0.12
+    );
+
+    box-shadow:
+      0 25px 70px rgba(0, 0, 0, 0.45);
+  }
+
+  .hostelnexus-input-row input {
+    background: #111827;
+  }
+
+  .category-icon {
+    background: #111827;
+  }
+
+  .hostelnexus-msg.bot .hostelnexus-msg-text {
+    background: #1f2937;
+  }
+
+  .hostelnexus-tabs {
+    background: #1f2937;
+  }
+}
+
+
+/* =========================================================
+   ACCESSIBILITY
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .hostelnexus-widget,
+  .hostelnexus-widget *,
+  .hostelnexus-widget::before,
+  .hostelnexus-widget::after {
+    animation-duration: 0.01ms !important;
+
+    animation-iteration-count: 1 !important;
+
+    transition-duration: 0.01ms !important;
+  }
+}

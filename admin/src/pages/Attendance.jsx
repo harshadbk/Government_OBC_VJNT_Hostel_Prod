@@ -514,12 +514,20 @@ function Attendance({ onLogout }) {
 
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                   <button className="secondary-btn" onClick={() => setActiveRoom(null)}>Cancel</button>
-                  <button 
-                    className="primary-btn" 
+                  <button
+                    className="primary-btn save-attendance-btn"
                     onClick={handleSaveAttendance}
                     disabled={saving || roomData?.isLocked}
+                    aria-live="polite"
                   >
-                    {saving ? 'Saving...' : 'Save Attendance'}
+                    {saving ? (
+                      <>
+                        <span className="btn-loader" aria-hidden="true" />
+                        <span style={{ marginLeft: 8 }}>Saving...</span>
+                      </>
+                    ) : (
+                      'Save Attendance'
+                    )}
                   </button>
                 </div>
               </div>
