@@ -20,6 +20,8 @@ const userSchema = new mongoose.Schema({
   mobileNumber: { type: String, default: '' },
   fathersMobileNumber: { type: String, default: '' },
   aadhaarNumber: { type: String, default: '' },
+  caste: { type: String, default: '' },
+  casteCategory: { type: String, default: '' },
   BankName: { type: String, default: '' },
   bankBranch: { type: String, default: '' },
   admissionDate: { type: Date, default: null },

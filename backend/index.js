@@ -31,6 +31,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/admin', userRoutes);
+app.use('/api', userRoutes);
 app.use('/api/notices', noticeRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/staff', staffRoutes);

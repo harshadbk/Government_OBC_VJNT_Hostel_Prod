@@ -597,6 +597,101 @@ router.post('/login', async (req, res) => {
   }
 });
 
+router.post('/user/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password are required.' });
+    }
+
+    const normalizedUsername = String(username).trim();
+    const user = await User.findOne({ username: normalizedUsername });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid username or password.' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Invalid username or password.' });
+    }
+
+    const tokenPayload = {
+      userId: user._id.toString(),
+      username: user.username,
+      role: 'user',
+    };
+
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET || 'your_super_secret_key_here', { expiresIn: '7d' });
+    res.json({ message: 'Login successful', token, user: getPublicUserData(user) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/user/forgot-password', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username || !String(username).trim()) {
+      return res.status(400).json({ message: 'Username is required.' });
+    }
+
+    const normalizedUsername = String(username).trim();
+    const user = await User.findOne({ username: normalizedUsername });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found for this username.' });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({ message: 'No registered email is available for this account.' });
+    }
+
+    const otpPayload = createOtpPayload();
+    passwordResetOtpStore.set(normalizedUsername, {
+      otpHash: otpPayload.otpHash,
+      expiresAt: otpPayload.expiresAt,
+      userId: user._id.toString(),
+    });
+
+    await sendPasswordOtpEmail(user.email, otpPayload.otp);
+
+    res.json({ message: 'Password reset OTP has been sent to your registered email.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to send password reset email.', error: error.message });
+  }
+});
+
+router.post('/user/reset-password', async (req, res) => {
+  try {
+    const { username, otp, newPassword, confirmPassword } = req.body;
+    const validation = validatePasswordResetPayload({ username, otp, newPassword, confirmPassword });
+    if (!validation.ok) {
+      return res.status(400).json({ message: validation.message });
+    }
+
+    const normalizedUsername = String(username).trim();
+    const otpEntry = passwordResetOtpStore.get(normalizedUsername);
+    if (!otpEntry || !verifyOtp(otpEntry, otp)) {
+      return res.status(400).json({ message: 'Invalid or expired OTP.' });
+    }
+
+    const user = await User.findOne({ username: normalizedUsername });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found for this username.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(String(newPassword), 10);
+    await User.findByIdAndUpdate(user._id, { $set: { password: hashedPassword } }, { runValidators: true });
+    passwordResetOtpStore.delete(normalizedUsername);
+
+    res.json({ message: 'Password updated successfully.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Unable to reset password.', error: error.message });
+  }
+});
+
 router.post('/forgot-password', async (req, res) => {
   try {
     const { username } = req.body;
@@ -817,6 +912,8 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       'fullName',
       'rollNumber',
       'phone',
+      'caste',
+      'casteCategory',
       'college_name',
       'stream',
       'department',
@@ -956,6 +1053,29 @@ router.get('/rooms-overview', adminAuth, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Admin: counts by caste or casteCategory (placed before '/users/:id' to avoid param capture)
+router.get('/users/counts', adminAuth, async (req, res) => {
+  try {
+    const groupBy = String(req.query.groupBy || 'casteCategory').trim();
+    if (!['caste', 'casteCategory'].includes(groupBy)) {
+      return res.status(400).json({ message: 'groupBy must be "caste" or "casteCategory"' });
+    }
+
+    const pipeline = [
+      { $group: { _id: { $ifNull: [`$${groupBy}`, 'Unknown'] }, count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } }
+    ];
+
+    const results = await User.aggregate(pipeline);
+    const total = results.reduce((s, r) => s + (r.count || 0), 0);
+
+    res.json({ counts: results.map(r => ({ value: r._id, count: r.count })), total });
+  } catch (err) {
+    console.error('Error fetching user counts by caste/category', err);
+    res.status(500).json({ message: 'Unable to fetch counts', error: err.message });
   }
 });
 
