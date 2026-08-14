@@ -1,13 +1,31 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import authMiddleware, { adminAuth } from '../middleware/authMiddleware.js';
-import Channel from '../models/Channel.js';
 import Message from '../models/Message.js';
 import MessageReport from '../models/MessageReport.js';
 import User from '../models/User.js';
 import { getIO } from '../socket/socketHandler.js';
 
 const router = express.Router();
+
+const STATIC_CHANNELS = [
+  {
+    _id: 'announcement',
+    name: 'Announcements',
+    type: 'announcement',
+    description: 'Official notice board broadcast by hostel administration.',
+    isDefault: true,
+    isActive: true
+  },
+  {
+    _id: 'general',
+    name: 'General',
+    type: 'general',
+    description: 'General discussion channel for verified hostel residents.',
+    isDefault: true,
+    isActive: true
+  }
+];
 
 // Helper to sanitize message payload for response
 const formatMessage = (msg) => {
@@ -24,9 +42,12 @@ const formatMessage = (msg) => {
     }
   }
 
+  const channelName = obj.channel || obj.channelId || 'general';
+
   return {
     _id: obj._id,
-    channelId: obj.channelId,
+    channelId: channelName,
+    channel: channelName,
     senderId: obj.senderId,
     senderModel: obj.senderModel || 'User',
     content,
@@ -43,15 +64,10 @@ const formatMessage = (msg) => {
 };
 
 // ==========================================
-// 1. GET ALL CHANNELS
+// 1. GET ALL CHANNELS (Static Definition)
 // ==========================================
 router.get('/channels', authMiddleware, async (req, res) => {
-  try {
-    const channels = await Channel.find({ isActive: true }).sort({ isDefault: -1, createdAt: 1 });
-    res.json({ success: true, channels });
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching channels.', error: error.message });
-  }
+  res.json({ success: true, channels: STATIC_CHANNELS });
 });
 
 // ==========================================
@@ -62,11 +78,15 @@ router.get('/channels/:channelId/messages', authMiddleware, async (req, res) => 
     const { channelId } = req.params;
     const { before, limit = 50 } = req.query;
 
-    if (!mongoose.Types.ObjectId.isValid(channelId)) {
-      return res.status(400).json({ message: 'Invalid channel ID format.' });
-    }
+    const channelName = (channelId === 'announcement' || channelId === 'general') ? channelId : 'general';
 
-    const query = { channelId };
+    const query = {
+      $or: [
+        { channel: channelName },
+        { channelId: channelId }
+      ]
+    };
+
     if (before) {
       query.createdAt = { $lt: new Date(before) };
     }
@@ -87,6 +107,10 @@ router.get('/channels/:channelId/messages', authMiddleware, async (req, res) => 
           path: 'senderId',
           select: 'fullName username'
         }
+      })
+      .populate({
+        path: 'reactions.users',
+        select: 'fullName username'
       });
 
     // Return chronological order (oldest first)
@@ -105,9 +129,7 @@ router.post('/channels/:channelId/messages', authMiddleware, async (req, res) =>
     const { channelId } = req.params;
     const { content, replyTo } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(channelId)) {
-      return res.status(400).json({ message: 'Invalid channel ID format.' });
-    }
+    const channelName = (channelId === 'announcement' || channelId === 'general') ? channelId : 'general';
 
     if (!content || !content.trim()) {
       return res.status(400).json({ message: 'Message content cannot be empty.' });
@@ -118,17 +140,12 @@ router.post('/channels/:channelId/messages', authMiddleware, async (req, res) =>
       return res.status(400).json({ message: 'Message exceeds maximum length of 2000 characters.' });
     }
 
-    const channel = await Channel.findById(channelId);
-    if (!channel || !channel.isActive) {
-      return res.status(404).json({ message: 'Channel not found or inactive.' });
-    }
-
     // Role Enforcement for Announcements Channel
     const isUserAdmin = req.user?.role?.toString().toLowerCase() === 'admin' ||
                         req.user?.username?.toString().toLowerCase() === 'admin' ||
                         req.user?.userId === 'hardcoded-admin';
 
-    if (channel.type === 'announcement' && !isUserAdmin) {
+    if (channelName === 'announcement' && !isUserAdmin) {
       return res.status(403).json({ message: 'Only hostel administration can post in the Announcements channel.' });
     }
 
@@ -141,10 +158,8 @@ router.post('/channels/:channelId/messages', authMiddleware, async (req, res) =>
     const senderModel = isUserAdmin ? 'Admin' : 'User';
     let senderId = req.user.userId || req.user._id;
 
-    // Handle string IDs or fallback
     if (!mongoose.Types.ObjectId.isValid(senderId)) {
       if (isUserAdmin) {
-        // Find or fallback for hardcoded admin
         senderId = new mongoose.Types.ObjectId();
       } else {
         return res.status(400).json({ message: 'Invalid sender ID.' });
@@ -152,7 +167,7 @@ router.post('/channels/:channelId/messages', authMiddleware, async (req, res) =>
     }
 
     const newMessage = new Message({
-      channelId,
+      channel: channelName,
       senderId,
       senderModel,
       content: trimmedContent,
@@ -173,6 +188,10 @@ router.post('/channels/:channelId/messages', authMiddleware, async (req, res) =>
           path: 'senderId',
           select: 'fullName username'
         }
+      })
+      .populate({
+        path: 'reactions.users',
+        select: 'fullName username'
       });
 
     const formatted = formatMessage(populatedMessage);
@@ -180,7 +199,7 @@ router.post('/channels/:channelId/messages', authMiddleware, async (req, res) =>
     // Emit Socket event to room
     try {
       const io = getIO();
-      io.to(channelId).emit('message:receive', formatted);
+      io.to(channelName).emit('message:receive', formatted);
     } catch (e) {
       console.warn('Socket emit failed:', e.message);
     }
@@ -216,7 +235,6 @@ router.put('/messages/:id', authMiddleware, async (req, res) => {
     const isUserAdmin = req.user?.role?.toString().toLowerCase() === 'admin' ||
                         req.user?.username?.toString().toLowerCase() === 'admin';
 
-    // Students can only edit their own messages
     if (!isUserAdmin && message.senderId.toString() !== currentUserId) {
       return res.status(403).json({ message: 'You can only edit your own messages.' });
     }
@@ -227,13 +245,15 @@ router.put('/messages/:id', authMiddleware, async (req, res) => {
 
     const populated = await Message.findById(message._id)
       .populate({ path: 'senderId', select: 'fullName username roomNumber photoUrl role' })
-      .populate({ path: 'replyTo', select: 'content senderId isDeleted', populate: { path: 'senderId', select: 'fullName username' } });
+      .populate({ path: 'replyTo', select: 'content senderId isDeleted', populate: { path: 'senderId', select: 'fullName username' } })
+      .populate({ path: 'reactions.users', select: 'fullName username' });
 
     const formatted = formatMessage(populated);
+    const room = message.channel || 'general';
 
     try {
       const io = getIO();
-      io.to(message.channelId.toString()).emit('message:update', formatted);
+      io.to(room).emit('message:update', formatted);
     } catch (e) {}
 
     res.json({ success: true, message: formatted });
@@ -277,10 +297,11 @@ router.delete('/messages/:id', authMiddleware, async (req, res) => {
     await message.save();
 
     const formatted = formatMessage(message);
+    const room = message.channel || 'general';
 
     try {
       const io = getIO();
-      io.to(message.channelId.toString()).emit('message:delete', { messageId: id, channelId: message.channelId });
+      io.to(room).emit('message:delete', { messageId: id, channelId: room });
     } catch (e) {}
 
     res.json({ success: true, message: formatted });
@@ -335,13 +356,15 @@ router.post('/messages/:id/react', authMiddleware, async (req, res) => {
 
     const populated = await Message.findById(message._id)
       .populate({ path: 'senderId', select: 'fullName username roomNumber photoUrl role' })
-      .populate({ path: 'replyTo', select: 'content senderId isDeleted', populate: { path: 'senderId', select: 'fullName username' } });
+      .populate({ path: 'replyTo', select: 'content senderId isDeleted', populate: { path: 'senderId', select: 'fullName username' } })
+      .populate({ path: 'reactions.users', select: 'fullName username' });
 
     const formatted = formatMessage(populated);
+    const room = message.channel || 'general';
 
     try {
       const io = getIO();
-      io.to(message.channelId.toString()).emit('message:react', formatted);
+      io.to(room).emit('message:react', formatted);
     } catch (e) {}
 
     res.json({ success: true, message: formatted });
@@ -364,59 +387,48 @@ router.post('/messages/:id/report', authMiddleware, async (req, res) => {
 
     const message = await Message.findById(id);
     if (!message || message.isDeleted) {
-      return res.status(404).json({ message: 'Message not found or deleted.' });
+      return res.status(404).json({ message: 'Message not found.' });
     }
 
-    const validReasons = ['Spam', 'Harassment', 'Abusive content', 'Inappropriate content', 'Misleading information', 'Other'];
-    if (!reason || !validReasons.includes(reason)) {
-      return res.status(400).json({ message: 'Valid report reason required.' });
-    }
+    const reportedBy = req.user.userId || req.user._id;
 
-    const userId = req.user.userId || req.user._id;
-
-    // Check if user already reported this message
-    const existing = await MessageReport.findOne({ messageId: id, reportedBy: userId });
-    if (existing) {
-      return res.status(400).json({ message: 'You have already reported this message.' });
-    }
-
-    const report = new MessageReport({
+    const newReport = new MessageReport({
       messageId: id,
-      reportedBy: userId,
-      reason,
+      reportedBy,
+      reason: reason || 'Other',
       description: description ? description.trim() : ''
     });
 
-    await report.save();
-    res.status(201).json({ success: true, message: 'Report submitted successfully.', report });
+    await newReport.save();
+    res.status(201).json({ success: true, report: newReport });
   } catch (error) {
     res.status(500).json({ message: 'Error submitting report.', error: error.message });
   }
 });
 
 // ==========================================
-// 8. ADMIN: GET ALL REPORTED MESSAGES
+// 8. ADMIN GET ALL REPORTS
 // ==========================================
-router.get('/admin/reports', adminAuth, async (req, res) => {
+router.get('/admin/reports', authMiddleware, adminAuth, async (req, res) => {
   try {
     const reports = await MessageReport.find()
       .sort({ createdAt: -1 })
       .populate({
         path: 'messageId',
-        populate: { path: 'senderId', select: 'fullName username roomNumber' }
+        populate: { path: 'senderId', select: 'fullName username' }
       })
-      .populate({ path: 'reportedBy', select: 'fullName username roomNumber' });
+      .populate({ path: 'reportedBy', select: 'fullName username' });
 
     res.json({ success: true, reports });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching message reports.', error: error.message });
+    res.status(500).json({ message: 'Error fetching reports.', error: error.message });
   }
 });
 
 // ==========================================
-// 9. ADMIN: UPDATE REPORT STATUS
+// 9. ADMIN UPDATE REPORT STATUS
 // ==========================================
-router.put('/admin/reports/:id', adminAuth, async (req, res) => {
+router.put('/admin/reports/:id', authMiddleware, adminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, action } = req.body;
@@ -435,7 +447,6 @@ router.put('/admin/reports/:id', adminAuth, async (req, res) => {
     report.reviewedAt = new Date();
     await report.save();
 
-    // If admin requested deleting the message as an action
     if (action === 'delete_message' && report.messageId) {
       const msg = await Message.findById(report.messageId).populate('senderId', 'fullName username');
       if (msg && !msg.isDeleted) {
@@ -445,9 +456,10 @@ router.put('/admin/reports/:id', adminAuth, async (req, res) => {
         msg.content = 'This message was removed by Admin for violating community guidelines.';
         await msg.save();
 
+        const room = msg.channel || 'general';
         try {
           const io = getIO();
-          io.to(msg.channelId.toString()).emit('message:delete', { messageId: msg._id, channelId: msg.channelId });
+          io.to(room).emit('message:delete', { messageId: msg._id, channelId: room });
         } catch (e) {}
       }
     }

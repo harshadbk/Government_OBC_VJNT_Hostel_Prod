@@ -75,38 +75,36 @@ export const initSocket = (httpServer) => {
       onlineUsers.get(userId).socketIds.add(socket.id);
     }
 
-    // Join Channel Room
-    socket.on('community:join', ({ channelId }) => {
-      if (channelId) {
-        socket.join(channelId);
-      }
+    // Join Channel Room (channelId or channel string name)
+    socket.on('community:join', ({ channelId, channel }) => {
+      const room = channelId || channel || 'general';
+      socket.join(room);
     });
 
     // Leave Channel Room
-    socket.on('community:leave', ({ channelId }) => {
-      if (channelId) {
-        socket.leave(channelId);
-      }
+    socket.on('community:leave', ({ channelId, channel }) => {
+      const room = channelId || channel || 'general';
+      socket.leave(room);
     });
 
     // Typing Indicators
-    socket.on('typing:start', ({ channelId }) => {
-      if (channelId) {
-        socket.to(channelId).emit('typing:start', {
-          channelId,
-          userId: socket.user._id,
-          fullName: socket.user.fullName
-        });
-      }
+    socket.on('typing:start', ({ channelId, channel }) => {
+      const room = channelId || channel || 'general';
+      socket.to(room).emit('typing:start', {
+        channelId: room,
+        channel: room,
+        userId: socket.user._id,
+        fullName: socket.user.fullName
+      });
     });
 
-    socket.on('typing:stop', ({ channelId }) => {
-      if (channelId) {
-        socket.to(channelId).emit('typing:stop', {
-          channelId,
-          userId: socket.user._id
-        });
-      }
+    socket.on('typing:stop', ({ channelId, channel }) => {
+      const room = channelId || channel || 'general';
+      socket.to(room).emit('typing:stop', {
+        channelId: room,
+        channel: room,
+        userId: socket.user._id
+      });
     });
 
     // Disconnect Handler

@@ -151,11 +151,19 @@ export default function MessageItem({
           <div className="reactions-bar">
             {message.reactions.map((r) => {
               const hasReacted = r.users.some((u) => (u._id || u).toString() === currentUserId);
+              const userNamesList = r.users
+                .map((u) => (typeof u === 'object' ? (u.fullName || u.username) : null))
+                .filter(Boolean);
+              const tooltip = userNamesList.length > 0
+                ? `Reacted by: ${userNamesList.join(', ')}`
+                : 'Click to react';
+
               return (
                 <button
                   key={r.emoji}
                   className={`reaction-chip ${hasReacted ? 'active' : ''}`}
                   onClick={() => onReact(message._id, r.emoji)}
+                  title={tooltip}
                 >
                   <span>{r.emoji}</span>
                   <span>{r.users.length}</span>
