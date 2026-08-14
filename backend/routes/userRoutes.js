@@ -912,6 +912,8 @@ router.post('/profile', authMiddleware, upload.single('studentPhoto'), async (re
       'fullName',
       'rollNumber',
       'phone',
+      'caste',
+      'casteCategory',
       'college_name',
       'stream',
       'department',
@@ -1051,6 +1053,29 @@ router.get('/rooms-overview', adminAuth, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Admin: counts by caste or casteCategory (placed before '/users/:id' to avoid param capture)
+router.get('/users/counts', adminAuth, async (req, res) => {
+  try {
+    const groupBy = String(req.query.groupBy || 'casteCategory').trim();
+    if (!['caste', 'casteCategory'].includes(groupBy)) {
+      return res.status(400).json({ message: 'groupBy must be "caste" or "casteCategory"' });
+    }
+
+    const pipeline = [
+      { $group: { _id: { $ifNull: [`$${groupBy}`, 'Unknown'] }, count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } }
+    ];
+
+    const results = await User.aggregate(pipeline);
+    const total = results.reduce((s, r) => s + (r.count || 0), 0);
+
+    res.json({ counts: results.map(r => ({ value: r._id, count: r.count })), total });
+  } catch (err) {
+    console.error('Error fetching user counts by caste/category', err);
+    res.status(500).json({ message: 'Unable to fetch counts', error: err.message });
   }
 });
 

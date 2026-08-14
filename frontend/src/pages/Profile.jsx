@@ -5,6 +5,7 @@ import InputField from '../components/InputField';
 import Button from '../components/Button';
 import ProfileCard from '../components/ProfileCard';
 import '../css/Profile.css';
+import { casteList, casteCategories } from '../utils/casteData';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -20,6 +21,8 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
 
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
+    caste: user?.caste || '',
+    casteCategory: user?.casteCategory || '',
     rollNumber: user?.rollNumber || '',
     email: user?.email || '',
     phone: user?.phone || '',
@@ -276,6 +279,8 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
   useEffect(() => {
     setFormData({
       fullName: user?.fullName || '',
+      caste: user?.caste || '',
+      casteCategory: user?.casteCategory || '',
       rollNumber: user?.rollNumber || '',
       email: user?.email || '',
       phone: user?.phone || '',
@@ -574,6 +579,20 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
               <InputField label="Stream" id="stream" name="stream" value={formData.stream} onChange={handleChange} icon={<FiUser />} />
               <InputField label="Department" id="department" name="department" value={formData.department} onChange={handleChange} error={errors.department} icon={<FiUser />} required />
               <InputField label="Course Duration" id="year" name="year" value={formData.year} onChange={handleChange} error={errors.year} icon={<FiUser />} required />
+              <label className="profile-field">
+                <span className="label-text">Caste</span>
+                <select name="caste" value={formData.caste} onChange={handleChange}>
+                  <option value="">Select caste</option>
+                  {casteList.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
+              <label className="profile-field">
+                <span className="label-text">Caste Category</span>
+                <select name="casteCategory" value={formData.casteCategory} onChange={handleChange}>
+                  <option value="">Select category</option>
+                  {casteCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
               <InputField label="Email" id="email" name="email" type="email" value={formData.email} onChange={handleChange} error={errors.email} icon={<FiMail />} required disabled />
               <InputField label="Phone" id="phone" name="phone" value={formData.phone} onChange={handleChange} error={errors.phone} icon={<FiPhone />} required />
               <InputField label="Friends Number" id="mobileNumber" name="mobileNumber" value={formData.mobileNumber} onChange={handleChange} icon={<FiPhone />} />

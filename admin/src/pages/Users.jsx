@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { FiHome, FiUser, FiPhone, FiBook, FiSearch, FiEye, FiTrash2 } from 'react-icons/fi';
 
@@ -12,6 +12,9 @@ function Users({ onLogout }) {
   const [feedback, setFeedback] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const [filterKey, setFilterKey] = useState('');
+  const [filterValue, setFilterValue] = useState('');
 
   const getAdminToken = () => {
     const token = localStorage.getItem('adminToken');
@@ -61,8 +64,19 @@ function Users({ onLogout }) {
   };
 
   useEffect(() => {
+    // read optional query params for filtering (groupBy and value)
+    const params = new URLSearchParams(location.search);
+    const groupBy = params.get('groupBy');
+    const value = params.get('value');
+    if (groupBy && value) {
+      setFilterKey(groupBy);
+      setFilterValue(value);
+    } else {
+      setFilterKey('');
+      setFilterValue('');
+    }
     fetchUsers();
-  }, []);
+  }, [location.search]);
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
@@ -108,6 +122,10 @@ function Users({ onLogout }) {
 
   // Filter students based on search query
   const filteredUsers = users.filter(user => {
+    if (filterKey && filterValue) {
+      const fieldVal = (user[filterKey] || '').toString().toLowerCase();
+      if (fieldVal !== filterValue.toString().toLowerCase()) return false;
+    }
     const q = searchTerm.toLowerCase();
     return (
       (user.username && user.username.toLowerCase().includes(q)) ||

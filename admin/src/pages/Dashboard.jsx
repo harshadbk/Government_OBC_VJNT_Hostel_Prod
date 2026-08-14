@@ -12,7 +12,13 @@ function Dashboard({ onLogout }) {
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [countsGroupBy, setCountsGroupBy] = useState('casteCategory');
+  const [counts, setCounts] = useState([]);
+  const [countsLoading, setCountsLoading] = useState(true);
   const navigate = useNavigate();
+  const [selectedRoomNumber, setSelectedRoomNumber] = useState(null);
+  const [showRoomModal, setShowRoomModal] = useState(false);
+  const [selectedRoomStudents, setSelectedRoomStudents] = useState([]);
 
   const renderNotificationMessage = (item) => {
     if (item.type === "frequent-unapproved-absence") {
@@ -66,6 +72,8 @@ function Dashboard({ onLogout }) {
           setUsers(usersData.users || []);
         }
 
+        // counts are loaded in a dedicated effect when `countsGroupBy` changes
+
         if (roomsResponse.ok) {
           const roomsData = await roomsResponse.json();
           setRooms(roomsData.overview || []);
@@ -83,11 +91,32 @@ function Dashboard({ onLogout }) {
         setLoading(false);
         setRoomsLoading(false);
         setNotificationsLoading(false);
+          setCountsLoading(false);
       }
     };
 
     runDashboardLoad();
   }, [navigate, onLogout]);
+
+  const handleRoomClick = (roomNumber) => {
+    setSelectedRoomNumber(roomNumber);
+    const students = users.filter((u) => String(u.roomNumber || '').trim() === String(roomNumber).trim());
+    setSelectedRoomStudents(students);
+    setShowRoomModal(true);
+  };
+
+  useEffect(() => {
+    // fetch counts when groupBy changes
+    const token = getAdminToken();
+    if (!token) return;
+    const headers = { Authorization: `Bearer ${token}` };
+    setCountsLoading(true);
+    fetch(`${apiBaseUrl}/api/admin/users/counts?groupBy=${countsGroupBy}`, { headers })
+      .then((r) => r.json())
+      .then((data) => setCounts(data.counts || []))
+      .catch((err) => console.error('Counts load error', err))
+      .finally(() => setCountsLoading(false));
+  }, [countsGroupBy]);
 
   const recentUsers = users.slice(0, 4);
 
@@ -148,6 +177,8 @@ function Dashboard({ onLogout }) {
                 <div
                   key={room.roomNumber}
                   className={`room-card ${room.status === "alloted" ? "room-full" : "room-free"}`}
+                  onClick={() => handleRoomClick(room.roomNumber)}
+                  style={{ cursor: 'pointer' }}
                 >
                   <div className="room-card-title">Room {room.roomNumber}</div>
                   <div className="room-card-meta">
@@ -258,6 +289,37 @@ function Dashboard({ onLogout }) {
           </div>
           <div className="panel-card">
             <div className="panel-head">
+              <h3>Students by {countsGroupBy === 'caste' ? 'Caste' : 'Category'}</h3>
+              <div>
+                <select value={countsGroupBy} onChange={(e) => setCountsGroupBy(e.target.value)}>
+                  <option value="casteCategory">Category</option>
+                  <option value="caste">Caste</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ marginTop: '.6rem' }}>
+              {countsLoading ? (
+                <p style={{ color: 'var(--muted)' }}>Loading...</p>
+              ) : counts.length === 0 ? (
+                <p style={{ color: 'var(--muted)' }}>No data available.</p>
+              ) : (
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                  {counts.map((c) => (
+                    <li
+                      key={c.value}
+                      onClick={() => navigate(`/users?groupBy=${countsGroupBy}&value=${encodeURIComponent(c.value)}`)}
+                      style={{ display: 'flex', justifyContent: 'space-between', padding: '.4rem 0', cursor: 'pointer' }}
+                    >
+                      <span style={{ color: 'var(--muted)' }}>{c.value}</span>
+                      <strong>{c.count}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+          <div className="panel-card">
+            <div className="panel-head">
               <h3>Management Panel</h3>
             </div>
             <div className="quick-actions">
@@ -283,6 +345,42 @@ function Dashboard({ onLogout }) {
             </div>
           </div>
         </div>
+        {showRoomModal ? (
+          <div className="room-modal-overlay" onClick={() => setShowRoomModal(false)}>
+            <div className="room-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="room-modal-header">
+                <h3>Room {selectedRoomNumber} — Residents ({selectedRoomStudents.length})</h3>
+                <button className="room-modal-close" onClick={() => setShowRoomModal(false)}>Close</button>
+              </div>
+              <div className="room-modal-body">
+                {selectedRoomStudents.length === 0 ? (
+                  <p className="muted">No residents in this room.</p>
+                ) : (
+                  <table className="room-modal-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>College</th>
+                        <th>Stream</th>
+                        <th>Department</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedRoomStudents.map((s) => (
+                        <tr key={s._id}>
+                          <td>{s.fullName || s.username}</td>
+                          <td>{s.college_name || '-'}</td>
+                          <td>{s.stream || '-'}</td>
+                          <td>{s.department || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </main>
     </div>
   );

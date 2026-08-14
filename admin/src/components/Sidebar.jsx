@@ -53,7 +53,7 @@ function Sidebar({ onLogout }) {
         {!isAttendanceTaker && <NavLink to="/dashboard"><FiGrid /> Dashboard</NavLink>}
         {!isAttendanceTaker && <NavLink to="/users"><FiUsers /> Users</NavLink>}
         <NavLink to="/attendance"><FiCheckSquare /> Attendance</NavLink>
-        {!isAttendanceTaker && <NavLink to="/attendance-visuals"><FiCheckSquare /> Attendance Visuals</NavLink>}
+        <NavLink to="/attendance-visuals"><FiCheckSquare /> Attendance Visuals</NavLink>
         {!isAttendanceTaker && <NavLink to="/add-user"><FiUserPlus /> Add User</NavLink>}
         {!isAttendanceTaker && <NavLink to="/notices"><FiBell /> Notice Board</NavLink>}
         {!isAttendanceTaker && <NavLink to="/staff"><FiUsers /> Staff</NavLink>}
