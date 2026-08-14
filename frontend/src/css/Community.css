@@ -1,7 +1,3 @@
-/* ===================================================================
-   Hostel Community Hub Styling — Upgraded UX System
-   =================================================================== */
-
 .community-page {
   max-width: var(--container-max, 1240px);
   margin: 0 auto;
@@ -673,5 +669,84 @@
     position: relative;
     top: auto;
     margin-top: 0.3rem;
+  }
+}
+
+/* Tablet adjustments */
+@media (max-width: 1024px) {
+  .community-container {
+    grid-template-columns: 220px 1fr;
+    gap: 0.8rem;
+    height: calc(100vh - 140px);
+  }
+
+  .community-sidebar {
+    max-width: 220px;
+  }
+
+  .chat-header {
+    padding: 0.7rem 1rem;
+  }
+
+  .messages-container {
+    padding: 0.9rem 1rem;
+  }
+
+  .chat-input-wrapper {
+    padding: 0.6rem 1rem;
+  }
+}
+
+/* Small-screen polish */
+@media (max-width: 480px) {
+  .community-page {
+    padding: 1rem 0.6rem 3rem;
+  }
+
+  .community-container {
+    height: auto;
+    max-height: none;
+  }
+
+  .chat-window {
+    border-radius: 14px;
+    overflow: visible;
+    height: calc(100vh - 160px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-header {
+    padding: 0.6rem 0.8rem;
+  }
+
+  .messages-container {
+    padding: 0.8rem;
+    gap: 0.6rem;
+    overflow-y: auto;
+  }
+
+  .message-item {
+    max-width: 92%;
+  }
+
+  .input-box-container {
+    padding: 0.45rem 0.6rem;
+  }
+
+  .chat-input-wrapper {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+    box-shadow: 0 -6px 18px rgba(2,6,23,0.08);
+    background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.95));
+  }
+
+  .mobile-channel-bar {
+    display: block;
+  }
+
+  .channel-list {
+    max-height: 36vh;
   }
 }

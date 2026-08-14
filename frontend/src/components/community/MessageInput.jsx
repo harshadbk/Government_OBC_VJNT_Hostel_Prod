@@ -8,12 +8,25 @@ export default function MessageInput({
   onSendMessage,
   onTypingStart,
   onTypingStop
+  , isAuthenticated
 }) {
   const [content, setContent] = useState('');
   const textareaRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
   const isReadOnlyForStudent = channelType === 'announcement';
+
+  // If user is not authenticated, treat input as read-only and show login prompt
+  if (!isAuthenticated) {
+    return (
+      <div className="chat-input-wrapper" style={{ textAlign: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+          <span style={{ color: 'var(--muted)' }}>Please log in to participate in the community.</span>
+          <a href="/login" style={{ color: 'var(--primary)', fontWeight: 800 }}>Sign in</a>
+        </div>
+      </div>
+    );
+  }
 
   // Auto-resize textarea height
   useEffect(() => {

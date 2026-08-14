@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 let ioInstance = null;
-const onlineUsers = new Map(); // userId -> { socketIds: Set, userData }
+const onlineUsers = new Map();
 
 export const initSocket = (httpServer) => {
   const io = new Server(httpServer, {
@@ -14,7 +14,6 @@ export const initSocket = (httpServer) => {
     }
   });
 
-  // Socket Authentication Middleware
   io.use(async (socket, next) => {
     try {
       const authHeader = socket.handshake.auth?.token || socket.handshake.headers?.authorization;

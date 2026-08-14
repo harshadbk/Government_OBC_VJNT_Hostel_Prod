@@ -21,7 +21,8 @@ export default function CommunityLayout({
   onReact,
   onEdit,
   onDelete,
-  onReport
+  onReport,
+  isAuthenticated
 }) {
   const activeChannel = channels.find((c) => c._id === activeChannelId) || channels[0];
 
@@ -77,6 +78,7 @@ export default function CommunityLayout({
           onEdit={onEdit}
           onDelete={onDelete}
           onReport={onReport}
+          isAuthenticated={isAuthenticated}
         />
       </div>
     </div>

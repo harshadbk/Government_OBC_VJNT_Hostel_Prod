@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiVolume2, FiMessageSquare, FiAlertTriangle, FiTrash2, FiSend, FiXCircle, FiCheckCircle, FiClock, FiShield } from 'react-icons/fi';
-import { io } from 'socket.io-client';
 import Sidebar from '../components/Sidebar';
 
 export default function AdminCommunity({ onLogout }) {
-  const [activeTab, setActiveTab] = useState('announcements'); // 'announcements', 'general', 'reports'
+  const [activeTab, setActiveTab] = useState('announcements');
   const [channels, setChannels] = useState([]);
   const [messages, setMessages] = useState([]);
   const [reports, setReports] = useState([]);
@@ -12,12 +11,25 @@ export default function AdminCommunity({ onLogout }) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const socketRef = useRef(null);
+  const ioRef = useRef(null);
+  const mountedRef = useRef(true);
 
   const token = localStorage.getItem('adminToken');
   const apiBase = import.meta.env.VITE_API_BASE_URL || '';
 
-  // Fetch Channels
   useEffect(() => {
+    (async () => {
+      try {
+        const mod = await import('socket.io-client');
+        if (!mountedRef.current) return;
+        ioRef.current = mod.io || mod.default || mod;
+        // create socket when needed below (on join)
+      } catch (err) {
+        // If import fails (dependency not installed), we silently continue — features degrade gracefully
+        console.warn('socket.io-client dynamic import failed:', err.message || err);
+      }
+    })();
+
     const fetchChannels = async () => {
       try {
         const res = await fetch(`${apiBase}/api/community/channels`, {
@@ -37,46 +49,18 @@ export default function AdminCommunity({ onLogout }) {
   const announcementChannel = channels.find((c) => c.type === 'announcement');
   const generalChannel = channels.find((c) => c.type === 'general');
 
-  // Socket.IO Real-time Connection for Admin
-  useEffect(() => {
-    if (!token) return;
-
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    const socket = io(socketUrl, {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      path: '/socket.io/'
-    });
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      console.log('Admin Socket.IO connected.');
-    });
-
-    socket.on('message:receive', (newMsg) => {
-      const activeChannel = activeTab === 'announcements' ? announcementChannel : generalChannel;
-      if (activeChannel && newMsg.channelId === activeChannel._id) {
-        setMessages((prev) => {
-          if (prev.some((m) => m._id === newMsg._id)) return prev;
-          return [...prev, newMsg];
-        });
-      }
-    });
-
-    socket.on('message:delete', ({ messageId }) => {
-      setMessages((prev) => prev.map((m) => (m._id === messageId ? { ...m, isDeleted: true } : m)));
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [token, activeTab, announcementChannel, generalChannel]);
-
-  // Join Room & Fetch Messages when activeTab changes
   useEffect(() => {
     const targetChannel = activeTab === 'announcements' ? announcementChannel : generalChannel;
     if (!targetChannel || activeTab === 'reports') return;
 
+    // Ensure socket exists and join channel
+    if (ioRef.current && !socketRef.current) {
+      try {
+        socketRef.current = ioRef.current(apiBase, { auth: { token } });
+      } catch (err) {
+        console.warn('Failed to initialize socket.io client:', err.message || err);
+      }
+    }
     if (socketRef.current) {
       socketRef.current.emit('community:join', { channelId: targetChannel._id });
     }
@@ -104,10 +88,13 @@ export default function AdminCommunity({ onLogout }) {
       if (socketRef.current && targetChannel) {
         socketRef.current.emit('community:leave', { channelId: targetChannel._id });
       }
+      // Note: we don't fully disconnect socket here to preserve other listeners; let React unmount handle it.
     };
   }, [activeTab, announcementChannel, generalChannel, token, apiBase]);
 
-  // Fetch Reports
+  // Track component mounted state for async tasks
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
   const fetchReports = async () => {
     setLoading(true);
     try {
@@ -131,7 +118,6 @@ export default function AdminCommunity({ onLogout }) {
     }
   }, [activeTab]);
 
-  // Post Announcement
   const handlePostAnnouncement = async (e) => {
     e.preventDefault();
     if (!announcementChannel || !announcementText.trim()) return;
@@ -317,13 +303,13 @@ export default function AdminCommunity({ onLogout }) {
           </div>
 
           {/* RIGHT WORKSPACE PANEL */}
-          <div className="glass-card" style={{ padding: '1.4rem', borderRadius: '18px', display: 'flex', flexDirection: 'column' }}>
+          <div className="glass-card" style={{ padding: '1.4rem', borderRadius: '18px', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
             {/* TAB 1: ANNOUNCEMENTS */}
             {activeTab === 'announcements' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', height: '100%' }}>
                 <div style={{ background: 'rgba(26, 54, 93, 0.05)', padding: '1.25rem', borderRadius: '14px', border: '1px solid var(--border)' }}>
                   <h3 style={{ margin: '0 0 0.6rem', fontSize: '1.05rem', fontFamily: 'Outfit, sans-serif' }}>
-                    📢 Broadcast New Official Announcement
+                    Broadcast New Official Announcement
                   </h3>
                   <form onSubmit={handlePostAnnouncement}>
                     <textarea
@@ -373,7 +359,7 @@ export default function AdminCommunity({ onLogout }) {
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', fontFamily: 'Outfit, sans-serif' }}>
-                    💬 General Channel Live Monitor
+                    General Channel Live Monitor
                   </h3>
                   <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Live updating stream</span>
                 </div>
@@ -411,7 +397,7 @@ export default function AdminCommunity({ onLogout }) {
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <div style={{ marginBottom: '1rem' }}>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', fontFamily: 'Outfit, sans-serif' }}>
-                    🚩 Moderation Desk (Flagged Messages)
+                    Moderation Desk (Flagged Messages)
                   </h3>
                 </div>
 

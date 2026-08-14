@@ -19,6 +19,8 @@ export default function ChatWindow({
   onEdit,
   onDelete,
   onReport
+  ,
+  isAuthenticated
 }) {
   if (!activeChannel) {
     return (
@@ -89,6 +91,7 @@ export default function ChatWindow({
         onSendMessage={onSendMessage}
         onTypingStart={onTypingStart}
         onTypingStop={onTypingStop}
+        isAuthenticated={isAuthenticated}
       />
     </div>
   );

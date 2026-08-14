@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Navigate } from 'react-router-dom';
 import { FiShieldOff } from 'react-icons/fi';
 import CommunityLayout from '../components/community/CommunityLayout';
 import ReportModal from '../components/community/ReportModal';
@@ -21,13 +20,9 @@ export default function CommunityPage({ user, token }) {
   const activeChannelRef = useRef(activeChannelId);
   activeChannelRef.current = activeChannelId;
 
-  // Redirect if not logged in
-  if (!token || !user) {
-    return <Navigate to="/login" replace />;
-  }
+  const isAuthenticated = Boolean(token && user);
 
-  // Verification Check
-  const isStudentVerified = user.isVerified !== false;
+  const isStudentVerified = user ? (user.isVerified !== false) : true;
   const apiBase = import.meta.env.VITE_API_BASE_URL || '';
 
   // Fetch Channels
@@ -35,9 +30,8 @@ export default function CommunityPage({ user, token }) {
     let isMounted = true;
     const fetchChannels = async () => {
       try {
-        const res = await fetch(`${apiBase}/api/community/channels`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${apiBase}/api/community/channels`, { headers });
         const data = await res.json();
         if (res.ok && data.success && isMounted) {
           setChannels(data.channels);
@@ -120,7 +114,7 @@ export default function CommunityPage({ user, token }) {
 
   // Join Channel Room & Fetch Messages when activeChannelId changes
   useEffect(() => {
-    if (!activeChannelId || !token) return;
+    if (!activeChannelId) return;
 
     setUnreads((prev) => ({ ...prev, [activeChannelId]: 0 }));
     setTypingUsers([]);
@@ -134,9 +128,8 @@ export default function CommunityPage({ user, token }) {
     const fetchMessages = async () => {
       setLoadingMessages(true);
       try {
-        const res = await fetch(`${apiBase}/api/community/channels/${activeChannelId}/messages`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${apiBase}/api/community/channels/${activeChannelId}/messages`, { headers });
         const data = await res.json();
         if (res.ok && data.success && isMounted) {
           setMessages(data.messages);
@@ -303,6 +296,7 @@ export default function CommunityPage({ user, token }) {
         onEdit={handleEditMessage}
         onDelete={handleDeleteMessage}
         onReport={(msg) => setReportingMessage(msg)}
+        isAuthenticated={isAuthenticated}
       />
 
       {reportingMessage && (
