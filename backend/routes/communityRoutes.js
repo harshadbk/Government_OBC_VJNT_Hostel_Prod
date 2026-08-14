@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import authMiddleware, { adminAuth } from '../middleware/authMiddleware.js';
+import authMiddleware, { optionalAuth, adminAuth } from '../middleware/authMiddleware.js';
 import Message from '../models/Message.js';
 import MessageReport from '../models/MessageReport.js';
 import User from '../models/User.js';
@@ -42,7 +42,8 @@ const formatMessage = (msg) => {
     }
   }
 
-  const channelName = obj.channel || obj.channelId || 'general';
+  const rawCh = (obj.channel || obj.channelId || 'general').toString().toLowerCase();
+  const channelName = rawCh.includes('announc') || rawCh === '6a7f42c37931c1185207e2ec' ? 'announcement' : 'general';
 
   return {
     _id: obj._id,
@@ -64,28 +65,36 @@ const formatMessage = (msg) => {
 };
 
 // ==========================================
-// 1. GET ALL CHANNELS (Static Definition)
+// 1. GET ALL CHANNELS (Public / Optional Auth)
 // ==========================================
-router.get('/channels', authMiddleware, async (req, res) => {
+router.get('/channels', optionalAuth, async (req, res) => {
   res.json({ success: true, channels: STATIC_CHANNELS });
 });
 
 // ==========================================
-// 2. GET MESSAGES FOR A CHANNEL (Paginated)
+// 2. GET MESSAGES FOR A CHANNEL (Public / Optional Auth)
 // ==========================================
-router.get('/channels/:channelId/messages', authMiddleware, async (req, res) => {
+router.get('/channels/:channelId/messages', optionalAuth, async (req, res) => {
   try {
     const { channelId } = req.params;
     const { before, limit = 50 } = req.query;
 
-    const channelName = (channelId === 'announcement' || channelId === 'general') ? channelId : 'general';
+    const reqChStr = (channelId || '').toLowerCase();
+    const isAnnouncementReq = reqChStr === 'announcement' || reqChStr === '6a7f42c37931c1185207e2ec' || reqChStr.includes('announc');
+    const targetChannel = isAnnouncementReq ? 'announcement' : 'general';
 
     const query = {
       $or: [
-        { channel: channelName },
-        { channelId: channelId }
+        { channel: new RegExp(`^${targetChannel}$`, 'i') },
+        { channelId: new RegExp(`^${targetChannel}$`, 'i') },
+        { channelId: new RegExp(`^${channelId}$`, 'i') }
       ]
     };
+
+    if (!isAnnouncementReq) {
+      query.$or.push({ channel: { $exists: false } });
+      query.$or.push({ channel: null });
+    }
 
     if (before) {
       query.createdAt = { $lt: new Date(before) };
@@ -129,7 +138,8 @@ router.post('/channels/:channelId/messages', authMiddleware, async (req, res) =>
     const { channelId } = req.params;
     const { content, replyTo } = req.body;
 
-    const channelName = (channelId === 'announcement' || channelId === 'general') ? channelId : 'general';
+    const reqChStr = (channelId || '').toLowerCase();
+    const channelName = reqChStr.includes('announc') ? 'announcement' : 'general';
 
     if (!content || !content.trim()) {
       return res.status(400).json({ message: 'Message content cannot be empty.' });
@@ -168,6 +178,7 @@ router.post('/channels/:channelId/messages', authMiddleware, async (req, res) =>
 
     const newMessage = new Message({
       channel: channelName,
+      channelId: channelName,
       senderId,
       senderModel,
       content: trimmedContent,
@@ -249,7 +260,7 @@ router.put('/messages/:id', authMiddleware, async (req, res) => {
       .populate({ path: 'reactions.users', select: 'fullName username' });
 
     const formatted = formatMessage(populated);
-    const room = message.channel || 'general';
+    const room = (message.channel || 'general').toLowerCase();
 
     try {
       const io = getIO();
@@ -297,7 +308,7 @@ router.delete('/messages/:id', authMiddleware, async (req, res) => {
     await message.save();
 
     const formatted = formatMessage(message);
-    const room = message.channel || 'general';
+    const room = (message.channel || 'general').toLowerCase();
 
     try {
       const io = getIO();
@@ -360,7 +371,7 @@ router.post('/messages/:id/react', authMiddleware, async (req, res) => {
       .populate({ path: 'reactions.users', select: 'fullName username' });
 
     const formatted = formatMessage(populated);
-    const room = message.channel || 'general';
+    const room = (message.channel || 'general').toLowerCase();
 
     try {
       const io = getIO();
@@ -456,7 +467,7 @@ router.put('/admin/reports/:id', authMiddleware, adminAuth, async (req, res) => 
         msg.content = 'This message was removed by Admin for violating community guidelines.';
         await msg.save();
 
-        const room = msg.channel || 'general';
+        const room = (msg.channel || 'general').toLowerCase();
         try {
           const io = getIO();
           io.to(room).emit('message:delete', { messageId: msg._id, channelId: room });

@@ -22,6 +22,18 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+export const optionalAuth = (req, res, next) => {
+  const token = getTokenFromHeader(req);
+  if (token) {
+    try {
+      req.user = jwt.verify(token, process.env.JWT_SECRET || 'your_super_secret_key_here');
+    } catch (error) {
+      req.user = null;
+    }
+  }
+  next();
+};
+
 export const adminAuth = (req, res, next) => {
   const token = getTokenFromHeader(req);
   if (!token) {

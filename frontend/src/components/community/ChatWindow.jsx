@@ -1,4 +1,4 @@
-import { FiVolume2, FiMessageSquare } from 'react-icons/fi';
+import { FiVolume2, FiMessageSquare, FiArrowLeft } from 'react-icons/fi';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 
@@ -18,19 +18,20 @@ export default function ChatWindow({
   onReact,
   onEdit,
   onDelete,
-  onReport
-  ,
-  isAuthenticated
+  onReport,
+  isAuthenticated,
+  onBackToChannels
 }) {
   if (!activeChannel) {
     return (
-      <div className="chat-window" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: 'var(--muted)' }}>Select a channel to view conversation.</p>
+      <div className="chat-window" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+        <p style={{ color: 'var(--wa-text-muted)', fontSize: '0.95rem' }}>Select a channel to start messaging.</p>
       </div>
     );
   }
 
-  const isAnnouncement = activeChannel.type === 'announcement';
+  const isAnnouncement = (activeChannel && activeChannel.type) === 'announcement';
+  const typingList = Array.isArray(typingUsers) ? typingUsers : [];
 
   const renderStatusBadge = () => {
     if (connectionStatus === 'connected') {
@@ -39,24 +40,40 @@ export default function ChatWindow({
     if (connectionStatus === 'reconnecting') {
       return <span className="connection-status-pill reconnecting">🟡 Reconnecting...</span>;
     }
-    return <span className="connection-status-pill disconnected">🔴 Connection lost</span>;
+    return <span className="connection-status-pill disconnected">🔴 Offline</span>;
   };
 
   return (
     <div className="chat-window">
-      {/* Header */}
+      {/* WhatsApp Chat Header */}
       <div className="chat-header">
-        <div className="chat-title-group">
-          <h3>
-            {isAnnouncement ? <FiVolume2 style={{ color: 'var(--secondary, #d97706)' }} /> : <FiMessageSquare style={{ color: 'var(--primary)' }} />}
-            {activeChannel.name}
-          </h3>
-          <p className="chat-channel-desc">{activeChannel.description}</p>
+        <div className="chat-header-left">
+          {onBackToChannels && (
+            <button className="mobile-back-btn" onClick={onBackToChannels} title="Back to Channels">
+              <FiArrowLeft />
+            </button>
+          )}
+
+          <div className={`chat-header-avatar ${isAnnouncement ? 'announcement' : ''}`}>
+            {isAnnouncement ? <FiVolume2 /> : <FiMessageSquare />}
+          </div>
+
+          <div className="chat-title-info">
+            <h3>{activeChannel.name}</h3>
+            <p className="chat-subtitle">
+              {typingList.length > 0
+                  ? `${typingList.join(', ')} ${typingList.length === 1 ? 'is' : 'are'} typing...`
+                  : (activeChannel.description || 'Hostel Community Channel')}
+            </p>
+          </div>
         </div>
-        {renderStatusBadge()}
+
+        <div className="chat-header-right">
+          {renderStatusBadge()}
+        </div>
       </div>
 
-      {/* Messages Scroll Area */}
+      {/* Messages Scroll Container */}
       <MessageList
         messages={messages}
         loading={loading}
@@ -69,21 +86,21 @@ export default function ChatWindow({
         onReport={onReport}
       />
 
-      {/* Animated Typing Indicator */}
+      {/* Animated Typing Bar */}
       <div className="typing-bar">
-        {typingUsers.length > 0 && (
+        {typingList.length > 0 && (
           <>
             <span className="typing-dots">
               <span />
               <span />
               <span />
             </span>
-            <span>{typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...</span>
+            <span>{typingList.join(', ')} {typingList.length === 1 ? 'is' : 'are'} typing...</span>
           </>
         )}
       </div>
 
-      {/* Input */}
+      {/* Message Input Toolbar */}
       <MessageInput
         channelType={activeChannel.type}
         replyingTo={replyingTo}

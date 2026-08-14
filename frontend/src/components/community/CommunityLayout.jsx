@@ -1,4 +1,4 @@
-import { FiMessageSquare } from 'react-icons/fi';
+import { useEffect, useState } from 'react';
 import ChannelList from './ChannelList';
 import ChatWindow from './ChatWindow';
 
@@ -25,42 +25,39 @@ export default function CommunityLayout({
   isAuthenticated
 }) {
   const activeChannel = channels.find((c) => c._id === activeChannelId) || channels[0];
+  const [mobileView, setMobileView] = useState('channels'); // 'channels' or 'chat'
+
+  // Switch to chat view automatically when selecting a channel on mobile
+  const handleSelectChannelMobile = (channelId) => {
+    onSelectChannel(channelId);
+    setMobileView('chat');
+  };
+
+  const handleBackToChannels = () => {
+    setMobileView('channels');
+  };
 
   return (
     <div className="community-page">
-      {/* Mobile Channel Switcher */}
-      <div className="mobile-channel-bar">
-        <select
-          className="mobile-channel-select"
-          value={activeChannelId || ''}
-          onChange={(e) => onSelectChannel(e.target.value)}
-        >
-          {channels.map((ch) => (
-            <option key={ch._id} value={ch._id}>
-              {ch.type === 'announcement' ? '📢' : '💬'} {ch.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="community-container">
-        {/* Desktop Sidebar Channels */}
+      <div className={`community-container ${mobileView === 'chat' ? 'show-chat' : ''}`}>
+        {/* Sidebar Channels List */}
         <aside className="community-sidebar">
           <div className="community-sidebar-header">
-            <h2>
-              <FiMessageSquare style={{ color: 'var(--primary)' }} /> Hostel Community
-            </h2>
-            <p>Official communication hub for residents.</p>
+            <div className="sidebar-title-row">
+              <h2>Hostel Community</h2>
+            </div>
+            <p className="sidebar-subtext">Official communication hub for hostel residents</p>
           </div>
+
           <ChannelList
             channels={channels}
             activeChannelId={activeChannelId}
-            onSelectChannel={onSelectChannel}
+            onSelectChannel={handleSelectChannelMobile}
             unreads={unreads}
           />
         </aside>
 
-        {/* Main Chat Area */}
+        {/* Chat Window Area */}
         <ChatWindow
           activeChannel={activeChannel}
           messages={messages}
@@ -79,6 +76,7 @@ export default function CommunityLayout({
           onDelete={onDelete}
           onReport={onReport}
           isAuthenticated={isAuthenticated}
+          onBackToChannels={handleBackToChannels}
         />
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FiArrowDown } from 'react-icons/fi';
+import { FiArrowDown, FiMessageSquare } from 'react-icons/fi';
 import MessageItem from './MessageItem';
 
 const formatDateHeader = (dateString) => {
@@ -12,8 +12,8 @@ const formatDateHeader = (dateString) => {
   yesterday.setDate(now.getDate() - 1);
   const isYesterday = date.toDateString() === yesterday.toDateString();
 
-  if (isToday) return `Today, ${date.toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })}`;
-  if (isYesterday) return `Yesterday, ${date.toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })}`;
+  if (isToday) return `Today`;
+  if (isYesterday) return `Yesterday`;
 
   return date.toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' });
 };
@@ -32,13 +32,14 @@ export default function MessageList({
   const containerRef = useRef(null);
   const bottomRef = useRef(null);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
-  const prevMessagesCountRef = useRef(messages.length);
+  const prevMessagesCountRef = useRef((messages && messages.length) || 0);
+  const safeMessages = Array.isArray(messages) ? messages : [];
 
   // Group messages by Date String
   const groupedMessages = [];
   let lastDateKey = null;
 
-  messages.forEach((msg) => {
+  safeMessages.forEach((msg) => {
     const dateKey = new Date(msg.createdAt).toDateString();
     if (dateKey !== lastDateKey) {
       groupedMessages.push({ type: 'date-separator', id: `date-${dateKey}`, dateString: msg.createdAt });
@@ -59,11 +60,11 @@ export default function MessageList({
     const { scrollTop, clientHeight, scrollHeight } = containerRef.current;
     const isNearBottom = scrollHeight - scrollTop - clientHeight <= 250;
 
-    if (isNearBottom || messages.length > prevMessagesCountRef.current) {
+    if (isNearBottom || safeMessages.length > prevMessagesCountRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
 
-    prevMessagesCountRef.current = messages.length;
+    prevMessagesCountRef.current = safeMessages.length;
   }, [messages.length]);
 
   const scrollToBottom = () => {
@@ -73,21 +74,35 @@ export default function MessageList({
 
   return (
     <div className="messages-container" ref={containerRef} onScroll={handleScroll}>
-      {loading && <div className="messages-loader">Loading conversation history...</div>}
+      {loading && <div className="messages-loader">Loading messages...</div>}
 
-      {!loading && messages.length === 0 && (
+      {!loading && safeMessages.length === 0 && (
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           height: '100%',
-          color: 'var(--muted)',
+          color: 'var(--wa-text-muted)',
           textAlign: 'center',
           padding: '2rem'
         }}>
-          <p style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 0.4rem', fontFamily: 'Outfit, sans-serif' }}>💬 No messages yet</p>
-          <p style={{ fontSize: '0.88rem', margin: 0 }}>Start the conversation in this channel.</p>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            background: 'var(--wa-header-bg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '2rem',
+            marginBottom: '1rem',
+            color: 'var(--wa-primary)'
+          }}>
+            <FiMessageSquare />
+          </div>
+          <h4 style={{ margin: '0 0 0.4rem', fontSize: '1.1rem', color: 'var(--wa-text-primary)' }}>No messages yet</h4>
+          <p style={{ margin: 0, fontSize: '0.88rem' }}>Send a message to start the conversation.</p>
         </div>
       )}
 
@@ -119,7 +134,7 @@ export default function MessageList({
 
       {showScrollBottomBtn && (
         <button className="new-messages-pill" onClick={scrollToBottom}>
-          <FiArrowDown /> New messages
+          <FiArrowDown /> Scroll to bottom
         </button>
       )}
     </div>

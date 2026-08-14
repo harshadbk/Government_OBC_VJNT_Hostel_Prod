@@ -13,6 +13,10 @@ const messageSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  channelId: {
+    type: String,
+    default: 'general'
+  },
   senderId: {
     type: mongoose.Schema.Types.ObjectId,
     refPath: 'senderModel',

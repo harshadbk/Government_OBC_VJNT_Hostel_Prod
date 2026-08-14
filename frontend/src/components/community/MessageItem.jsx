@@ -1,25 +1,22 @@
 import { useState } from 'react';
 import { FiCornerUpLeft, FiSmile, FiEdit2, FiTrash2, FiFlag, FiCopy, FiCheck } from 'react-icons/fi';
+import { BsCheckAll } from 'react-icons/bs';
 
 const EMOJI_OPTIONS = ['👍', '❤️', '😂', '👏', '🔥', '🎉'];
 
-const formatMessageTime = (dateString) => {
+const formatBubbleTime = (dateString) => {
   const date = new Date(dateString);
-  const now = new Date();
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
-  const isToday = date.toDateString() === now.toDateString();
-
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-
-  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  if (isToday) return `Today, ${timeStr}`;
-  if (isYesterday) return `Yesterday, ${timeStr}`;
-
-  const dateStr = date.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
-  return `${dateStr}, ${timeStr}`;
+// Generates consistent WhatsApp sender name color based on string
+const getSenderColor = (name) => {
+  const colors = ['#0284c7', '#7c3aed', '#059669', '#d97706', '#db2777', '#2563eb', '#0891b2'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
 };
 
 export default function MessageItem({
@@ -46,7 +43,8 @@ export default function MessageItem({
   const isOwnMessage = currentUserId && msgSenderId === currentUserId;
   const isUserAdmin = currentUser?.role === 'admin' || currentUser?.username === 'admin';
 
-  const formattedTime = formatMessageTime(message.createdAt);
+  const bubbleTime = formatBubbleTime(message.createdAt);
+  const senderColor = isSenderAdmin ? '#e11d48' : getSenderColor(senderName);
 
   const handleCopyText = () => {
     if (message.content) {
@@ -68,42 +66,49 @@ export default function MessageItem({
       return 'This message was removed by Admin for violating community guidelines.';
     }
     if (message.deletedByRole === 'owner') {
-      return `${senderName}'s message was deleted by ${senderName}`;
+      return `${senderName}'s message was deleted`;
     }
     return message.content || 'This message was deleted.';
   };
 
   return (
     <div className={`message-item ${isOwnMessage ? 'own-message' : 'other-message'} ${message.isDeleted ? 'deleted-box' : ''}`}>
-      {sender.photoUrl ? (
-        <img src={sender.photoUrl} alt={senderName} className="message-avatar" />
-      ) : (
-        <div className="message-avatar-fallback">
-          {senderName.charAt(0).toUpperCase()}
-        </div>
+      {/* Avatar (only for incoming messages) */}
+      {!isOwnMessage && (
+        sender.photoUrl ? (
+          <img src={sender.photoUrl} alt={senderName} className="message-avatar" />
+        ) : (
+          <div className="message-avatar-fallback" style={{ background: senderColor }}>
+            {senderName.charAt(0).toUpperCase()}
+          </div>
+        )
       )}
 
       <div className="message-body">
-        <div className="message-meta">
-          <span className="message-sender">{senderName}</span>
-          {isSenderAdmin ? (
-            <span className="message-role-badge admin">Hostel Admin</span>
-          ) : (
-            sender.roomNumber && <span className="message-role-badge">Room {sender.roomNumber}</span>
-          )}
-          <span className="message-time">{formattedTime}</span>
-        </div>
-
         <div className="message-bubble">
+          {/* Sender Meta Name (only for incoming messages) */}
+          {!isOwnMessage && (
+            <div className="message-meta">
+              <span className="message-sender" style={{ color: senderColor }}>{senderName}</span>
+              {isSenderAdmin ? (
+                <span className="message-role-badge admin">Hostel Admin</span>
+              ) : (
+                sender.roomNumber && <span className="message-role-badge">Room {sender.roomNumber}</span>
+              )}
+            </div>
+          )}
+
+          {/* Reply Quote Preview */}
           {message.replyTo && (
             <div className="message-reply-preview">
-              <strong>@{message.replyTo.senderId?.fullName || message.replyTo.senderId?.username || 'User'}: </strong>
+              <strong>@{message.replyTo.senderId?.fullName || message.replyTo.senderId?.username || 'User'}</strong>
               <span>{message.replyTo.isDeleted ? 'Deleted message' : message.replyTo.content}</span>
             </div>
           )}
 
+          {/* Message Content */}
           {message.isDeleted ? (
-            <div className="message-text" style={{ fontStyle: 'italic', color: 'var(--muted)' }}>
+            <div className="message-text" style={{ fontStyle: 'italic', color: 'var(--wa-text-muted)' }}>
               {renderDeletedText()}
             </div>
           ) : isEditing ? (
@@ -114,25 +119,43 @@ export default function MessageItem({
                 rows={2}
                 style={{
                   width: '100%',
-                  padding: '0.4rem',
+                  padding: '0.4rem 0.6rem',
                   borderRadius: '8px',
-                  border: '1px solid var(--primary)',
-                  background: 'var(--card-bg)',
-                  color: 'var(--text)',
+                  border: '1px solid var(--wa-primary)',
+                  background: 'var(--wa-sidebar-bg)',
+                  color: 'var(--wa-text-primary)',
                   fontFamily: 'inherit',
-                  fontSize: '0.9rem'
+                  fontSize: '0.9rem',
+                  outline: 'none'
                 }}
               />
-              <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.3rem' }}>
+              <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.35rem' }}>
                 <button
                   onClick={handleSaveEdit}
-                  style={{ padding: '0.25rem 0.65rem', borderRadius: '6px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}
+                  style={{
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: 'var(--wa-primary)',
+                    color: '#fff',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
                 >
                   Save
                 </button>
                 <button
                   onClick={() => setIsEditing(false)}
-                  style={{ padding: '0.25rem 0.65rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', fontSize: '0.78rem', cursor: 'pointer' }}
+                  style={{
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--wa-border)',
+                    background: 'transparent',
+                    color: 'var(--wa-text-primary)',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer'
+                  }}
                 >
                   Cancel
                 </button>
@@ -142,6 +165,14 @@ export default function MessageItem({
             <div className="message-text">
               {message.content}
               {message.isEdited && <span className="message-edited-tag">(edited)</span>}
+
+              {/* Timestamp & WhatsApp Double Checkmark */}
+              <span className="message-time-wrap">
+                <span>{bubbleTime}</span>
+                {isOwnMessage && (
+                  <BsCheckAll className="check-icon" title="Delivered" />
+                )}
+              </span>
             </div>
           )}
         </div>
@@ -174,10 +205,10 @@ export default function MessageItem({
         )}
       </div>
 
-      {/* Hover/Touch Action Menu */}
+      {/* Hover Action Toolbar */}
       {!message.isDeleted && (
         <div className="message-actions">
-          {/* Reaction Picker */}
+          {/* Reaction Picker Popover */}
           <div style={{ position: 'relative' }}>
             <button
               className="action-btn"
@@ -189,16 +220,16 @@ export default function MessageItem({
             {showEmojiPicker && (
               <div style={{
                 position: 'absolute',
-                bottom: '100%',
+                bottom: '120%',
                 left: isOwnMessage ? 'auto' : 0,
                 right: isOwnMessage ? 0 : 'auto',
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border)',
+                background: 'var(--wa-sidebar-bg)',
+                border: '1px solid var(--wa-border)',
                 borderRadius: '999px',
-                padding: '0.2rem 0.4rem',
+                padding: '0.25rem 0.5rem',
                 display: 'flex',
-                gap: '0.3rem',
-                boxShadow: 'var(--shadow-md)',
+                gap: '0.35rem',
+                boxShadow: 'var(--wa-shadow-md)',
                 zIndex: 20
               }}>
                 {EMOJI_OPTIONS.map((emoji) => (
@@ -208,7 +239,7 @@ export default function MessageItem({
                       onReact(message._id, emoji);
                       setShowEmojiPicker(false);
                     }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', transition: 'transform 0.1s ease' }}
                   >
                     {emoji}
                   </button>
@@ -218,11 +249,11 @@ export default function MessageItem({
           </div>
 
           {/* Copy Button */}
-          <button className="action-btn" title="Copy text" onClick={handleCopyText}>
-            {copied ? <FiCheck style={{ color: 'var(--success)' }} /> : <FiCopy />}
+          <button className="action-btn" title="Copy message text" onClick={handleCopyText}>
+            {copied ? <FiCheck style={{ color: 'var(--wa-accent)' }} /> : <FiCopy />}
           </button>
 
-          {/* Reply */}
+          {/* Reply Button */}
           {currentChannelType !== 'announcement' && (
             <button className="action-btn" title="Reply" onClick={() => onReply(message)}>
               <FiCornerUpLeft />
@@ -243,7 +274,7 @@ export default function MessageItem({
             </button>
           )}
 
-          {/* Report (Other users' messages in General) */}
+          {/* Report (Other users' messages) */}
           {!isOwnMessage && currentChannelType !== 'announcement' && (
             <button className="action-btn" title="Report message" onClick={() => onReport(message)}>
               <FiFlag />
