@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { FiBell, FiUsers, FiBarChart2 } from "react-icons/fi";
+import HostelNexusWidget from "../components/HostelNexusWidget";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 
@@ -12,7 +13,7 @@ function Dashboard({ onLogout }) {
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
-  const [countsGroupBy, setCountsGroupBy] = useState('casteCategory');
+  const [countsGroupBy, setCountsGroupBy] = useState("casteCategory");
   const [counts, setCounts] = useState([]);
   const [countsLoading, setCountsLoading] = useState(true);
   const navigate = useNavigate();
@@ -53,12 +54,13 @@ function Dashboard({ onLogout }) {
       const headers = { Authorization: `Bearer ${token}` };
 
       try {
-        const [usersResponse, roomsResponse, leaveResponse, absenceResponse] = await Promise.all([
-          fetch(`${apiBaseUrl}/api/admin/users`, { headers }),
-          fetch(`${apiBaseUrl}/api/admin/rooms-overview`, { headers }),
-          fetch(`${apiBaseUrl}/api/leaves/notifications`, { headers }),
-          fetch(`${apiBaseUrl}/api/attendance/absence-alerts`, { headers }),
-        ]);
+        const [usersResponse, roomsResponse, leaveResponse, absenceResponse] =
+          await Promise.all([
+            fetch(`${apiBaseUrl}/api/admin/users`, { headers }),
+            fetch(`${apiBaseUrl}/api/admin/rooms-overview`, { headers }),
+            fetch(`${apiBaseUrl}/api/leaves/notifications`, { headers }),
+            fetch(`${apiBaseUrl}/api/attendance/absence-alerts`, { headers }),
+          ]);
 
         if (usersResponse.status === 401 || usersResponse.status === 403) {
           localStorage.removeItem("adminToken");
@@ -79,8 +81,12 @@ function Dashboard({ onLogout }) {
           setRooms(roomsData.overview || []);
         }
 
-        const leaveData = leaveResponse.ok ? await leaveResponse.json() : { notifications: [] };
-        const absenceData = absenceResponse.ok ? await absenceResponse.json() : { alerts: [] };
+        const leaveData = leaveResponse.ok
+          ? await leaveResponse.json()
+          : { notifications: [] };
+        const absenceData = absenceResponse.ok
+          ? await absenceResponse.json()
+          : { alerts: [] };
         setNotifications([
           ...(leaveData.notifications || []),
           ...(absenceData.alerts || []),
@@ -91,7 +97,7 @@ function Dashboard({ onLogout }) {
         setLoading(false);
         setRoomsLoading(false);
         setNotificationsLoading(false);
-          setCountsLoading(false);
+        setCountsLoading(false);
       }
     };
 
@@ -100,7 +106,9 @@ function Dashboard({ onLogout }) {
 
   const handleRoomClick = (roomNumber) => {
     setSelectedRoomNumber(roomNumber);
-    const students = users.filter((u) => String(u.roomNumber || '').trim() === String(roomNumber).trim());
+    const students = users.filter(
+      (u) => String(u.roomNumber || "").trim() === String(roomNumber).trim(),
+    );
     setSelectedRoomStudents(students);
     setShowRoomModal(true);
   };
@@ -111,10 +119,12 @@ function Dashboard({ onLogout }) {
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
     setCountsLoading(true);
-    fetch(`${apiBaseUrl}/api/admin/users/counts?groupBy=${countsGroupBy}`, { headers })
+    fetch(`${apiBaseUrl}/api/admin/users/counts?groupBy=${countsGroupBy}`, {
+      headers,
+    })
       .then((r) => r.json())
       .then((data) => setCounts(data.counts || []))
-      .catch((err) => console.error('Counts load error', err))
+      .catch((err) => console.error("Counts load error", err))
       .finally(() => setCountsLoading(false));
   }, [countsGroupBy]);
 
@@ -133,7 +143,9 @@ function Dashboard({ onLogout }) {
             <button className="icon-button">
               <FiBell />
               {notifications.length > 0 ? (
-                <span className="notification-count">{notifications.length}</span>
+                <span className="notification-count">
+                  {notifications.length}
+                </span>
               ) : null}
             </button>
             <div className="profile-pill">
@@ -167,6 +179,7 @@ function Dashboard({ onLogout }) {
             <h3>Room Overview</h3>
             <small>Green = free beds available, red = room full.</small>
           </div>
+
           {roomsLoading ? (
             <p style={{ padding: "1rem", color: "var(--muted)" }}>
               Loading rooms...
@@ -176,14 +189,20 @@ function Dashboard({ onLogout }) {
               {rooms.map((room) => (
                 <div
                   key={room.roomNumber}
-                  className={`room-card ${room.status === "alloted" ? "room-full" : "room-free"}`}
+                  className={`room-card ${
+                    room.status === "alloted" ? "room-full" : "room-free"
+                  }`}
                   onClick={() => handleRoomClick(room.roomNumber)}
-                  style={{ cursor: 'pointer' }}
+                  style={{
+                    cursor: "pointer",
+                  }}
                 >
                   <div className="room-card-title">Room {room.roomNumber}</div>
+
                   <div className="room-card-meta">
                     {room.occupancy}/{room.capacity} occupied
                   </div>
+
                   <div className="room-card-badge">
                     {room.status === "alloted" ? "Full" : "Available"}
                   </div>
@@ -196,7 +215,9 @@ function Dashboard({ onLogout }) {
         <div className="dashboard-grid">
           <div className="panel-card">
             <div className="panel-head">
-              <h3><FiBell /> Notifications</h3>
+              <h3>
+                <FiBell /> Notifications
+              </h3>
               <small>{notifications.length} active</small>
             </div>
             {notificationsLoading ? (
@@ -224,7 +245,10 @@ function Dashboard({ onLogout }) {
                         {renderNotificationMessage(item)}
                       </small>
                     </div>
-                    <button className="table-action" onClick={() => navigate("/leaves")}>
+                    <button
+                      className="table-action"
+                      onClick={() => navigate("/leaves")}
+                    >
                       Review
                     </button>
                   </li>
@@ -289,34 +313,53 @@ function Dashboard({ onLogout }) {
           </div>
           <div className="panel-card">
             <div className="panel-head">
-              <h3>Students by {countsGroupBy === 'caste' ? 'Caste' : 'Category'}</h3>
+              <h3>
+                Students by {countsGroupBy === "caste" ? "Caste" : "Category"}
+              </h3>
               <div>
-                <select value={countsGroupBy} onChange={(e) => setCountsGroupBy(e.target.value)}>
+                <select
+                  value={countsGroupBy}
+                  onChange={(e) => setCountsGroupBy(e.target.value)}
+                >
                   <option value="casteCategory">Category</option>
                   <option value="caste">Caste</option>
                 </select>
               </div>
             </div>
-            <div style={{ marginTop: '.6rem' }}>
-              {countsLoading ? (
-                <p style={{ color: 'var(--muted)' }}>Loading...</p>
-              ) : counts.length === 0 ? (
-                <p style={{ color: 'var(--muted)' }}>No data available.</p>
-              ) : (
-                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                  {counts.map((c) => (
-                    <li
-                      key={c.value}
-                      onClick={() => navigate(`/users?groupBy=${countsGroupBy}&value=${encodeURIComponent(c.value)}`)}
-                      style={{ display: 'flex', justifyContent: 'space-between', padding: '.4rem 0', cursor: 'pointer' }}
-                    >
-                      <span style={{ color: 'var(--muted)' }}>{c.value}</span>
-                      <strong>{c.count}</strong>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            <div
+  style={{
+    marginTop: ".6rem",
+    minHeight: "250px",
+  }}
+>
+  {countsLoading ? (
+    <p style={{ color: "var(--muted)" }}>Loading...</p>
+  ) : counts.length === 0 ? (
+    <p style={{ color: "var(--muted)" }}>No data available.</p>
+  ) : (
+    <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+      {counts.map((c) => (
+        <li
+          key={c.value}
+          onClick={() =>
+            navigate(
+              `/users?groupBy=${countsGroupBy}&value=${encodeURIComponent(c.value)}`
+            )
+          }
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            padding: ".4rem 0",
+            cursor: "pointer",
+          }}
+        >
+          <span style={{ color: "var(--muted)" }}>{c.value}</span>
+          <strong>{c.count}</strong>
+        </li>
+      ))}
+    </ul>
+  )}
+</div>
           </div>
           <div className="panel-card">
             <div className="panel-head">
@@ -346,11 +389,22 @@ function Dashboard({ onLogout }) {
           </div>
         </div>
         {showRoomModal ? (
-          <div className="room-modal-overlay" onClick={() => setShowRoomModal(false)}>
+          <div
+            className="room-modal-overlay"
+            onClick={() => setShowRoomModal(false)}
+          >
             <div className="room-modal" onClick={(e) => e.stopPropagation()}>
               <div className="room-modal-header">
-                <h3>Room {selectedRoomNumber} — Residents ({selectedRoomStudents.length})</h3>
-                <button className="room-modal-close" onClick={() => setShowRoomModal(false)}>Close</button>
+                <h3>
+                  Room {selectedRoomNumber} — Residents (
+                  {selectedRoomStudents.length})
+                </h3>
+                <button
+                  className="room-modal-close"
+                  onClick={() => setShowRoomModal(false)}
+                >
+                  Close
+                </button>
               </div>
               <div className="room-modal-body">
                 {selectedRoomStudents.length === 0 ? (
@@ -369,9 +423,9 @@ function Dashboard({ onLogout }) {
                       {selectedRoomStudents.map((s) => (
                         <tr key={s._id}>
                           <td>{s.fullName || s.username}</td>
-                          <td>{s.college_name || '-'}</td>
-                          <td>{s.stream || '-'}</td>
-                          <td>{s.department || '-'}</td>
+                          <td>{s.college_name || "-"}</td>
+                          <td>{s.stream || "-"}</td>
+                          <td>{s.department || "-"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -381,6 +435,7 @@ function Dashboard({ onLogout }) {
             </div>
           </div>
         ) : null}
+        <HostelNexusWidget />
       </main>
     </div>
   );

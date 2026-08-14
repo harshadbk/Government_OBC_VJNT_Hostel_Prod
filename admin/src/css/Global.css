@@ -37,6 +37,41 @@ button, input { font: inherit; }
 .primary-btn:hover { transform: translateY(-3px); }
 .secondary-btn { background: rgba(255,255,255,.12); color:var(--text); }
 .secondary-btn:hover { transform: translateY(-2px); }
+
+/* Save Attendance specific button tweaks */
+.save-attendance-btn {
+  min-width: 170px;
+  padding: .85rem 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+}
+
+.save-attendance-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* small inline loader used inside buttons */
+.btn-loader {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(7,17,31,0.08);
+  border-top-color: rgba(7,17,31,0.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  animation: btnSpin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes btnSpin {
+  to { transform: rotate(360deg); }
+}
 .auth-secondary-actions { display:flex; justify-content:space-between; gap:.75rem; margin-top:1rem; flex-wrap:wrap; }
 .auth-secondary-actions.single { justify-content:center; }
 .auth-link-btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; min-height:42px; padding:.68rem .9rem; border-radius:14px; border:1px solid rgba(114,227,255,.18); background:rgba(114,227,255,.08); color:var(--text); cursor:pointer; font-weight:700; transition:transform .14s ease, background .14s ease, border-color .14s ease; }
@@ -408,6 +443,10 @@ th, td { text-align:left; padding:.8rem .4rem; border-bottom:1px solid rgba(255,
   background: rgba(37, 99, 235, 0.1);
   color: #123b8f;
 }
+
+/* HostelNexus styles moved to component local CSS (HostelNexusWidget.css) */
+
+
 
 [data-theme='light'] .secondary-btn,
 [data-theme='light'] .table-action,

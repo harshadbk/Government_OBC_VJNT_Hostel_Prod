@@ -51,6 +51,7 @@ function Sidebar({ onLogout }) {
       </div>
       <nav className="sidebar-nav">
         {!isAttendanceTaker && <NavLink to="/dashboard"><FiGrid /> Dashboard</NavLink>}
+        {/* HostelNexus removed from sidebar — available as sticky widget on Dashboard */}
         {!isAttendanceTaker && <NavLink to="/users"><FiUsers /> Users</NavLink>}
         <NavLink to="/attendance"><FiCheckSquare /> Attendance</NavLink>
         <NavLink to="/attendance-visuals"><FiCheckSquare /> Attendance Visuals</NavLink>

@@ -16,6 +16,7 @@ import Attendance from './pages/Attendance';
 import AttendanceVisuals from './pages/AttendanceVisuals';
 import LeaveManagement from './pages/LeaveManagement';
 import AdminUsers from './pages/AdminUsers';
+import HostelNexus from './pages/HostelNexus';
 
 const getValidToken = () => {
   const token = localStorage.getItem('adminToken');
@@ -75,6 +76,7 @@ function App() {
         <Route path="/attendance-visuals" element={<ProtectedRoute allowedRoles={['admin', 'attendance_taker']} onLogout={handleLogout} fallbackPath="/login"><AttendanceVisuals onLogout={handleLogout} /></ProtectedRoute>} />
         <Route path="/leaves" element={<ProtectedRoute allowedRoles={['admin']} onLogout={handleLogout} fallbackPath="/login"><LeaveManagement onLogout={handleLogout} /></ProtectedRoute>} />
         <Route path="/admin-users" element={<ProtectedRoute allowedRoles={['admin']} onLogout={handleLogout} fallbackPath="/login"><AdminUsers onLogout={handleLogout} /></ProtectedRoute>} />
+        <Route path="/hostel-nexus" element={<ProtectedRoute allowedRoles={['admin']} onLogout={handleLogout} fallbackPath="/login"><HostelNexus onLogout={handleLogout} /></ProtectedRoute>} />
       </Routes>
     </div>
   );
