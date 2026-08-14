@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FiGrid, FiUsers, FiUserPlus, FiSettings, FiLogOut, FiSun, FiMoon, FiBell, FiUpload, FiCheckSquare, FiClipboard } from 'react-icons/fi';
+import { FiGrid, FiUsers, FiUserPlus, FiSettings, FiLogOut, FiSun, FiMoon, FiBell, FiUpload, FiCheckSquare, FiClipboard, FiMessageSquare } from 'react-icons/fi';
 import { useEffect, useState, useRef } from 'react';
 
 function Sidebar({ onLogout }) {
@@ -57,6 +57,7 @@ function Sidebar({ onLogout }) {
         {!isAttendanceTaker && <NavLink to="/add-user"><FiUserPlus /> Add User</NavLink>}
         {!isAttendanceTaker && <NavLink to="/notices"><FiBell /> Notice Board</NavLink>}
         {!isAttendanceTaker && <NavLink to="/staff"><FiUsers /> Staff</NavLink>}
+        {!isAttendanceTaker && <NavLink to="/community"><FiMessageSquare /> Community</NavLink>}
         {!isAttendanceTaker && <NavLink to="/uploads" className={({isActive}) => isActive ? 'active' : ''}>
           <FiUpload /> Uploads
           {uploadsCount > 0 && (

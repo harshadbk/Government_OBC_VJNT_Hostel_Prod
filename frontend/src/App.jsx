@@ -11,6 +11,7 @@ import Contact from './pages/Contact';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import UploadsPage from './pages/Uploads';
+import CommunityPage from './pages/Community';
 import './css/Global.css';
 
 const defaultUser = {
@@ -117,6 +118,7 @@ function App() {
           <Route path="/login" element={user ? <Navigate to="/profile" replace /> : <Login onLogin={handleLogin} />} />
           <Route path="/signup" element={<Navigate to="/login" replace />} />
           <Route path="/profile" element={user ? <Profile user={currentUser} profileImage={profileImage} onProfileUpdate={handleProfileUpdate} onProfileImageChange={setProfileImage} token={token} /> : <Navigate to="/login" replace />} />
+          <Route path="/community" element={<CommunityPage user={user} token={token} />} />
           <Route path="/uploads" element={<UploadsPage />} />
         </Routes>
       </main>

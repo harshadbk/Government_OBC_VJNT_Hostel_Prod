@@ -1,6 +1,7 @@
 import 'dotenv/config';
 
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import path from 'path';
@@ -11,13 +12,20 @@ import uploadRoutes from './routes/uploadRoutes.js';
 import staffRoutes from './routes/staffRoutes.js';
 import attendanceRoutes from './routes/attendanceRoutes.js';
 import leaveRoutes from './routes/leaveRoutes.js';
+import communityRoutes from './routes/communityRoutes.js';
 import User from './models/User.js';
 import Document from './models/Document.js';
+import { seedDefaultChannels } from './utils/channelSeeder.js';
+import { initSocket } from './socket/socketHandler.js';
 
 const app = express();
+const httpServer = http.createServer(app);
 const DEFAULT_PORT = Number(process.env.PORT || 5000);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize Socket.IO
+initSocket(httpServer);
 
 const requiredAdminEnv = ['ADMIN_USERNAME', 'ADMIN_PASSWORD'];
 const missingAdminEnv = requiredAdminEnv.filter((key) => !process.env[key] || !process.env[key].trim());
@@ -37,6 +45,7 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/leaves', leaveRoutes);
+app.use('/api/community', communityRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'HMS backend is running.' });
@@ -60,16 +69,16 @@ const ensureDocumentIndexes = async () => {
 };
 
 const startServer = (port = DEFAULT_PORT, attempt = 0) => {
-  const server = app.listen(port, () => {
+  const serverListener = httpServer.listen(port, () => {
     console.log(`Server listening on port ${port}`);
   });
 
-  server.on('error', (error) => {
+  serverListener.on('error', (error) => {
     if (error.code === 'EADDRINUSE' && attempt < 5) {
       const nextPort = port + 1;
       console.warn(`Port ${port} is busy. Trying ${nextPort} instead.`);
-      if (server.listening) {
-        server.close(() => startServer(nextPort, attempt + 1));
+      if (serverListener.listening) {
+        serverListener.close(() => startServer(nextPort, attempt + 1));
       } else {
         startServer(nextPort, attempt + 1);
       }
@@ -89,8 +98,10 @@ mongoose.connect(process.env.MONGODB_URI, {
     console.log('Connected to MongoDB');
     await ensureUsernameIndex();
     await ensureDocumentIndexes();
+    await seedDefaultChannels();
     startServer();
   })
   .catch((error) => {
     console.error('MongoDB connection error:', error.message);
   });
+
