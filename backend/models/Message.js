@@ -6,9 +6,10 @@ const reactionSchema = new mongoose.Schema({
 }, { _id: false });
 
 const messageSchema = new mongoose.Schema({
-  channelId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Channel',
+  channel: {
+    type: String,
+    enum: ['announcement', 'general'],
+    default: 'general',
     required: true,
     index: true
   },
@@ -60,6 +61,6 @@ const messageSchema = new mongoose.Schema({
   timestamps: true
 });
 
-messageSchema.index({ channelId: 1, createdAt: -1 });
+messageSchema.index({ channel: 1, createdAt: -1 });
 
 export default mongoose.model('Message', messageSchema);

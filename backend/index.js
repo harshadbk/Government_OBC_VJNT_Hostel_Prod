@@ -15,7 +15,6 @@ import leaveRoutes from './routes/leaveRoutes.js';
 import communityRoutes from './routes/communityRoutes.js';
 import User from './models/User.js';
 import Document from './models/Document.js';
-import { seedDefaultChannels } from './utils/channelSeeder.js';
 import { initSocket } from './socket/socketHandler.js';
 
 const app = express();
