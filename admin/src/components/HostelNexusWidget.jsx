@@ -1,30 +1,38 @@
 import { useState, useRef, useEffect } from 'react';
 import './HostelNexusWidget.css';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+const FASTAPI_URL = import.meta.env.VITE_FASTAPI_URL || 'http://127.0.0.1:8000';
 
-function getAdminToken() {
-  const token = localStorage.getItem('adminToken');
-
-  if (!token || token === 'null' || token === 'undefined') {
-    localStorage.removeItem('adminToken');
-    return null;
-  }
-
-  return token;
-}
+const SUGGESTIONS = [
+  'How many students are registered?',
+  'Show recent notice board posts',
+  'Give me student breakdown by year',
+  'Who lives in room 14?',
+  'Show absent students today',
+  'Show pending leave applications',
+];
 
 export default function HostelNexusWidget() {
+  const sessionIdRef = useRef(
+    localStorage.getItem('hostelnexus_session_id') ||
+      `hostelnexus-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+
   const [messages, setMessages] = useState([
     {
       id: 1,
       from: 'bot',
-      text: 'HostelNexus ready. Ask for counts or reports.',
+      text: 'Hello. How can I assist you with the hostel database today?',
+      source: 'system',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [isMax, setIsMax] = useState(false);
+  const [tab, setTab] = useState('chat'); // 'chat' or 'history'
 
   const endRef = useRef(null);
   const widgetRef = useRef(null);
@@ -37,23 +45,31 @@ export default function HostelNexusWidget() {
     origY: 0,
   });
 
-  const [isMax, setIsMax] = useState(false);
-  const [tab, setTab] = useState('chat');
-  const [counts, setCounts] = useState([]);
-
   useEffect(() => {
     if (endRef.current) {
-      endRef.current.scrollIntoView({
-        behavior: 'smooth',
-      });
+      endRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isMax]);
+  }, [messages, loading, isMax]);
+
+  const checkHealth = async () => {
+    try {
+      const res = await fetch(`${FASTAPI_URL}/health`, { method: 'GET' });
+      setIsOnline(res.ok);
+    } catch {
+      setIsOnline(false);
+    }
+  };
+
+  useEffect(() => {
+    localStorage.setItem('hostelnexus_session_id', sessionIdRef.current);
+    checkHealth();
+    const interval = setInterval(checkHealth, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const node = widgetRef.current;
-
     if (!node) return;
-
     node.style.left = 'auto';
     node.style.top = 'auto';
     node.style.right = '20px';
@@ -63,7 +79,6 @@ export default function HostelNexusWidget() {
   /* ---------------------------------------------------------
      Dragging
   --------------------------------------------------------- */
-
   useEffect(() => {
     const onMouseMove = (e) => {
       if (!dragRef.current.dragging) return;
@@ -75,11 +90,9 @@ export default function HostelNexusWidget() {
       const ny = dragRef.current.origY + dy;
 
       const node = widgetRef.current;
-
       if (node) {
         node.style.right = 'auto';
         node.style.bottom = 'auto';
-
         node.style.left = `${nx}px`;
         node.style.top = `${ny}px`;
       }
@@ -87,9 +100,7 @@ export default function HostelNexusWidget() {
 
     const onMouseUp = () => {
       dragRef.current.dragging = false;
-
       const node = widgetRef.current;
-
       if (node) {
         node.classList.remove('dragging');
       }
@@ -105,124 +116,78 @@ export default function HostelNexusWidget() {
   }, []);
 
   /* ---------------------------------------------------------
-     Fetch student counts
+     Send question to FastAPI /ask endpoint
   --------------------------------------------------------- */
-
-  useEffect(() => {
-    if (tab === 'students' || isMax) {
-      const token = getAdminToken();
-
-      if (!token) return;
-
-      fetch(
-        `${apiBaseUrl}/api/admin/users/counts?groupBy=casteCategory`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-        .then((r) => r.json())
-        .then((d) => {
-          setCounts(d.counts || []);
-        })
-        .catch(() => {
-          setCounts([]);
-        });
-    }
-  }, [tab, isMax]);
-
-  /* ---------------------------------------------------------
-     Send message
-  --------------------------------------------------------- */
-
-  const send = async () => {
-    const text = input.trim();
-
+  const send = async (customText = null) => {
+    const text = (typeof customText === 'string' ? customText : input).trim();
     if (!text || loading) return;
 
-    const nextId = messages.length + 1;
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsgId = Date.now();
 
-    setMessages((m) => [
-      ...m,
+    setMessages((prev) => [
+      ...prev,
       {
-        id: nextId,
+        id: userMsgId,
         from: 'user',
         text,
+        timestamp: timeStr,
       },
     ]);
 
-    setInput('');
+    if (!customText) setInput('');
     setLoading(true);
 
-    const token = getAdminToken();
-
     try {
-      if (token) {
-        const res = await fetch(
-          `${apiBaseUrl}/api/admin/hostelnexus/message`,
-          {
-            method: 'POST',
+      const res = await fetch(`${FASTAPI_URL}/ask`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question: text,
+          session_id: sessionIdRef.current,
+          history: messages.slice(-10).map((m) => ({
+            role: m.from === 'bot' ? 'assistant' : 'user',
+            content: m.text,
+          })),
+        }),
+      });
 
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-
-            body: JSON.stringify({
-              message: text,
-            }),
-          }
-        );
-
-        if (res.ok) {
-          const data = await res.json();
-
-          setMessages((m) => [
-            ...m,
-            {
-              id: nextId + 1,
-              from: 'bot',
-              text: data.reply || 'OK',
-            },
-          ]);
-        } else {
-          setMessages((m) => [
-            ...m,
-            {
-              id: nextId + 1,
-              from: 'bot',
-              text: `Echo: ${text}`,
-            },
-          ]);
-        }
-      } else {
-        setMessages((m) => [
-          ...m,
-          {
-            id: nextId + 1,
-            from: 'bot',
-            text: `Echo: ${text}`,
-          },
-        ]);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
       }
-    } catch (err) {
-      setMessages((m) => [
-        ...m,
+
+      const data = await res.json();
+      setIsOnline(true);
+
+      setMessages((prev) => [
+        ...prev,
         {
-          id: nextId + 1,
+          id: Date.now() + 1,
           from: 'bot',
-          text: `Error: ${err.message}`,
+          text: data.answer || data.error || 'No answer returned.',
+          source: data.source,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } catch (err) {
+      setIsOnline(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          from: 'bot',
+          text: `Service unreachable. Please verify server connection.`,
+          source: 'error',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
     } finally {
       setLoading(false);
     }
   };
-
-  /* ---------------------------------------------------------
-     Enter key
-  --------------------------------------------------------- */
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -231,18 +196,11 @@ export default function HostelNexusWidget() {
     }
   };
 
-  /* ---------------------------------------------------------
-     Start dragging
-  --------------------------------------------------------- */
-
   const startDrag = (e) => {
     if (isMax) return;
-
-    // Don't drag when clicking buttons
     if (e.target.closest('button')) return;
 
     const node = widgetRef.current;
-
     if (!node) return;
 
     const rect = node.getBoundingClientRect();
@@ -258,34 +216,32 @@ export default function HostelNexusWidget() {
     node.classList.add('dragging');
   };
 
+  const userQueryHistory = messages.filter((m) => m.from === 'user');
+
   return (
     <div
       ref={widgetRef}
       className={`hostelnexus-widget ${isMax ? 'maximized' : 'minimized'}`}
       style={{ position: 'fixed' }}
-      onClick={(e) => {
-        // when minimized, clicking the pill should open the widget
+      onClick={() => {
         if (!isMax && !dragRef.current.dragging) {
           setIsMax(true);
         }
       }}
     >
-
-      <div
-        className="hostelnexus-widget-header"
-        onMouseDown={startDrag}
-      >
+      {/* HEADER */}
+      <div className="hostelnexus-widget-header" onMouseDown={startDrag}>
         <div className="hostelnexus-title-area">
           <div className="hostelnexus-logo">
-            ✦
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
           </div>
-
           <div>
-            <strong>HostelNexus</strong>
-
+            <strong>AI Assistant</strong>
             <div className="hostelnexus-status">
-              <span className="status-dot"></span>
-              Connected to database
+              <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
+              {isOnline ? 'Connected' : 'Offline'}
             </div>
           </div>
         </div>
@@ -295,85 +251,61 @@ export default function HostelNexusWidget() {
             className="icon-btn maximize-btn"
             title={isMax ? 'Minimize' : 'Maximize'}
             aria-label={isMax ? 'Minimize widget' : 'Maximize widget'}
-            onClick={() => setIsMax((m) => !m)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMax((m) => !m);
+            }}
           >
             {isMax ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19 13h2v6a2 2 0 0 1-2 2h-6v-2h6v-6zM5 11H3V5a2 2 0 0 1 2-2h6v2H5v6zM19 3h-6v2h6v6h2V5a2 2 0 0 0-2-2zM7 21a2 2 0 0 1-2-2v-6h2v6h6v2H7z" fill="currentColor"/>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="4 14 10 14 10 20"></polyline>
+                <polyline points="20 10 14 10 14 4"></polyline>
+                <line x1="14" y1="10" x2="21" y2="3"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
               </svg>
             ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 5h6V3H3v8h2V5zm14 14h-6v2h8v-8h-2v6zM5 19v-6H3v8h8v-2H5zm14-14h-6V3h8v8h-2V5z" fill="currentColor"/>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
               </svg>
             )}
           </button>
         </div>
       </div>
 
-      {/* =====================================================
-          BODY
-      ===================================================== */}
-
-      <div
-        className={`hostelnexus-widget-body ${
-          isMax ? 'maximized' : ''
-        }`}
-      >
-        {/* ===================================================
-            TABS
-        =================================================== */}
-
+      {/* BODY */}
+      <div className={`hostelnexus-widget-body ${isMax ? 'maximized' : ''}`}>
+        {/* ONLY 2 CLEAN TABS: CHAT & HISTORY */}
         <div className="hostelnexus-tabs">
-          <button
-            className={`tab ${tab === 'chat' ? 'active' : ''}`}
-            onClick={() => setTab('chat')}
-          >
+          <button className={`tab ${tab === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>
             Chat
           </button>
-
-          <button
-            className={`tab ${tab === 'history' ? 'active' : ''}`}
-            onClick={() => setTab('history')}
-          >
+          <button className={`tab ${tab === 'history' ? 'active' : ''}`} onClick={() => setTab('history')}>
             History
-          </button>
-
-          <button
-            className={`tab ${tab === 'students' ? 'active' : ''}`}
-            onClick={() => setTab('students')}
-          >
-            Students
           </button>
         </div>
 
+        {/* CHAT TAB */}
         {tab === 'chat' && (
           <div className="hostelnexus-chat-container">
             <div className="hostelnexus-messages">
               {messages.map((m) => (
-                <div
-                  key={m.id}
-                  className={`hostelnexus-msg ${m.from}`}
-                >
-                  {m.from === 'bot' && (
-                    <div className="bot-avatar">
-                      ✦
-                    </div>
-                  )}
-
-                  <div className="hostelnexus-msg-text">
-                    {m.text}
+                <div key={m.id} className={`hostelnexus-msg ${m.from}`}>
+                  <div className="hostelnexus-msg-content">
+                    <div className="hostelnexus-msg-text">{m.text}</div>
+                    {m.timestamp && (
+                      <div className="msg-meta-row">
+                        <span className="msg-time">{m.timestamp}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
 
-              {/* Loading animation */}
-
               {loading && (
                 <div className="hostelnexus-msg bot">
-                  <div className="bot-avatar">
-                    ✦
-                  </div>
-
                   <div className="typing-indicator">
                     <span></span>
                     <span></span>
@@ -381,109 +313,92 @@ export default function HostelNexusWidget() {
                   </div>
                 </div>
               )}
-
               <div ref={endRef} />
             </div>
 
-            {/* Input */}
+            {/* Quick Suggestions */}
+            <div className="quick-suggestions-bar">
+              {SUGGESTIONS.slice(0, 3).map((s, idx) => (
+                <button key={idx} className="suggestion-chip" onClick={() => send(s)} disabled={loading}>
+                  {s}
+                </button>
+              ))}
+            </div>
 
+            {/* INPUT */}
             <div className="hostelnexus-input-row">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask HostelNexus..."
+                placeholder="Ask a question..."
+                disabled={loading}
               />
-
-              <button
-                className="primary-btn"
-                onClick={send}
-                disabled={loading || !input.trim()}
-              >
+              <button className="primary-btn send-btn" onClick={() => send()} disabled={loading || !input.trim()}>
                 {loading ? (
                   <span className="send-loader"></span>
                 ) : (
-                  '➤'
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
                 )}
               </button>
             </div>
-
-            <div className="input-hint">
-              Press Enter to send
-            </div>
           </div>
         )}
 
-        {/* ===================================================
-            HISTORY
-        =================================================== */}
-
+        {/* HISTORY TAB */}
         {tab === 'history' && (
           <div className="hostelnexus-tab-content">
             <div className="section-title">
-              <div>
-                <h4>Conversation History</h4>
-                <span>Recent activity</span>
-              </div>
+              <h4>Recent Queries</h4>
             </div>
 
-            <ul className="user-list">
-              <li>
-                <div className="history-icon">✦</div>
-
-                <div className="history-content">
-                  <strong>HostelNexus initialized</strong>
-
-                  <span>
-                    Chat assistant was initialized
-                  </span>
-
-                  <small>August 1, 2026</small>
-                </div>
-              </li>
-            </ul>
-          </div>
-        )}
-
-        {/* ===================================================
-            STUDENTS
-        =================================================== */}
-
-        {tab === 'students' && (
-          <div className="hostelnexus-tab-content">
-            <div className="section-title">
-              <div>
-                <h4>Students by Category</h4>
-                <span>Current hostel statistics</span>
-              </div>
-            </div>
-
-            {counts.length === 0 ? (
-              <div className="empty-state">
-
-                <strong>No data available</strong>
-
-                <span>
-                  Student statistics could not be loaded.
-                </span>
+            {userQueryHistory.length === 0 ? (
+              <div className="empty-history-box">
+                <p>No queries sent in this session yet.</p>
               </div>
             ) : (
-              <div className="student-count-list">
-                {counts.map((c) => (
+              <div className="history-items-list">
+                {userQueryHistory.map((item, idx) => (
                   <div
-                    className="student-count-item"
-                    key={c.value}
+                    key={idx}
+                    className="history-item-row"
+                    onClick={() => {
+                      setTab('chat');
+                      send(item.text);
+                    }}
                   >
-                    <div className="category-info">
-
-                      <span>{c.value}</span>
-                    </div>
-
-                    <strong>{c.count}</strong>
+                    <div className="history-item-text">{item.text}</div>
+                    <span className="history-item-time">{item.timestamp}</span>
                   </div>
                 ))}
               </div>
             )}
+
+            <div className="section-title" style={{ marginTop: '1rem' }}>
+              <h4>Quick Prompts</h4>
+            </div>
+            <div className="suggestions-list">
+              {SUGGESTIONS.map((s, idx) => (
+                <div
+                  key={idx}
+                  className="suggestion-card"
+                  onClick={() => {
+                    setTab('chat');
+                    send(s);
+                  }}
+                >
+                  <div className="suggestion-text">{s}</div>
+                  <span className="suggestion-action-arrow">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

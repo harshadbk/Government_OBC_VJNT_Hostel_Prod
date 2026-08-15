@@ -64,16 +64,10 @@ const formatMessage = (msg) => {
   };
 };
 
-// ==========================================
-// 1. GET ALL CHANNELS (Public / Optional Auth)
-// ==========================================
 router.get('/channels', optionalAuth, async (req, res) => {
   res.json({ success: true, channels: STATIC_CHANNELS });
 });
 
-// ==========================================
-// 2. GET MESSAGES FOR A CHANNEL (Public / Optional Auth)
-// ==========================================
 router.get('/channels/:channelId/messages', optionalAuth, async (req, res) => {
   try {
     const { channelId } = req.params;
