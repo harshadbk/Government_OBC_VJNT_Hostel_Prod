@@ -30,9 +30,8 @@ export default function MessageList({
   onReport
 }) {
   const containerRef = useRef(null);
-  const bottomRef = useRef(null);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
-  const prevMessagesCountRef = useRef((messages && messages.length) || 0);
+  const prevMessagesCountRef = useRef(0);
   const safeMessages = Array.isArray(messages) ? messages : [];
 
   // Group messages by Date String
@@ -55,22 +54,27 @@ export default function MessageList({
     setShowScrollBottomBtn(isUpwards);
   };
 
+  const scrollToBottom = (behavior = 'smooth') => {
+    if (!containerRef.current) return;
+    containerRef.current.scrollTo({
+      top: containerRef.current.scrollHeight,
+      behavior
+    });
+    setShowScrollBottomBtn(false);
+  };
+
   useEffect(() => {
     if (!containerRef.current) return;
     const { scrollTop, clientHeight, scrollHeight } = containerRef.current;
     const isNearBottom = scrollHeight - scrollTop - clientHeight <= 250;
 
     if (isNearBottom || safeMessages.length > prevMessagesCountRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      const isInitial = prevMessagesCountRef.current === 0;
+      scrollToBottom(isInitial ? 'auto' : 'smooth');
     }
 
     prevMessagesCountRef.current = safeMessages.length;
-  }, [messages.length]);
-
-  const scrollToBottom = () => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setShowScrollBottomBtn(false);
-  };
+  }, [safeMessages.length]);
 
   return (
     <div className="messages-container" ref={containerRef} onScroll={handleScroll}>
@@ -130,10 +134,8 @@ export default function MessageList({
         );
       })}
 
-      <div ref={bottomRef} />
-
       {showScrollBottomBtn && (
-        <button className="new-messages-pill" onClick={scrollToBottom}>
+        <button className="new-messages-pill" onClick={() => scrollToBottom('smooth')}>
           <FiArrowDown /> Scroll to bottom
         </button>
       )}

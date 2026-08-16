@@ -8,7 +8,6 @@ from bson import ObjectId
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
-# Official MCP Python SDK FastMCP pattern (supports SDK v1.x and v2.x)
 try:
     from mcp.server.fastmcp import FastMCP
 except ImportError:
@@ -319,7 +318,7 @@ NUMERIC_STRING_FIELDS = {"roomNumber", "year", "rollNumber", "classYear", "stude
 
 
 def normalize_filter_types(query_filter: Any) -> Any:
-    """Ensure filters for numeric string/int fields match either string or integer in MongoDB."""
+    """Ensure filters for numeric string/int fields match either string or integer in MongoDB. and also some attendance related filters as well"""
     if not isinstance(query_filter, dict):
         return query_filter
 
@@ -671,10 +670,6 @@ def execute_tool(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 def get_collections_summary() -> dict[str, Any]:
     return list_collections()
 
-
-# ============================================================================
-# SERVER RUNNER (STDIO)
-# ============================================================================
 
 def run() -> None:
     """Run FastMCP server over standard input/output (stdio)."""

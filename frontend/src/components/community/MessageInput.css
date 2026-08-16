@@ -1,0 +1,406 @@
+/* =========================================================
+   CHAT PAGE
+   ========================================================= */
+
+.community-page {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* =========================================================
+   CHAT WINDOW
+   ========================================================= */
+
+.chat-window {
+  height: 100%;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+}
+
+
+/* =========================================================
+   MESSAGE AREA
+   THIS IS THE ONLY AREA THAT SHOULD SCROLL
+   ========================================================= */
+
+.messages-container {
+  flex: 1;
+  min-height: 0;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  overscroll-behavior: contain;
+
+  scroll-behavior: auto;
+
+  padding: 1rem;
+}
+
+
+/* =========================================================
+   CHAT INPUT
+   ========================================================= */
+
+.chat-input-wrapper {
+  flex-shrink: 0;
+
+  width: 100%;
+
+  padding: 0.75rem;
+
+  background: var(--wa-bg, #ffffff);
+
+  border-top: 1px solid var(--wa-border, #e5e7eb);
+
+  position: relative;
+
+  z-index: 10;
+}
+
+
+/* =========================================================
+   INPUT BOX
+   ========================================================= */
+
+.input-box-container {
+  width: 100%;
+
+  display: flex;
+  align-items: flex-end;
+
+  gap: 0.5rem;
+}
+
+
+/* =========================================================
+   TEXTAREA BOX
+   ========================================================= */
+
+.chat-textarea-box {
+  flex: 1;
+
+  min-width: 0;
+
+  display: flex;
+  align-items: flex-end;
+
+  background: var(--wa-input-bg, #f5f6f7);
+
+  border: 1px solid var(--wa-border, #e5e7eb);
+
+  border-radius: 20px;
+
+  padding: 0.35rem 0.5rem;
+
+  transition: border-color 0.2s ease;
+}
+
+.chat-textarea-box:focus-within {
+  border-color: var(--wa-primary, #2563eb);
+}
+
+
+/* =========================================================
+   EMOJI BUTTON
+   ========================================================= */
+
+.emoji-trigger-btn {
+  width: 36px;
+  height: 36px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  background: transparent;
+
+  color: var(--wa-text-muted, #6b7280);
+
+  cursor: pointer;
+
+  border-radius: 50%;
+
+  font-size: 1.15rem;
+}
+
+.emoji-trigger-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+
+/* =========================================================
+   TEXTAREA
+   ========================================================= */
+
+.chat-textarea {
+  flex: 1;
+
+  width: 100%;
+
+  min-width: 0;
+
+  max-height: 120px;
+
+  min-height: 36px;
+
+  resize: none;
+
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  padding: 0.55rem 0.5rem;
+
+  font-family: inherit;
+
+  font-size: 0.95rem;
+
+  line-height: 1.4;
+
+  color: var(--wa-text, #111827);
+
+  overflow-y: auto;
+}
+
+.chat-textarea::placeholder {
+  color: var(--wa-text-muted, #9ca3af);
+}
+
+
+/* =========================================================
+   SEND BUTTON
+   ========================================================= */
+
+.send-btn {
+  width: 44px;
+  height: 44px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+
+  border-radius: 50%;
+
+  background: var(--wa-primary, #2563eb);
+
+  color: white;
+
+  cursor: pointer;
+
+  font-size: 1.1rem;
+
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.send-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.send-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   REPLY BANNER
+   ========================================================= */
+
+.reply-banner {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 0.75rem;
+
+  margin-bottom: 0.5rem;
+
+  padding: 0.6rem 0.75rem;
+
+  border-left: 3px solid var(--wa-primary, #2563eb);
+
+  background: var(--wa-sidebar-bg, #f8fafc);
+
+  border-radius: 8px;
+}
+
+.reply-content {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.15rem;
+}
+
+.reply-content strong {
+  font-size: 0.82rem;
+
+  color: var(--wa-text, #111827);
+}
+
+.reply-preview {
+  display: block;
+
+  max-width: 100%;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  font-size: 0.78rem;
+
+  color: var(--wa-text-muted, #6b7280);
+}
+
+.reply-close-btn {
+  flex-shrink: 0;
+
+  width: 30px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+
+  background: transparent;
+
+  color: var(--wa-text-muted, #6b7280);
+
+  cursor: pointer;
+
+  border-radius: 50%;
+}
+
+.reply-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+
+/* =========================================================
+   QUICK EMOJIS
+   ========================================================= */
+
+.quick-emoji-bar {
+  display: flex;
+
+  align-items: center;
+
+  gap: 0.5rem;
+
+  padding: 0.4rem 0.8rem;
+
+  margin-bottom: 0.5rem;
+
+  background: var(--wa-sidebar-bg, #f8fafc);
+
+  border: 1px solid var(--wa-border, #e5e7eb);
+
+  border-radius: 12px;
+
+  box-shadow: var(--wa-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+
+  overflow-x: auto;
+}
+
+.quick-emoji-btn {
+  flex-shrink: 0;
+
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+
+  background: transparent;
+
+  cursor: pointer;
+
+  border-radius: 8px;
+
+  font-size: 1.2rem;
+}
+
+.quick-emoji-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+
+/* =========================================================
+   ANNOUNCEMENT READ ONLY
+   ========================================================= */
+
+.announcement-read-only-badge {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 0.5rem;
+
+  padding: 0.75rem;
+
+  color: var(--wa-text-muted, #6b7280);
+
+  font-size: 0.85rem;
+
+  text-align: center;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  .community-page {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .chat-window {
+    height: 100dvh;
+  }
+
+  .messages-container {
+    padding: 0.75rem;
+  }
+
+  .chat-input-wrapper {
+    padding: 0.5rem;
+  }
+
+  .send-btn {
+    width: 42px;
+    height: 42px;
+  }
+
+  .chat-textarea {
+    font-size: 0.9rem;
+  }
+}

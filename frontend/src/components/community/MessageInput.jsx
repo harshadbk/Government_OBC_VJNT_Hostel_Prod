@@ -93,6 +93,7 @@ export default function MessageInput({
     setContent('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
+      textareaRef.current.focus();
     }
     if (onCancelReply) onCancelReply();
     if (onTypingStop) onTypingStop();
@@ -107,6 +108,9 @@ export default function MessageInput({
 
   const insertEmoji = (emoji) => {
     setContent((prev) => prev + emoji);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
   };
 
   
@@ -179,6 +183,7 @@ export default function MessageInput({
         </div>
 
         <button
+          type="button"
           className="send-btn"
           onClick={handleSend}
           disabled={!content.trim()}
