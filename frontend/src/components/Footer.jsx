@@ -51,22 +51,22 @@ function Footer() {
         </ul>
       </div>
       <div>
-        <h4>Information</h4>
+        <h4>Information & Services</h4>
         <ul>
           <li>
-            <Link to="/admission">Notices</Link>
+            <Link to="/complaints">Complaint Box</Link>
+          </li>
+          <li>
+            <Link to="/community">Student Community</Link>
+          </li>
+          <li>
+            <Link to="/admission">Notices & Circulars</Link>
           </li>
           <li>
             <Link to="/gallery">Events</Link>
           </li>
           <li>
             <Link to="/admission">FAQ</Link>
-          </li>
-          <li>
-            <a href="#">Privacy Policy</a>
-          </li>
-          <li>
-            <a href="#">Terms &amp; Conditions</a>
           </li>
         </ul>
       </div>

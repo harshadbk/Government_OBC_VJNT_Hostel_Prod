@@ -203,30 +203,27 @@ function AddUser({ onLogout }) {
           <form className="profile-form admin-form" onSubmit={handleCreate}>
             <div className="profile-form-grid admin-form-grid compact-grid gap-5">
               <label className="profile-field">
-                <span className="label-text">Username</span>
                 <input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder=" "
+                  placeholder="Username (eg.,harshad_khatale) Should be unique"
                 />
               </label>
               <label className="profile-field">
-                <span className="label-text">Email</span>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="user@example.com"
+                  placeholder="Email (user@example.com) Imp For OTP"
                 />
               </label>
               <label className="profile-field">
-                <span className="label-text">Temporary Password</span>
                 <div className="password-toggle-field" style={{ position: 'relative' }}>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={tempPassword}
                     onChange={(e) => setTempPassword(e.target.value)}
-                    placeholder=" "
+                    placeholder="Temporary Password Later you Can change"
                     style={{ paddingRight: '3rem' }}
                   />
                   <button
@@ -249,7 +246,6 @@ function AddUser({ onLogout }) {
                 </div>
               </label>
               <label className="profile-field">
-                <span className="label-text">Roll Number</span>
                 <input
                   value={rollNumber}
                   onChange={(e) => setRollNumber(e.target.value)}
@@ -257,7 +253,6 @@ function AddUser({ onLogout }) {
                 />
               </label>
               <label className="profile-field">
-                <span className="label-text">Room Number</span>
                 <select value={roomNumber} onChange={(e) => setRoomNumber(e.target.value)}>
                   {roomsLoading ? (
                     <option value="">Loading rooms...</option>

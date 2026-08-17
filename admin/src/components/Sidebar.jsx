@@ -1,37 +1,62 @@
 import { NavLink } from 'react-router-dom';
-import { FiGrid, FiUsers, FiUserPlus, FiSettings, FiLogOut, FiSun, FiMoon, FiBell, FiUpload, FiCheckSquare, FiClipboard, FiMessageSquare } from 'react-icons/fi';
+import { FiGrid, FiUsers, FiUserPlus, FiSettings, FiLogOut, FiSun, FiMoon, FiBell, FiUpload, FiCheckSquare, FiClipboard, FiMessageSquare, FiAlertCircle } from 'react-icons/fi';
 import { useEffect, useState, useRef } from 'react';
 
 function Sidebar({ onLogout }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('adminTheme') || 'dark');
   const [uploadsCount, setUploadsCount] = useState(0);
+  const [complaintsCount, setComplaintsCount] = useState(0);
   const [pulse, setPulse] = useState(false);
+  const [complaintPulse, setComplaintPulse] = useState(false);
   const lastCountRef = useRef(0);
+  const lastComplaintCountRef = useRef(0);
   const role = localStorage.getItem('adminRole') || 'admin';
   const isAttendanceTaker = role === 'attendance_taker';
 
   useEffect(() => {
     let mounted = true;
-    const fetchCount = async () => {
+    const fetchCounts = async () => {
       const token = localStorage.getItem('adminToken');
       if (!token) return;
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      
+      // Fetch uploads count
       try {
-        const res = await fetch((import.meta.env.VITE_API_BASE_URL || '') + '/api/uploads/all', { headers: { Authorization: `Bearer ${token}` } });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!mounted) return;
-        const count = (data.uploads || []).length;
-        setUploadsCount(count);
-        if (lastCountRef.current && count > lastCountRef.current) {
-          setPulse(true);
-          setTimeout(() => setPulse(false), 2200);
+        const res = await fetch(`${apiBase}/api/uploads/all`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted) {
+            const count = (data.uploads || []).length;
+            setUploadsCount(count);
+            if (lastCountRef.current && count > lastCountRef.current) {
+              setPulse(true);
+              setTimeout(() => setPulse(false), 2200);
+            }
+            lastCountRef.current = count;
+          }
         }
-        lastCountRef.current = count;
-      } catch (err) {
-      }
+      } catch (err) {}
+
+      // Fetch pending complaints count
+      try {
+        const cRes = await fetch(`${apiBase}/api/complaints/stats`, { headers: { Authorization: `Bearer ${token}` } });
+        if (cRes.ok) {
+          const cData = await cRes.json();
+          if (mounted) {
+            const pCount = cData.pending || 0;
+            setComplaintsCount(pCount);
+            if (lastComplaintCountRef.current && pCount > lastComplaintCountRef.current) {
+              setComplaintPulse(true);
+              setTimeout(() => setComplaintPulse(false), 2200);
+            }
+            lastComplaintCountRef.current = pCount;
+          }
+        }
+      } catch (err) {}
     };
-    fetchCount();
-    const iv = setInterval(fetchCount, 10000);
+
+    fetchCounts();
+    const iv = setInterval(fetchCounts, 10000);
     return () => { mounted = false; clearInterval(iv); };
   }, []);
 
@@ -51,7 +76,14 @@ function Sidebar({ onLogout }) {
       </div>
       <nav className="sidebar-nav">
         {!isAttendanceTaker && <NavLink to="/dashboard"><FiGrid /> Dashboard</NavLink>}
-        {/* HostelNexus removed from sidebar — available as sticky widget on Dashboard */}
+        {!isAttendanceTaker && <NavLink to="/complaints" className={({isActive}) => isActive ? 'active' : ''}>
+          <FiAlertCircle /> Complaint Box
+          {complaintsCount > 0 && (
+            <span className={`sidebar-badge ${complaintPulse ? 'pulse' : ''}`} style={{ backgroundColor: '#ef4444' }}>
+              {complaintsCount}
+            </span>
+          )}
+        </NavLink>}
         {!isAttendanceTaker && <NavLink to="/users"><FiUsers /> Users</NavLink>}
         <NavLink to="/attendance"><FiCheckSquare /> Attendance</NavLink>
         <NavLink to="/attendance-visuals"><FiCheckSquare /> Attendance Visuals</NavLink>

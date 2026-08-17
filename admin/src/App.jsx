@@ -9,6 +9,7 @@ import UserProfile from './pages/UserProfile';
 import NoticeBoard from './pages/NoticeBoard';
 import Uploads from './pages/Uploads';
 import AdminCommunity from './pages/Community';
+import Complaints from './pages/Complaints';
 import './css/Global.css';
 import UploadDetails from './pages/UploadDetails';
 import StaffManagement from './pages/StaffManagement';
@@ -72,6 +73,7 @@ function App() {
         <Route path="/uploads/:id" element={<ProtectedRoute allowedRoles={['admin']} onLogout={handleLogout} fallbackPath="/login"><UploadDetails onLogout={handleLogout} /></ProtectedRoute>} />
         <Route path="/staff" element={<ProtectedRoute allowedRoles={['admin']} onLogout={handleLogout} fallbackPath="/login"><StaffManagement onLogout={handleLogout} /></ProtectedRoute>} />
         <Route path="/community" element={<ProtectedRoute allowedRoles={['admin']} onLogout={handleLogout} fallbackPath="/login"><AdminCommunity onLogout={handleLogout} /></ProtectedRoute>} />
+        <Route path="/complaints" element={<ProtectedRoute allowedRoles={['admin']} onLogout={handleLogout} fallbackPath="/login"><Complaints onLogout={handleLogout} /></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute allowedRoles={['admin', 'attendance_taker']} onLogout={handleLogout} fallbackPath="/login"><Attendance onLogout={handleLogout} /></ProtectedRoute>} />
         <Route path="/attendance-visuals" element={<ProtectedRoute allowedRoles={['admin', 'attendance_taker']} onLogout={handleLogout} fallbackPath="/login"><AttendanceVisuals onLogout={handleLogout} /></ProtectedRoute>} />
         <Route path="/leaves" element={<ProtectedRoute allowedRoles={['admin']} onLogout={handleLogout} fallbackPath="/login"><LeaveManagement onLogout={handleLogout} /></ProtectedRoute>} />
