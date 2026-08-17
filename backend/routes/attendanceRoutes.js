@@ -95,7 +95,7 @@ const isAttendanceWindowOpen = (dateObj = new Date()) => {
   const hour = istDate.getHours();
   const minute = istDate.getMinutes();
   const currentMinutes = hour * 60 + minute;
-  return currentMinutes >= 0 && currentMinutes < 1440;
+  return currentMinutes >= 1260 && currentMinutes < 1440;
 };
 
 const getDatesInRange = (startDate, endDate) => {

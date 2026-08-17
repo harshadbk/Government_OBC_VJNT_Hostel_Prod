@@ -1,11 +1,9 @@
 import os
 from typing import Any
-
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-
 import llm_service
 import server as mcp_server
 
@@ -90,7 +88,6 @@ def ask(request: QueryRequest) -> QueryResponse:
         result["session_id"] = request.session_id
         return QueryResponse(**result)
     except Exception as exc:
-        # Graceful fallback response instead of crash
         return QueryResponse(
             success=False,
             question=request.question,
