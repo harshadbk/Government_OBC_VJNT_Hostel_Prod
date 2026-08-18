@@ -1,21 +1,23 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   FiShield,
   FiArrowRight,
   FiLock,
   FiMessageSquare,
-  FiAlertCircle
-} from 'react-icons/fi';
-import useInView from '../../hooks/useInView';
-import homeImage from '../../../assets/home.png';
+  FiAlertCircle,
+} from "react-icons/fi";
+import useInView from "../../hooks/useInView";
+import homeImage from "../../../assets/home.png";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 
 export default function HeroSection() {
   const [ref, visible] = useInView();
   const [communityCount, setCommunityCount] = useState(0);
   const [complaintCount, setComplaintCount] = useState(0);
+
+  const isLoggedIn = !!localStorage.getItem("hostelToken");
 
   useEffect(() => {
     let isMounted = true;
@@ -46,18 +48,20 @@ export default function HeroSection() {
     <section className="hero-section" ref={ref}>
       <div className="hero-bg-pattern" aria-hidden="true" />
 
-      <div className={`hero-copy ${visible ? 'visible' : ''}`}>
+      <div className={`hero-copy ${visible ? "visible" : ""}`}>
         <div className="hero-eyebrow">
           <FiShield /> Official Government Portal
         </div>
 
         <h1 className="hero-title">
-          Government OBC Boys Hostel, <span className="highlight-text">Sangli</span>
+          Government OBC Boys Hostel,{" "}
+          <span className="highlight-text">Sangli</span>
         </h1>
 
         <p className="hero-subtitle">
-          Providing a safe, disciplined, and supportive residential environment for students 
-          pursuing higher education under the Government of Maharashtra.
+          Providing a safe, disciplined, and supportive residential environment
+          for students pursuing higher education under the Government of
+          Maharashtra.
         </p>
 
         {/* Clean Standard Buttons (Blue Primary & Secondary) */}
@@ -74,25 +78,33 @@ export default function HeroSection() {
 
         {/* Quick Access Badges with Real Live Message & Response Counts */}
         <div className="hero-stats">
-          <Link to="/community" className="stat-pill counter-pill">
-            <FiMessageSquare />
-            <span>Community</span>
-            {communityCount > 0 && (
-              <span className="stat-counter-badge green-badge">{communityCount}</span>
-            )}
-          </Link>
+          {isLoggedIn && (
+            <Link to="/community" className="stat-pill counter-pill">
+              <FiMessageSquare />
+              <span>Community</span>
+
+              {communityCount > 0 && (
+                <span className="stat-counter-badge green-badge">
+                  {communityCount}
+                </span>
+              )}
+            </Link>
+          )}
 
           <Link to="/complaints" className="stat-pill counter-pill">
             <FiAlertCircle />
             <span>Complaint Box</span>
+
             {complaintCount > 0 && (
-              <span className="stat-counter-badge red-badge">{complaintCount}</span>
+              <span className="stat-counter-badge red-badge">
+                {complaintCount}
+              </span>
             )}
           </Link>
         </div>
       </div>
 
-      <div className={`hero-visual ${visible ? 'visible' : ''}`}>
+      <div className={`hero-visual ${visible ? "visible" : ""}`}>
         <div className="hero-illustration">
           <img
             className="hero-main-image"
