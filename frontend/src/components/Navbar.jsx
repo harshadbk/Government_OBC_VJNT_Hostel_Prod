@@ -19,7 +19,7 @@ function Navbar({ user, profileImage, onLogout, darkMode, onToggleDarkMode }) {
     { label: 'Facilities', to: '/facilities' },
     { label: 'Gallery', to: '/gallery' },
     { label: 'Admission', to: '/admission' },
-    { label: 'Complaint', to: '/complaints' },
+    ...(user ? [{ label: 'Complaint', to: '/complaints' }]:[]),
     { label: 'Contact', to: '/contact' },
     ...(user ? [{ label: 'Community', to: '/community' }] : []),
   ];

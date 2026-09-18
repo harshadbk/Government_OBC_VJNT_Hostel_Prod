@@ -123,6 +123,42 @@ const getRecentDateStrings = (days, endDateObj = new Date()) => {
   return dates;
 };
 
+export const resolveAbsentsDateRange = ({ date, year, month } = {}) => {
+  const rawDateValue = typeof date === 'string' ? date.trim() : date;
+  const selectedDate = DATE_PATTERN.test(rawDateValue || '') ? rawDateValue : null;
+
+  if (selectedDate) {
+    return {
+      startDate: selectedDate,
+      endDate: selectedDate,
+      selectedDate,
+      isSingleDate: true
+    };
+  }
+
+  const selectedYear = Number(year) || new Date().getFullYear();
+  const selectedMonth = Number(month) || (new Date().getMonth() + 1);
+
+  if (!Number.isInteger(selectedYear) || selectedYear < 2000 || selectedYear > 2100) {
+    throw new Error('Year must be between 2000 and 2100.');
+  }
+  if (!Number.isInteger(selectedMonth) || selectedMonth < 1 || selectedMonth > 12) {
+    throw new Error('Month must be between 1 and 12.');
+  }
+
+  const monthStr = String(selectedMonth).padStart(2, '0');
+  const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+  const startDate = `${selectedYear}-${monthStr}-01`;
+  const endDate = `${selectedYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+
+  return {
+    startDate,
+    endDate,
+    selectedDate: null,
+    isSingleDate: false
+  };
+};
+
 const isDateCoveredByLeave = (leave, date) => {
   if (!leave || leave.status !== 'Approved') return false;
   if (leave.startDate > date || leave.endDate < date) return false;
@@ -408,32 +444,27 @@ router.get('/absence-alerts', adminAuth, async (req, res) => {
 
 router.get('/absents', adminAuth, async (req, res) => {
   try {
-    const selectedYear = Number(req.query.year) || new Date().getFullYear();
-    const selectedMonth = Number(req.query.month) || (new Date().getMonth() + 1);
+    const range = resolveAbsentsDateRange({
+      date: req.query.date,
+      year: req.query.year,
+      month: req.query.month
+    });
 
-    if (!Number.isInteger(selectedYear) || selectedYear < 2000 || selectedYear > 2100) {
-      return res.status(400).json({ message: 'Year must be between 2000 and 2100.' });
-    }
-    if (!Number.isInteger(selectedMonth) || selectedMonth < 1 || selectedMonth > 12) {
-      return res.status(400).json({ message: 'Month must be between 1 and 12.' });
-    }
-
-    const monthStr = String(selectedMonth).padStart(2, '0');
-    const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
-    const startDate = `${selectedYear}-${monthStr}-01`;
-    const endDate = `${selectedYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
-    const students = await getUnapprovedAbsenceRows(startDate, endDate);
+    const students = await getUnapprovedAbsenceRows(range.startDate, range.endDate);
 
     res.json({
-      year: selectedYear,
-      month: selectedMonth,
-      startDate,
-      endDate,
+      year: Number(range.startDate.slice(0, 4)),
+      month: Number(range.startDate.slice(5, 7)),
+      startDate: range.startDate,
+      endDate: range.endDate,
+      selectedDate: range.selectedDate,
+      isSingleDate: range.isSingleDate,
       students
     });
   } catch (error) {
     console.error('Error fetching unapproved absents:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    const message = error.message || 'Server error';
+    res.status(400).json({ message });
   }
 });
 

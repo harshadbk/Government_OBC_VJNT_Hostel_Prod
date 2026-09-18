@@ -18,8 +18,8 @@ function AttendanceVisuals({ onLogout }) {
   const [attendanceReport, setAttendanceReport] = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState("");
-  const [absentMonth, setAbsentMonth] = useState(() =>
-    new Date().toISOString().slice(0, 7),
+  const [absentDate, setAbsentDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
   );
   const [absentReport, setAbsentReport] = useState(null);
   const [absentsLoading, setAbsentsLoading] = useState(false);
@@ -79,9 +79,8 @@ function AttendanceVisuals({ onLogout }) {
         if (!token) return;
         setAbsentsLoading(true);
         setAbsentsError("");
-        const [year, month] = absentMonth.split("-");
         const response = await fetch(
-          `${apiBaseUrl}/api/attendance/absents?year=${year}&month=${Number(month)}`,
+          `${apiBaseUrl}/api/attendance/absents?date=${absentDate}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -99,7 +98,7 @@ function AttendanceVisuals({ onLogout }) {
     };
 
     fetchAbsents();
-  }, [absentMonth]);
+  }, [absentDate]);
 
   const generateAttendanceReport = async (event) => {
     event.preventDefault();
@@ -155,6 +154,7 @@ function AttendanceVisuals({ onLogout }) {
     .join(" ");
   const reportDatesList = attendanceReport?.dates || [];
   const reportStudents = attendanceReport?.students || [];
+  const todaysAbsentCount = absentReport?.students?.length ?? 0;
 
   return (
     <div className="dashboard-shell admin-dashboard-shell">
@@ -371,11 +371,16 @@ function AttendanceVisuals({ onLogout }) {
             <label className="attendance-filter">
               <FiCalendar />
               <input
-                type="month"
-                value={absentMonth}
-                onChange={(e) => setAbsentMonth(e.target.value)}
+                type="date"
+                value={absentDate}
+                onChange={(e) => setAbsentDate(e.target.value)}
               />
             </label>
+          </div>
+
+          <div className="attendance-report-summary" style={{ marginBottom: "1rem" }}>
+            <strong>{absentDate}</strong>
+            <span>{todaysAbsentCount} students absent without leave</span>
           </div>
 
           {absentsLoading ? (
@@ -384,9 +389,9 @@ function AttendanceVisuals({ onLogout }) {
             </p>
           ) : absentsError ? (
             <p className="attendance-report-error">{absentsError}</p>
-          ) : !absentReport || (absentReport.students || []).length === 0 ? (
+          ) : !absentReport || todaysAbsentCount === 0 ? (
             <p className="empty-state">
-              No absent-without-leave records found for this month.
+              No absent-without-leave records found for this date.
             </p>
           ) : (
             <div className="table-wrapper">
@@ -396,7 +401,7 @@ function AttendanceVisuals({ onLogout }) {
                     <th>Student</th>
                     <th>Room</th>
                     <th>Absent Count</th>
-                    <th>Absent Dates</th>
+                    <th>Absent Date</th>
                     <th>Phone</th>
                   </tr>
                 </thead>
@@ -415,7 +420,7 @@ function AttendanceVisuals({ onLogout }) {
                           {student.absentCount}
                         </strong>
                       </td>
-                      <td>{(student.absentDates || []).join(", ")}</td>
+                      <td>{(student.absentDates || []).join(", ") || absentDate}</td>
                       <td>{student.phone || "-"}</td>
                     </tr>
                   ))}
