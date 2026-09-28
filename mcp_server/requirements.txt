@@ -1,6 +1,6 @@
 mcp[cli]
 pymongo
 python-dotenv
-fastapi
+fastapi>=0.141.1
 uvicorn
 tzdata

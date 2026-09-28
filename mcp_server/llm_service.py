@@ -1,9 +1,10 @@
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -11,21 +12,28 @@ from dotenv import load_dotenv
 
 import server as mcp_server
 
-load_dotenv()
+load_dotenv(Path(__file__).with_name(".env"))
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-# Default to high-capability 70B model with fallback to 8B model
+# First model is preferred; the rest are fallbacks. Override with GROQ_MODEL / GROQ_FALLBACK_MODELS (comma separated).
 GROQ_MODELS = [
-    os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
-    "llama-3.1-8b-instant",
+    m.strip()
+    for m in [os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")]
+    + os.getenv("GROQ_FALLBACK_MODELS", "qwen/qwen3.8-27b,openai/gpt-oss-20b").split(",")
+    if m.strip()
 ]
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+MAX_TOOL_TURNS = 8
+MAX_TOOL_RESULT_CHARS = 9000
 MAX_MEMORY_TURNS = 12
 MEMORY_FILE = Path(__file__).with_name(".conversation_memory.json")
 
-# Asia/Kolkata timezone
-IST = timezone(timedelta(hours=5, minutes=30), name="Asia/Kolkata")
+IST = mcp_server.IST
 
+
+# ============================================================================
+# CONVERSATION MEMORY
+# ============================================================================
 
 def load_memory() -> dict[str, list[dict[str, Any]]]:
     """Load conversation history for chat sessions."""
@@ -63,217 +71,297 @@ def remember_interaction(session_id: str | None, question: str, answer: str, too
     save_memory(memory)
 
 
+# ============================================================================
+# TOOL DEFINITIONS (derived from the MCP server - single source of truth)
+# ============================================================================
+
+def _simplify_schema(schema: Any) -> Any:
+    """Strip pydantic noise (titles, Optional anyOf-null wrappers) so smaller LLMs read schemas reliably."""
+    if isinstance(schema, list):
+        return [_simplify_schema(s) for s in schema]
+    if not isinstance(schema, dict):
+        return schema
+    if "anyOf" in schema:
+        options = [o for o in schema["anyOf"] if o.get("type") != "null"]
+        if len(options) == 1:
+            merged = {**{k: v for k, v in schema.items() if k != "anyOf"}, **options[0]}
+            return _simplify_schema(merged)
+    out: dict[str, Any] = {}
+    for key, value in schema.items():
+        if key in {"title", "default"}:
+            continue
+        if key == "additionalProperties" and value is True:
+            continue
+        out[key] = _simplify_schema(value) if key != "properties" else {k: _simplify_schema(v) for k, v in value.items()}
+    return out
+
+
+def _compact_param_descriptions(schema: dict[str, Any], max_len: int = 110) -> dict[str, Any]:
+    for prop in schema.get("properties", {}).values():
+        desc = prop.get("description")
+        if desc and len(desc) > max_len:
+            prop["description"] = desc[:max_len].rsplit(" ", 1)[0] + "..."
+    return schema
+
+
 def get_mcp_tool_definitions() -> list[dict[str, Any]]:
-    """Return JSON schemas of general-purpose FastMCP server tools for Groq LLM."""
-    return [
-        {
+    """OpenAI-style tool definitions for every registered MCP tool.
+    Kept compact because the full list is re-sent on every turn (Groq free tier is ~8k tokens/minute)."""
+    definitions = []
+    for tool in mcp_server.get_tool_schemas():
+        description = re.sub(r"\s+", " ", tool["description"]).strip()
+        if len(description) > 260:
+            description = description[:260].rsplit(" ", 1)[0] + "..."
+        params = _simplify_schema(tool["parameters"])
+        if tool["name"] != "aggregate_documents":  # keep the pipeline example intact
+            params = _compact_param_descriptions(params)
+        definitions.append({
             "type": "function",
             "function": {
-                "name": "list_collections",
-                "description": "List all allowed hostel database collections, descriptions, and current document counts.",
-                "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+                "name": tool["name"],
+                "description": description,
+                "parameters": params,
             },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "describe_schema",
-                "description": "Describe queryable schema and fields for all collections or a specific collection.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "collection_name": {
-                            "type": "string",
-                            "description": "Optional collection name ('users', 'attendances', 'leaveapplications', 'notices', 'staffs', 'admins').",
-                        },
-                    },
-                    "additionalProperties": False,
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_database_stats",
-                "description": "Get high-level aggregated statistics of the hostel database (total students, total distinct rooms, notices, pending leaves, approved leaves, staff, and breakdowns).",
-                "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "find_documents",
-                "description": "Query documents from any collection with safe filter, projection, sort, and limit. Use to lookup students by name/room/department/year/district, notices, leaves, or staff.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "collection": {
-                            "type": "string",
-                            "description": "Collection name ('users', 'attendances', 'leaveapplications', 'notices', 'staffs', 'uploads', 'channels', 'messages', 'admins').",
-                        },
-                        "filter": {
-                            "type": "object",
-                            "description": "Safe MongoDB filter (e.g. {'roomNumber': '14'}, {'department': 'Computer'}, {'fullName': {'$regex': 'Rahul', '$options': 'i'}}, {'district': 'Pune'}, {'status': 'Pending'}).",
-                        },
-                        "projection": {
-                            "type": "object",
-                            "description": "Optional fields to include (e.g. {'fullName': 1, 'roomNumber': 1, 'department': 1, 'year': 1}).",
-                        },
-                        "sort": {
-                            "type": "object",
-                            "description": "Optional sort order (e.g. {'createdAt': -1}, {'roomNumber': 1}).",
-                        },
-                        "limit": {
-                            "type": "integer",
-                            "description": "Max documents to return (default 20, max 50).",
-                        },
-                    },
-                    "required": ["collection"],
-                    "additionalProperties": False,
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "count_documents",
-                "description": "Count matching documents in any collection (e.g. total students, pending leaves, students in a room or department).",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "collection": {"type": "string", "description": "Collection name."},
-                        "filter": {"type": "object", "description": "Optional filter query (e.g. {'status': 'Pending'}, {'department': 'Civil'})."},
-                    },
-                    "required": ["collection"],
-                    "additionalProperties": False,
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "aggregate_documents",
-                "description": "Execute a safe read-only aggregation pipeline ($match, $project, $sort, $limit, $group, $unwind, $count) for grouping, counting by department/year/block/district, or complex analytics.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "collection": {"type": "string", "description": "Collection name."},
-                        "pipeline": {
-                            "type": "array",
-                            "items": {"type": "object"},
-                            "description": "Aggregation pipeline stages (e.g. [{'$group': {'_id': '$department', 'count': {'$sum': 1}}}, {'$sort': {'count': -1}}]).",
-                        },
-                        "limit": {"type": "integer", "description": "Max documents (max 50)."},
-                    },
-                    "required": ["collection", "pipeline"],
-                    "additionalProperties": False,
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "search_database",
-                "description": "Perform a global multi-collection keyword search across student profiles, notices, staff, and leave applications.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "Keyword to search (name, roll number, room, district, notice title, staff position)."},
-                        "limit": {"type": "integer", "description": "Max results per collection."},
-                    },
-                    "required": ["query"],
-                    "additionalProperties": False,
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_daily_attendance",
-                "description": "Query daily hostel attendance for a specific date or latest date (Asia/Kolkata timezone) with status breakdown ('Present', 'Absent', 'Leave') and student lists.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "attendance_date": {
-                            "type": "string",
-                            "description": "Date in YYYY-MM-DD format (or 'latest'). Defaults to latest available date in IST.",
-                        },
-                        "status": {
-                            "type": "string",
-                            "description": "Optional status filter ('Present', 'Absent', 'Leave'). If omitted, returns total counts for all statuses.",
-                        },
-                        "student_username": {
-                            "type": "string",
-                            "description": "Optional student username to check attendance status for.",
-                        },
-                    },
-                    "additionalProperties": False,
-                },
-            },
-        },
-    ]
+        })
+    return definitions
 
 
-def call_llm(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None, model_name: str | None = None) -> dict[str, Any]:
-    """Execute chat completion request against Groq LLM API with fallback support."""
+# Generic tools can answer any question; domain tools are added when the question mentions their topic.
+CORE_TOOLS = {"find_documents", "count_documents", "aggregate_documents", "get_distinct_values", "group_and_count", "search_database"}
+TOPIC_TOOLS: list[tuple[str, set[str]]] = [
+    (r"attend|absent|present|bunk|defaulter|percent|%", {"get_daily_attendance", "get_attendance_report"}),
+    (r"room|roommate|occupan|lives?\b|staying", {"get_room_details", "find_students"}),
+    (r"leave|holiday|going home|on leave|comeback|return", {"get_leave_applications"}),
+    (r"complain|issue|problem|mainten|electric|plumb|clean|wifi|wi-fi|mess|food", {"get_complaints"}),
+    (r"document|certificate|aadha|marksheet|bonafide|domicile|income|upload|submission", {"get_document_status"}),
+    (r"message|chat|community|announcement|reported|moderat|spam", {"get_community_messages"}),
+    (r"recent|new|latest|last \d+ days|this week|past week|activity|today", {"get_recent_activity"}),
+    (r"overview|stats|statistic|summary|dashboard|total|how many|count|staff|warden|rector|admin", {"get_database_stats"}),
+    (r"schema|collection|field|table|structure", {"describe_schema", "list_collections"}),
+    (r"student|who|name|profile|about|detail|department|dept|year|college|district|taluka|village|caste|obc|vjnt|stream|roll", {"find_students", "get_student_profile"}),
+]
+
+
+def select_tools(question: str, history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Pick the tools relevant to this question (plus recent context) to stay within the LLM token budget."""
+    text = " ".join([question] + [m.get("content", "") for m in history[-2:] if m.get("role") == "user"]).lower()
+    wanted = set(CORE_TOOLS)
+    for pattern, names in TOPIC_TOOLS:
+        if re.search(pattern, text):
+            wanted |= names
+    if wanted == CORE_TOOLS:  # nothing matched: likely a name or free-form question
+        wanted |= {"find_students", "get_student_profile", "get_database_stats"}
+    return [t for t in get_mcp_tool_definitions() if t["function"]["name"] in wanted]
+
+
+# ============================================================================
+# GROQ CLIENT
+# ============================================================================
+
+class LLMError(RuntimeError):
+    def __init__(self, message: str, rate_limited: bool = False):
+        super().__init__(message)
+        self.rate_limited = rate_limited
+
+
+def _post_groq(payload: dict[str, Any]) -> dict[str, Any]:
+    req = urllib.request.Request(
+        GROQ_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json",
+            "User-Agent": "Hostel-MCP-Server/3.0",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=60) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def call_llm(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None, tool_choice: str = "auto") -> dict[str, Any]:
+    """Chat completion against Groq with model fallback, rate-limit retry and readable errors."""
     if not GROQ_API_KEY:
-        raise ValueError("GROQ_API_KEY is not configured in environment variables.")
+        raise LLMError("GROQ_API_KEY is not configured in environment variables.")
 
-    candidate_models = [model_name] if model_name else GROQ_MODELS
-    last_err: Exception | None = None
-
-    for model in candidate_models:
-        if not model:
-            continue
+    for round_no in range(2):
         try:
-            payload: dict[str, Any] = {
-                "model": model,
-                "messages": messages,
-                "temperature": 0.1,
-            }
-            if tools:
-                payload["tools"] = tools
-                payload["tool_choice"] = "auto"
+            return _call_models(messages, tools, tool_choice)
+        except LLMError as exc:
+            # Every model hit its per-minute limit: wait for the window to reset once, then retry
+            if round_no == 0 and exc.rate_limited:
+                time.sleep(RATE_LIMIT_RESET_WAIT)
+                continue
+            raise
+    raise LLMError("unreachable")
 
-            req = urllib.request.Request(
-                GROQ_API_URL,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json",
-                    "User-Agent": "Hostel-MCP-Server/2.0",
-                },
-            )
 
-            with urllib.request.urlopen(req, timeout=35) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except Exception as exc:
-            last_err = exc
-            continue
+RATE_LIMIT_RESET_WAIT = 25
 
-    raise RuntimeError(f"All Groq models failed. Last error: {last_err}")
+
+def _call_models(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None, tool_choice: str) -> dict[str, Any]:
+    errors: list[str] = []
+    rate_limited = True
+    for model in GROQ_MODELS:
+        payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": 0.1, "max_tokens": 2500}
+        if model.startswith("openai/gpt-oss"):
+            payload["reasoning_effort"] = "medium"
+        elif model.startswith("qwen/"):
+            payload["reasoning_format"] = "hidden"
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = tool_choice
+
+        for attempt in range(2):
+            try:
+                result = _post_groq(payload)
+                result["_model"] = model
+                return result
+            except urllib.error.HTTPError as exc:
+                body = exc.read().decode("utf-8", errors="replace")
+                try:
+                    err = json.loads(body).get("error", {})
+                except json.JSONDecodeError:
+                    err = {"message": body[:300]}
+                # The model produced a malformed tool call: recover it from failed_generation if possible
+                if err.get("code") == "tool_use_failed" and err.get("failed_generation"):
+                    recovered = extract_text_tool_calls(err["failed_generation"])
+                    if recovered:
+                        return {"_model": model, "choices": [{"message": {"role": "assistant", "content": None, "tool_calls": recovered}}]}
+                if exc.code == 429 and attempt == 0:
+                    # Per-minute token limit: a short wait on the preferred model beats a weaker fallback
+                    hint = re.search(r"try again in ([\d.]+)s", err.get("message", ""))
+                    wait = float(hint.group(1)) if hint else float(exc.headers.get("retry-after", "5") or 5)
+                    if wait <= 20:
+                        time.sleep(wait + 0.5)
+                        continue
+                rate_limited &= exc.code in (413, 429)
+                errors.append(f"{model}: HTTP {exc.code} {err.get('message', '')[:200]}")
+                break
+            except Exception as exc:  # network errors, timeouts
+                rate_limited = False
+                errors.append(f"{model}: {exc}")
+                break
+    raise LLMError("All Groq models failed. " + " | ".join(errors), rate_limited=rate_limited)
 
 
 def extract_text_tool_calls(text: str) -> list[dict[str, Any]]:
-    """Extract tool calls if model emitted XML pseudo-tags like <find_documents>{...}</find_documents>."""
+    """Recover tool calls a model wrote as text, e.g. <find_documents>{...}</find_documents>
+    or {"name": "find_documents", "arguments": {...}}."""
     if not text:
         return []
-    calls = []
+    calls: list[dict[str, Any]] = []
     for tool_name in mcp_server.TOOLS_MAP:
-        pattern = rf"<{tool_name}>(.*?)</{tool_name}>"
-        matches = re.findall(pattern, text, re.DOTALL)
-        for match in matches:
+        for match in re.findall(rf"<{tool_name}>(.*?)</{tool_name}>", text, re.DOTALL):
             try:
-                args = json.loads(match.strip())
-            except Exception:
+                args = json.loads(match.strip() or "{}")
+            except json.JSONDecodeError:
                 args = {}
-            calls.append({
-                "function": {
-                    "name": tool_name,
-                    "arguments": json.dumps(args),
-                }
-            })
-    return calls
+            calls.append({"name": tool_name, "arguments": args})
+        for match in re.findall(rf"<function={tool_name}>?\s*(\{{.*?\}})\s*</function>", text, re.DOTALL):
+            try:
+                calls.append({"name": tool_name, "arguments": json.loads(match)})
+            except json.JSONDecodeError:
+                pass
+    if not calls:
+        try:
+            obj = json.loads(text.strip())
+            if isinstance(obj, dict) and obj.get("name") in mcp_server.TOOLS_MAP:
+                args = obj.get("arguments") or obj.get("parameters") or {}
+                calls.append({"name": obj["name"], "arguments": json.loads(args) if isinstance(args, str) else args})
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return [
+        {"id": f"call_text_{i}", "type": "function", "function": {"name": c["name"], "arguments": json.dumps(c["arguments"])}}
+        for i, c in enumerate(calls)
+    ]
+
+
+def _compact_json(data: Any) -> str:
+    """Serialize a tool result for the LLM, trimming oversized lists so it fits the context budget."""
+    text = json.dumps(mcp_server.serialize(data), ensure_ascii=False, separators=(",", ":"))
+    if len(text) <= MAX_TOOL_RESULT_CHARS:
+        return text
+
+    def shrink(value: Any, max_items: int) -> Any:
+        if isinstance(value, list):
+            trimmed = [shrink(v, max_items) for v in value[:max_items]]
+            if len(value) > max_items:
+                trimmed.append(f"... {len(value) - max_items} more items omitted (use filters/limit/skip or an aggregate count)")
+            return trimmed
+        if isinstance(value, dict):
+            return {k: shrink(v, max_items) for k, v in value.items()}
+        if isinstance(value, str) and len(value) > 400:
+            return value[:400] + "..."
+        return value
+
+    for max_items in (60, 30, 15, 8, 4):
+        text = json.dumps(shrink(mcp_server.serialize(data), max_items), ensure_ascii=False, separators=(",", ":"))
+        if len(text) <= MAX_TOOL_RESULT_CHARS:
+            return text
+    return text[:MAX_TOOL_RESULT_CHARS] + '..."[truncated]"'
+
+
+# ============================================================================
+# ORCHESTRATION
+# ============================================================================
+
+def build_system_prompt() -> str:
+    now = datetime.now(IST)
+    return f"""You are the AI data assistant for a Government OBC/VJNT Boys Hostel Management System.
+You answer admin questions using ONLY data returned by the read-only database tools.
+Current date/time: {now:%Y-%m-%d %H:%M} (Asia/Kolkata). Database: {mcp_server.DATABASE_NAME}.
+
+COLLECTIONS
+- users: every document is a resident student. username, fullName, rollNumber, department, year, roomNumber,
+  college_name, stream, village, taluka, district, caste, casteCategory (OBC/VJNT/NT-C), admissionDate, createdAt.
+  Values are free text typed by students (e.g. department 'CSE', 'cse', 'Computer Engineering ', many empty).
+- attendances: one doc per day {{date:'YYYY-MM-DD', students:[{{username, roomNumber, status:'Present'|'Absent'}}], markedBy}}.
+- leaveapplications: username, fullName, reason, startDate, endDate ('YYYY-MM-DD'), status Pending/Approved/Rejected, comebackMarked.
+- complaints: title, description, category, priority Low/Medium/High/Urgent, status Pending/In Progress/Resolved/Rejected, roomNumber, isAnonymous, adminResponse.
+- notices (title, content, severity low/medium/high), staffs (name, position), admins (username, role, status),
+  documents (which certificates each student uploaded), uploads (document requests + submissions),
+  messages (community chat), messagereports (moderation reports).
+Contact details, passwords, bank/Aadhaar data and file URLs are private and never available.
+
+HOW TO WORK
+1. Greetings/small talk/questions about yourself: reply briefly without tools.
+2. Any question about hostel data: ALWAYS call tools first; never answer from memory or guess.
+3. Prefer specialised tools: get_student_profile (one student), find_students (lists/filters), get_room_details,
+   get_daily_attendance (one day), get_attendance_report (date ranges, percentages, defaulters), get_leave_applications,
+   get_complaints, get_document_status, get_community_messages, get_recent_activity, get_database_stats,
+   group_and_count (counts per department/district/room/etc). get_room_details() with no room lists every room with occupants.
+   Use find_documents / count_documents / aggregate_documents for anything else, and get_distinct_values to learn real
+   spellings before filtering free-text fields. For complex questions chain several tool calls.
+4. If a filter returns nothing, retry once with a broader/partial match (e.g. find_students(department='comp'))
+   or check get_distinct_values before concluding.
+5. If the data truly isn't there, say clearly: "This information is not available in the hostel database" (and say
+   what is missing, e.g. "no leave applications have been submitted yet" or "department is not filled for 46 students").
+   Never invent names, numbers or dates.
+6. Relative dates ('today', 'yesterday', 'last week', 'this month') are relative to the current IST date above.
+   If today's attendance is not marked yet, say so and give the latest recorded date.
+7. If several students match a name, list the candidates and ask which one.
+
+ANSWER STYLE
+- Lead with the direct answer (exact numbers), then supporting details.
+- Use short markdown lists or tables for multiple students; show full name (or username if name empty) and room.
+- Mention when a list was truncated and the total count.
+- Keep answers concise and factual."""
+
+
+def _normalize_history(history: list[dict[str, Any]] | None, session_id: str | None) -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = []
+    if history:
+        for msg in history[-8:]:
+            role = str(msg.get("role", "user")).lower()
+            role = "assistant" if role in {"assistant", "bot", "ai", "model"} else "user"
+            content = str(msg.get("content") or msg.get("text") or "").strip()
+            if content:
+                messages.append({"role": role, "content": content[:2000]})
+    elif session_id:
+        for item in load_memory().get(session_id, [])[-4:]:
+            messages.append({"role": "user", "content": item["question"]})
+            messages.append({"role": "assistant", "content": item["answer"][:2000]})
+    return messages
 
 
 def execute_llm_mcp_pipeline(
@@ -281,234 +369,165 @@ def execute_llm_mcp_pipeline(
     session_id: str | None = None,
     history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Orchestrate User -> Groq LLM -> MCP Client -> FastMCP Server Tools -> MongoDB."""
-    today_ist = datetime.now(IST).strftime("%Y-%m-%d")
-    system_prompt = (
-        f"You are the Expert AI Assistant for the Government OBC/VJNT Hostel Management System.\n"
-        f"Database Name: {mcp_server.DATABASE_NAME} | Timezone: Asia/Kolkata | Current Date: {today_ist}\n\n"
-        f"COLLECTIONS & SCHEMA:\n"
-        f"1. 'users' (all resident hostel students):\n"
-        f"   - Fields: username, fullName, rollNumber, department (e.g. Computer, IT, Mechanical, Civil, AIML), year (1, 2, 3, 4), hostelBlock (A, B, etc.), roomNumber ('14', '101', etc.), village, taluka, district, course, classYear, college_name, stream, admissionDate.\n"
-        f"2. 'attendances':\n"
-        f"   - Fields: date ('YYYY-MM-DD'), students: [{{ username, roomNumber, status: 'Present' | 'Absent' | 'Leave' }}], markedBy, firstSavedAt.\n"
-        f"3. 'leaveapplications':\n"
-        f"   - Fields: userId, username, fullName, reason, startDate, endDate, status ('Pending' | 'Approved' | 'Rejected'), adminNote, comebackMarked.\n"
-        f"4. 'notices':\n"
-        f"   - Fields: title, content, severity ('low', 'medium', 'high', 'urgent'), createdAt.\n"
-        f"5. 'staffs':\n"
-        f"   - Fields: name, position (e.g. Rector, Warden, Guard), createdAt.\n"
-        f"6. 'admins':\n"
-        f"   - Fields: username, role ('admin', 'attendance_taker'), status, isActive.\n"
-        f"7. 'uploads':\n"
-        f"   - Fields: title, description, dueDate, requestedBy, submissions.\n\n"
-        f"CORE INSTRUCTIONS:\n"
-        f"- For greetings, respond politely and briefly.\n"
-        f"- For database queries, ALWAYS call one or more FastMCP tools to fetch accurate real data.\n"
-        f"- Use find_documents, count_documents, aggregate_documents, get_daily_attendance, or search_database.\n"
-        f"- For names/strings matching, use case-insensitive regex: {{'fullName': {{'$regex': 'query', '$options': 'i'}}}} or search_database.\n"
-        f"- For room occupants, query collection 'users' with {{'roomNumber': '14'}}.\n"
-        f"- For attendance, use get_daily_attendance() (it automatically handles latest date in Asia/Kolkata).\n"
-        f"- Present answers clearly with exact numbers, occupant lists, or structured summaries. Never fabricate data."
-    )
-
-    messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
-
-    if history:
-        for msg in history[-8:]:
-            messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
-    elif session_id:
-        stored = load_memory().get(session_id, [])
-        for item in stored[-4:]:
-            messages.append({"role": "user", "content": item["question"]})
-            messages.append({"role": "assistant", "content": item["answer"]})
-
+    """User -> Groq LLM -> MCP tools -> MongoDB -> Groq LLM -> answer."""
+    prior = _normalize_history(history, session_id)
+    messages: list[dict[str, Any]] = [{"role": "system", "content": build_system_prompt()}, *prior]
     messages.append({"role": "user", "content": question})
 
-    tools = get_mcp_tool_definitions()
+    tools = select_tools(question, prior)
     executed_tools: list[dict[str, Any]] = []
+    model_used = None
 
-    for turn in range(5):
+    for turn in range(MAX_TOOL_TURNS):
         res = call_llm(messages, tools=tools)
+        model_used = res.get("_model")
         choice = res["choices"][0]["message"]
-        tool_calls = choice.get("tool_calls") or []
-
-        # If LLM generated text-based pseudo tool calls, parse and execute them
-        if not tool_calls:
-            text_content = choice.get("content") or ""
-            extracted = extract_text_tool_calls(text_content)
-            if extracted:
-                tool_calls = extracted
+        tool_calls = choice.get("tool_calls") or extract_text_tool_calls(choice.get("content") or "")
 
         if not tool_calls:
-            final_answer = choice.get("content") or "No response generated."
-            return {
-                "success": True,
-                "question": question,
-                "answer": final_answer,
-                "source": "groq-llm-direct" if turn == 0 else "groq-llm-with-mcp-tools",
-                "tools_used": executed_tools,
-                "data": executed_tools[-1]["data"] if executed_tools else None,
-            }
+            answer = _clean_answer(choice.get("content"))
+            return _result(question, answer or "I could not produce an answer.", executed_tools, model_used)
 
-        messages.append(choice)
+        # Only send back fields the API accepts
+        messages.append({"role": "assistant", "content": choice.get("content") or "", "tool_calls": tool_calls})
 
-        for tc in tool_calls:
+        for idx, tc in enumerate(tool_calls):
             func_name = tc["function"]["name"]
-            func_args_str = tc["function"].get("arguments") or "{}"
+            raw_args = tc["function"].get("arguments") or "{}"
             try:
-                func_args = json.loads(func_args_str)
-            except Exception:
+                func_args = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
+            except json.JSONDecodeError:
                 func_args = {}
-
-            tool_call_id = tc.get("id", f"call_{func_name}_{turn}")
+            tool_call_id = tc.get("id") or f"call_{turn}_{idx}"
+            tc["id"] = tool_call_id
 
             try:
                 tool_result = mcp_server.execute_tool(func_name, func_args)
             except Exception as exc:
-                tool_result = {"success": False, "error": str(exc)}
+                tool_result = {
+                    "success": False,
+                    "error": str(exc),
+                    "hint": "Fix the arguments and retry, or use another tool (describe_schema / get_distinct_values).",
+                }
 
-            executed_tools.append({
-                "tool": func_name,
-                "arguments": func_args,
-                "data": tool_result,
-            })
+            executed_tools.append({"tool": func_name, "arguments": func_args, "data": mcp_server.serialize(tool_result)})
+            messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": _compact_json(tool_result)})
 
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tool_call_id,
-                "content": json.dumps(mcp_server.serialize(tool_result), ensure_ascii=False),
-            })
+    # Out of tool turns: force a final answer from what was gathered
+    messages.append({"role": "user", "content": "Using only the tool results above, give the final answer now. If the data is insufficient, say what is not available."})
+    res = call_llm(messages)
+    return _result(question, _clean_answer(res["choices"][0]["message"].get("content")) or "I could not complete this query.", executed_tools, res.get("_model"))
 
+
+def _clean_answer(text: str | None) -> str:
+    """Remove any leaked reasoning tags."""
+    return re.sub(r"<think>.*?</think>", "", text or "", flags=re.DOTALL).strip()
+
+
+def _result(question: str, answer: str, executed_tools: list[dict[str, Any]], model: str | None) -> dict[str, Any]:
     return {
         "success": True,
         "question": question,
-        "answer": f"Executed {len(executed_tools)} MCP tools to query the database.",
-        "source": "groq-llm-max-iterations",
+        "answer": answer,
+        "source": f"groq:{model}" + ("+mcp-tools" if executed_tools else ""),
+        "iterations": len(executed_tools),
         "tools_used": executed_tools,
         "data": executed_tools[-1]["data"] if executed_tools else None,
     }
 
 
+# ============================================================================
+# DETERMINISTIC FALLBACK (used when the LLM is unavailable)
+# ============================================================================
+
+def _names(rows: list[dict[str, Any]]) -> str:
+    return ", ".join(f"{r.get('fullName') or r.get('username')} (room {r.get('roomNumber')})" for r in rows)
+
+
 def local_deterministic_fallback(question: str) -> dict[str, Any]:
-    """Deterministic fallback using FastMCP tools when LLM is unreachable."""
+    """Keyword-routed answers using MCP tools when the LLM is unreachable."""
     q = question.lower().strip()
 
-    if any(k in q for k in ["hello", "hi", "hey", "what can you do", "help me"]):
-        return {
-            "success": True,
-            "question": question,
-            "answer": (
-                "Hello! I am your Hostel Management AI Assistant. I can look up student records, "
-                "room allocations, attendance statistics, notices, staff members, and leave applications."
-            ),
-            "source": "conversational-fallback",
-        }
+    def reply(answer: str, data: Any = None) -> dict[str, Any]:
+        return {"success": True, "question": question, "answer": answer, "source": "deterministic-fallback", "data": data}
 
-    if any(token in q for token in ["by department", "by dept", "per department"]):
-        data = mcp_server.aggregate_documents(
-            "users",
-            pipeline=[{"$group": {"_id": "$department", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}],
+    if re.fullmatch(r"(hi|hello|hey|namaste|good (morning|afternoon|evening))[!. ]*", q) or "what can you do" in q:
+        return reply(
+            "Hello! I am the Hostel Management AI Assistant. Ask me about students, rooms, attendance, "
+            "leave applications, complaints, documents, notices, staff or community messages."
         )
-        docs = data.get("documents", [])
-        summary = ", ".join(f"{item.get('_id') or 'Unspecified'}: {item.get('count')}" for item in docs)
-        return {
-            "success": True,
-            "question": question,
-            "answer": f"Students breakdown by department: {summary}.",
-            "source": "deterministic-fallback",
-            "data": data,
-        }
 
-    if any(token in q for token in ["by year", "per year"]):
-        data = mcp_server.aggregate_documents(
-            "users",
-            pipeline=[{"$group": {"_id": "$year", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}],
-        )
-        docs = data.get("documents", [])
-        summary = ", ".join(f"{item.get('_id') or 'Unspecified'}: {item.get('count')}" for item in docs)
-        return {
-            "success": True,
-            "question": question,
-            "answer": f"Students breakdown by year: {summary}.",
-            "source": "deterministic-fallback",
-            "data": data,
-        }
+    group_match = re.search(r"by (department|dept|year|district|taluka|college|stream|room|caste category|category)", q)
+    if group_match:
+        field = {"dept": "department", "college": "college_name", "room": "roomNumber",
+                 "caste category": "casteCategory", "category": "casteCategory"}.get(group_match.group(1), group_match.group(1))
+        data = mcp_server.group_and_count("users", field)
+        summary = ", ".join(f"{g['value']}: {g['count']}" for g in data["groups"])
+        return reply(f"Students by {field}: {summary}.", data)
 
-    if any(k in q for k in ["stats", "overview", "total students", "summary", "how many students"]):
-        data = mcp_server.get_database_stats()
-        stats = data.get("stats", {})
-        ans = (
-            f"Hostel Overview (Asia/Kolkata): {stats.get('total_students')} registered students in {stats.get('total_distinct_rooms')} rooms. "
-            f"{stats.get('pending_leave_applications')} pending leave applications, {stats.get('total_notices')} notices, and {stats.get('total_staff')} staff members."
-        )
-        return {"success": True, "question": question, "answer": ans, "source": "deterministic-fallback", "data": data}
+    room = re.search(r"room\s*(?:no\.?|number)?\s*#?\s*(\d+)", q)
+    if room:
+        data = mcp_server.get_room_details(room.group(1))
+        occ = data["occupants"]
+        return reply(f"Room {room.group(1)} has {len(occ)} occupant(s): {_names([{**o, 'roomNumber': room.group(1)} for o in occ])}." if occ
+                     else f"No occupants found for room {room.group(1)}.", data)
 
-    if "room" in q:
-        match = re.search(r"room\s*(?:no\.?|number)?\s*([A-Za-z0-9_-]+)", question, re.IGNORECASE)
-        if match:
-            room_no = match.group(1)
-            data = mcp_server.find_documents("users", filter={"roomNumber": room_no})
-            docs = data.get("documents", [])
-            if docs:
-                names = [f"{d.get('fullName') or d.get('username')} ({d.get('department')}, Yr {d.get('year')})" for d in docs]
-                ans = f"Room {room_no} has {len(docs)} occupant(s): " + "; ".join(names) + "."
-            else:
-                ans = f"No occupants found for Room {room_no}."
-            return {"success": True, "question": question, "answer": ans, "source": "deterministic-fallback", "data": data}
+    if "attendance" in q or "absent" in q or "present" in q:
+        day = "yesterday" if "yesterday" in q else None
+        data = mcp_server.get_daily_attendance(day)
+        if not data.get("found"):
+            return reply(data.get("message", "No attendance found."), data)
+        text = f"Attendance on {data['date']}: {data['present']} present, {data['absent']} absent ({data['attendance_percent']}%)."
+        if "absent" in q and data.get("absent_students"):
+            text += " Absent: " + _names(data["absent_students"]) + "."
+        return reply(text, data)
 
-    if "absent" in q:
-        data = mcp_server.get_daily_attendance(status="Absent")
-        docs = data.get("students", [])
-        dt = data.get("date", "")
-        if docs:
-            ans = f"Found {len(docs)} absent student(s) on {dt} (Asia/Kolkata)."
-        else:
-            ans = f"No absent students recorded for {dt} (Asia/Kolkata)."
-        return {"success": True, "question": question, "answer": ans, "source": "deterministic-fallback", "data": data}
+    if "complaint" in q:
+        data = mcp_server.get_complaints()
+        return reply(f"{data['total_matched']} complaint(s). By status: {data['by_status'] or 'none'}.", data)
 
-    if "attendance" in q:
-        data = mcp_server.get_daily_attendance()
-        docs = data.get("status_counts", [])
-        dt = data.get("date", "")
-        if docs:
-            breakdown = ", ".join(f"{item.get('_id')}: {item.get('count')}" for item in docs)
-            ans = f"Attendance summary for {dt} (Asia/Kolkata): {breakdown}."
-        else:
-            ans = f"No attendance records found for {dt} (Asia/Kolkata)."
-        return {"success": True, "question": question, "answer": ans, "source": "deterministic-fallback", "data": data}
+    if "leave" in q:
+        data = mcp_server.get_leave_applications(on_leave_date="today" if "today" in q or "currently" in q else None)
+        return reply(data.get("note") or f"{data['total_matched']} leave application(s) found. Breakdown: {data['all_time_status_breakdown']}.", data)
 
     if "notice" in q:
         data = mcp_server.find_documents("notices", sort={"createdAt": -1}, limit=5)
-        docs = data.get("documents", [])
-        titles = [f"'{n.get('title')}'" for n in docs]
-        ans = f"Recent notices ({len(docs)}): " + ", ".join(titles) if docs else "No notices found."
-        return {"success": True, "question": question, "answer": ans, "source": "deterministic-fallback", "data": data}
+        titles = ", ".join(f"'{n.get('title')}'" for n in data["documents"])
+        return reply(f"Recent notices: {titles}." if titles else "No notices found.", data)
 
-    if "leave" in q:
-        data = mcp_server.find_documents("leaveapplications", sort={"submittedAt": -1}, limit=10)
-        docs = data.get("documents", [])
-        ans = f"Found {len(docs)} recent leave application(s)."
-        return {"success": True, "question": question, "answer": ans, "source": "deterministic-fallback", "data": data}
+    if any(k in q for k in ("staff", "warden", "rector", "guard")):
+        data = mcp_server.find_documents("staffs", limit=20)
+        staff = "; ".join(f"{s.get('name')} ({s.get('position')})" for s in data["documents"])
+        return reply(f"Hostel staff: {staff}." if staff else "No staff records found.", data)
 
-    if "staff" in q or "warden" in q or "rector" in q:
-        data = mcp_server.find_documents("staffs", limit=10)
-        docs = data.get("documents", [])
-        if docs:
-            staff_list = [f"{s.get('name')} ({s.get('position')})" for s in docs]
-            ans = f"Hostel Staff ({len(docs)}): " + "; ".join(staff_list) + "."
-        else:
-            ans = "No staff members found."
-        return {"success": True, "question": question, "answer": ans, "source": "deterministic-fallback", "data": data}
+    if "document" in q or "certificate" in q:
+        data = mcp_server.get_document_status(only_incomplete=True)
+        return reply(f"{data['fully_complete_students']} of {data['students_considered']} students have uploaded all documents; "
+                     f"{data['students_with_no_uploads']} have uploaded none.", data)
 
-    # Universal search fallback
-    data = mcp_server.search_database(question, limit=5)
-    return {
-        "success": True,
-        "question": question,
-        "answer": f"Searched database for '{question}'.",
-        "source": "search-fallback",
-        "data": data,
-    }
+    if any(k in q for k in ("stats", "overview", "summary", "how many students", "total students", "dashboard")):
+        data = mcp_server.get_database_stats()
+        s = data["stats"]
+        att = s["latest_attendance"]
+        return reply(
+            f"{s['total_students']} students in {s['occupied_rooms']} rooms. Latest attendance ({att.get('date')}): "
+            f"{att.get('present')} present, {att.get('absent')} absent. Complaints: {s['complaints']}. "
+            f"Leave applications: {s['leave_applications']}. Notices: {s['notices']}.", data)
+
+    # Try the question as a student lookup, then as a generic keyword search
+    words = [w for w in re.findall(r"[a-zA-Z_]{3,}", question) if w.lower() not in {
+        "who", "what", "where", "show", "tell", "about", "student", "details", "the", "give", "find", "info", "information", "please", "profile", "and"}]
+    if words:
+        profile = mcp_server.get_student_profile(" ".join(words[:3]))
+        if profile.get("found") and not profile.get("ambiguous"):
+            p = profile["profile"]
+            return reply(f"{p.get('fullName') or p.get('username')}: room {p.get('roomNumber')}, {p.get('department') or 'department not provided'}, "
+                         f"attendance {profile['attendance']['attendance_percent']}% over {profile['attendance']['days_considered']} days.", profile)
+
+    data = mcp_server.search_database(" ".join(words[:3]) or question, limit=5)
+    if data["total_matches"]:
+        return reply(f"Found {data['total_matches']} matching record(s) in: {', '.join(data['results'])}.", data)
+    return reply("This information is not available in the hostel database (the AI model is currently unreachable, so only simple lookups are supported).", data)
 
 
 def ask_question(
@@ -527,7 +546,10 @@ def ask_question(
             remember_interaction(session_id, clean_q, response.get("answer") or "", response.get("tools_used"))
             return response
         except Exception as exc:
-            fallback = local_deterministic_fallback(clean_q)
+            try:
+                fallback = local_deterministic_fallback(clean_q)
+            except Exception as fb_exc:
+                fallback = {"success": False, "question": clean_q, "answer": "Sorry, I could not answer that right now.", "error": str(fb_exc)}
             fallback["groq_error"] = f"LLM error: {exc}"
             remember_interaction(session_id, clean_q, fallback.get("answer") or "")
             return fallback

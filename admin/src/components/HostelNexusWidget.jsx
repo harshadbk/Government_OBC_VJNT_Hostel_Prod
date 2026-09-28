@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import MarkdownMessage from './MarkdownMessage';
 import './HostelNexusWidget.css';
 
 const FASTAPI_URL = import.meta.env.VITE_FASTAPI_URL || 'http://127.0.0.1:8000';
@@ -294,7 +295,9 @@ export default function HostelNexusWidget() {
               {messages.map((m) => (
                 <div key={m.id} className={`hostelnexus-msg ${m.from}`}>
                   <div className="hostelnexus-msg-content">
-                    <div className="hostelnexus-msg-text">{m.text}</div>
+                    <div className="hostelnexus-msg-text">
+                      {m.from === 'bot' ? <MarkdownMessage content={m.text} /> : m.text}
+                    </div>
                     {m.timestamp && (
                       <div className="msg-meta-row">
                         <span className="msg-time">{m.timestamp}</span>

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -7,11 +8,11 @@ from pydantic import BaseModel, Field
 import llm_service
 import server as mcp_server
 
-load_dotenv()
+load_dotenv(Path(__file__).with_name(".env"))
 
 app = FastAPI(
     title="Hostel Database MCP AI Server",
-    version="1.0.0",
+    version="3.0.0",
     description="FastAPI AI Chatbot Endpoint with separated Groq LLM Orchestration and FastMCP Server Tools.",
 )
 
@@ -54,11 +55,14 @@ def root() -> dict[str, Any]:
         "database": mcp_server.DATABASE_NAME,
         "collections": list(mcp_server.COLLECTIONS.keys()),
         "groq_llm_enabled": bool(os.getenv("GROQ_API_KEY")),
+        "groq_models": llm_service.GROQ_MODELS,
+        "tools": list(mcp_server.TOOLS_MAP),
         "mcp_server": "FastMCP with @mcp.tool()",
         "endpoints": {
             "root": "GET / (Default API Status)",
             "ask": "POST /ask (Send database questions - queries LLM first, selects MCP tools)",
             "collections": "GET /collections (List allowed database collections)",
+            "tools": "GET /tools (List MCP tools and their parameters)",
         },
         "docs": "/docs",
     }
@@ -74,6 +78,12 @@ def health() -> dict[str, Any]:
 def collections() -> dict[str, Any]:
     """List allowed collections and their approximate document counts."""
     return mcp_server.list_collections()
+
+
+@app.get("/tools")
+def tools() -> dict[str, Any]:
+    """List the read-only MCP tools available to the assistant."""
+    return {"success": True, "tools": mcp_server.get_tool_schemas()}
 
 
 @app.post("/ask", response_model=QueryResponse)
