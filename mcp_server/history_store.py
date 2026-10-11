@@ -61,7 +61,6 @@ def _post(entry: dict[str, Any]) -> bool:
             return 200 <= response.status < 300
     except urllib.error.HTTPError as exc:
         print(f"[history] backend rejected chat ({exc.code}): {exc.read().decode('utf-8', 'ignore')[:200]}")
-        # 4xx (bad key / bad payload) will not fix itself by retrying, so don't keep it in the backlog
         return 400 <= exc.code < 500
     except Exception as exc:
         print(f"[history] backend unreachable: {exc}")
@@ -99,7 +98,7 @@ def _send(entry: dict[str, Any]) -> None:
                 _flush_backlog()
             else:
                 _append_backlog(entry)
-        except Exception as exc:  # pragma: no cover - logging only
+        except Exception as exc:  
             print(f"[history] failed to save chat: {exc}")
 
 
@@ -133,7 +132,7 @@ def record(**kwargs: Any) -> None:
     """Queue one /ask interaction for storage. Never raises: history must not break answering."""
     try:
         entry = build_entry(**kwargs)
-    except Exception as exc:  # pragma: no cover - logging only
+    except Exception as exc:
         print(f"[history] could not build entry: {exc}")
         return
     if not MCP_HISTORY_KEY:

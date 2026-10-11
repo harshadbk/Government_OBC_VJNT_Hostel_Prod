@@ -147,3 +147,31 @@ Add this to your MCP config:
 cd mcp_server
 .\venv\Scripts\python.exe -m uvicorn api:app --reload
 ```
+
+---
+
+## Deployment (EC2)
+
+Live URLs:
+
+| Service | URL |
+|---|---|
+| MCP AI server (this folder) | https://mcp.hostelmanagement.online |
+| Node backend | https://api.hostelmanagement.online |
+
+`.env` on the EC2 instance needs, in addition to the MongoDB / Groq settings:
+
+```
+HOSTEL_API_HOST=127.0.0.1        # nginx proxies https://mcp.hostelmanagement.online -> 127.0.0.1:8000
+HOSTEL_API_PORT=8000
+BACKEND_API_URL=https://api.hostelmanagement.online
+MCP_HISTORY_KEY=<same value as MCP_HISTORY_KEY on the backend>
+```
+
+Chat history is sent to `POST {BACKEND_API_URL}/api/mcp-history` after every `/ask`. If the key is
+missing or does not match the backend's, chats are not saved (the assistant still answers) and the
+log shows `[history] ...`. Chats that fail because the backend is unreachable are kept in
+`history_backlog.jsonl` and re-sent automatically.
+
+The admin panel reads the MCP URL from `VITE_FASTAPI_URL` and history from `VITE_HISTORY_API_URL`
+(see `admin/.env.production`).

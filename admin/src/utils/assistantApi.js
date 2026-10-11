@@ -31,9 +31,10 @@ export async function checkHealth() {
   }
 }
 
-// Chat history is stored in MongoDB by the local backend; reading it needs the admin login.
-// Override with VITE_HISTORY_API_URL in admin/.env if the backend runs elsewhere.
-const BACKEND_URL = import.meta.env.VITE_HISTORY_API_URL || 'http://localhost:5000';
+// Chat history is stored in MongoDB by the backend; reading it needs the admin login,
+// so it must be the same backend the admin logged in through.
+const BACKEND_URL =
+  import.meta.env.VITE_HISTORY_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 async function backendRequest(path, options = {}) {
   const token = localStorage.getItem('adminToken');
