@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { FiHome, FiUser, FiPhone, FiBook, FiSearch, FiEye, FiTrash2 } from 'react-icons/fi';
+import toast, { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -10,6 +11,7 @@ function Users({ onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [feedback, setFeedback] = useState('');
+  useToastMessage(feedback);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
@@ -111,7 +113,7 @@ function Users({ onLogout }) {
         setFeedback('User deleted successfully.');
         setTimeout(() => setFeedback(''), 3500);
       } catch (err) {
-        setFeedback(err.message);
+        toast.error(err.message);
       }
     }
   };
@@ -193,7 +195,6 @@ function Users({ onLogout }) {
           </div>
         ) : (
           <div className="room-groups-container" style={{ display: 'grid', gap: '1.5rem', maxHeight: '70vh', overflowY: 'auto', paddingRight: '0.25rem' }}>
-            {feedback ? <div className="status-message">{feedback}</div> : null}
             {sortedRoomKeys.map(roomKey => {
               const roomStudents = groupedByRoom[roomKey];
               const isUnassigned = roomKey === 'Unassigned';
@@ -209,8 +210,8 @@ function Users({ onLogout }) {
                         width: '36px',
                         height: '36px',
                         borderRadius: '10px',
-                        background: isUnassigned ? 'rgba(239, 68, 68, 0.15)' : 'linear-gradient(135deg, #72e3ff, #4f7cff)',
-                        color: isUnassigned ? '#ef4444' : '#07111f',
+                        background: isUnassigned ? 'rgba(239, 68, 68, 0.15)' : 'var(--accent-1)',
+                        color: isUnassigned ? '#ef4444' : '#ffffff',
                         fontSize: '1.1rem',
                         fontWeight: 'bold'
                       }}>
@@ -231,9 +232,9 @@ function Users({ onLogout }) {
                       borderRadius: '999px',
                       fontSize: '0.82rem',
                       fontWeight: '700',
-                      background: isUnassigned ? 'rgba(239, 68, 68, 0.12)' : 'rgba(114, 227, 255, 0.12)',
-                      color: isUnassigned ? '#ef4444' : '#72e3ff',
-                      border: isUnassigned ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(114, 227, 255, 0.25)'
+                      background: isUnassigned ? 'rgba(239, 68, 68, 0.12)' : 'rgba(77, 132, 224, 0.12)',
+                      color: isUnassigned ? '#ef4444' : 'var(--accent-1)',
+                      border: isUnassigned ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(77, 132, 224, 0.25)'
                     }}>
                       {isUnassigned ? 'No Room' : `Room ${roomKey}`}
                     </span>
@@ -257,7 +258,7 @@ function Users({ onLogout }) {
                       <tbody>
                         {roomStudents.map((student) => (
                           <tr key={student._id} style={{ cursor: 'pointer' }}>
-                            <td onClick={() => handleRowClick(student._id)} style={{ fontWeight: '600', color: '#72e3ff' }}>
+                            <td onClick={() => handleRowClick(student._id)} style={{ fontWeight: '600', color: 'var(--accent-1)' }}>
                               @{student.username}
                             </td>
                             <td onClick={() => handleRowClick(student._id)}>

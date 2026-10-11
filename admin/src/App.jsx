@@ -11,6 +11,7 @@ import Uploads from './pages/Uploads';
 import AdminCommunity from './pages/Community';
 import Complaints from './pages/Complaints';
 import './css/Global.css';
+import Toaster from './components/Toaster';
 import UploadDetails from './pages/UploadDetails';
 import StaffManagement from './pages/StaffManagement';
 import Attendance from './pages/Attendance';
@@ -18,6 +19,7 @@ import AttendanceVisuals from './pages/AttendanceVisuals';
 import LeaveManagement from './pages/LeaveManagement';
 import AdminUsers from './pages/AdminUsers';
 import HostelNexus from './pages/HostelNexus';
+import toast from './utils/toast';
 
 const getValidToken = () => {
   const token = localStorage.getItem('adminToken');
@@ -40,7 +42,7 @@ function ProtectedRoute({ children, allowedRoles, onLogout, fallbackPath }) {
   }
 
   if (!allowedRoles.includes(role)) {
-    window.alert('You do not have access to this section.');
+    toast.error('You do not have access to this section.');
     return <Navigate to={fallbackPath || (role === 'attendance_taker' ? '/attendance' : '/login')} replace />;
   }
 
@@ -60,6 +62,7 @@ function App() {
 
   return (
     <div className="admin-shell">
+      <Toaster />
       <Routes>
         <Route path="/" element={isLoggedIn ? <Navigate to={getStoredRole() === 'attendance_taker' ? '/attendance' : '/dashboard'} replace /> : <Login onLogin={handleLogin} />} />
         <Route path="/login" element={isLoggedIn ? <Navigate to={getStoredRole() === 'attendance_taker' ? '/attendance' : '/dashboard'} replace /> : <Login onLogin={handleLogin} />} />

@@ -38,15 +38,15 @@
 .markdown-message blockquote {
   margin: 0.65em 0;
   padding-left: 0.8em;
-  border-left: 3px solid #94a3b8;
-  color: #475569;
+  border-left: 3px solid var(--border, #94a3b8);
+  color: var(--muted, #475569);
 }
 
 .markdown-table-scroll {
   max-width: 100%;
   margin: 0.7em 0;
   overflow-x: auto;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border, #cbd5e1);
   border-radius: 6px;
 }
 
@@ -60,14 +60,15 @@
 .markdown-message th,
 .markdown-message td {
   padding: 0.45em 0.65em;
-  border-bottom: 1px solid #cbd5e1;
+  border-bottom: 1px solid var(--border, #cbd5e1);
   text-align: left;
   vertical-align: top;
 }
 
 .markdown-message th {
-  background: #e2e8f0;
-  font-weight: 700;
+  background: var(--bg-2, #e2e8f0);
+  color: var(--text, inherit);
+  font-weight: 600;
 }
 
 .markdown-message tr:last-child td {
@@ -86,7 +87,8 @@
   padding: 0.75em;
   overflow-x: auto;
   border-radius: 6px;
-  background: #e2e8f0;
+  background: var(--bg-2, #e2e8f0);
+  color: var(--text, inherit);
 }
 
 .markdown-message pre code {
@@ -95,7 +97,12 @@
 }
 
 .markdown-message a {
-  color: #1d4ed8;
+  color: var(--accent-1, #1d4ed8);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+/* Inside a user's (accent coloured) bubble keep everything white */
+.assistant-msg.user .markdown-message a,
+.hostelnexus-msg.user .markdown-message a {
+  color: #fff;
 }

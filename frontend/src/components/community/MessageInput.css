@@ -94,7 +94,7 @@
 
   border: 1px solid var(--wa-border, #e5e7eb);
 
-  border-radius: 20px;
+  border-radius: 10px;
 
   padding: 0.35rem 0.5rem;
 
@@ -209,7 +209,6 @@
 }
 
 .send-btn:hover:not(:disabled) {
-  transform: scale(1.05);
 }
 
 .send-btn:disabled {
@@ -317,7 +316,7 @@
 
   border: 1px solid var(--wa-border, #e5e7eb);
 
-  border-radius: 12px;
+  border-radius: 6px;
 
   box-shadow: var(--wa-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
 

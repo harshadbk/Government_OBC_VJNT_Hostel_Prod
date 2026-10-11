@@ -35,12 +35,12 @@ export default function ChatWindow({
 
   const renderStatusBadge = () => {
     if (connectionStatus === 'connected') {
-      return <span className="connection-status-pill connected">🟢 Connected</span>;
+      return <span className="connection-status-pill connected">Connected</span>;
     }
     if (connectionStatus === 'reconnecting') {
-      return <span className="connection-status-pill reconnecting">🟡 Reconnecting...</span>;
+      return <span className="connection-status-pill reconnecting">Reconnecting...</span>;
     }
-    return <span className="connection-status-pill disconnected">🔴 Offline</span>;
+    return <span className="connection-status-pill disconnected">Offline</span>;
   };
 
   return (

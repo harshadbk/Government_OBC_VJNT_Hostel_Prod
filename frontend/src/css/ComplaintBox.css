@@ -77,7 +77,7 @@
 .feature-pill-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 0.85rem;
+  border-radius: 6px;
   padding: 0.9rem 1.1rem;
   display: flex;
   align-items: center;
@@ -140,7 +140,7 @@
   background: #ffffff;
   border: 1px solid #cbd5e1;
   color: #475569;
-  border-radius: 0.65rem;
+  border-radius: 6px;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
@@ -172,20 +172,20 @@
   background: #2563eb;
   color: #ffffff;
   border-color: #2563eb;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="dark"] .complaint-tab-btn.active {
   background: #4f46e5;
   border-color: #4f46e5;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 /* Form Styles */
 .complaint-form-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 1rem;
+  border-radius: 8px;
   padding: 1.75rem 2rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   max-width: 100%;
@@ -252,14 +252,14 @@
 .form-select:focus,
 .form-textarea:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="dark"] .form-input:focus,
 [data-theme="dark"] .form-select:focus,
 [data-theme="dark"] .form-textarea:focus {
   border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .form-textarea {
@@ -271,7 +271,7 @@
 /* Upload Dropzone */
 .image-upload-zone {
   border: 2px dashed #cbd5e1;
-  border-radius: 0.65rem;
+  border-radius: 6px;
   padding: 1.25rem;
   text-align: center;
   background: #f8fafc;
@@ -382,7 +382,6 @@
 
 .btn-submit-complaint:hover {
   background: #1d4ed8;
-  transform: translateY(-1px);
 }
 
 [data-theme="dark"] .btn-submit-complaint {
@@ -403,7 +402,7 @@
 .complaint-item-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 1.35rem 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   max-width: 100%;
@@ -611,7 +610,7 @@
 .progress-stepper-wrap {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 0.9rem 1.15rem;
   margin: 0.85rem 0;
   max-width: 100%;
@@ -718,7 +717,7 @@
   padding: 0.85rem 1rem;
   background: #f0fdf4;
   border-left: 4px solid #16a34a;
-  border-radius: 0 0.65rem 0.65rem 0;
+  border-radius: 0 6px 6px 0;
   overflow-wrap: anywhere;
 }
 
@@ -893,7 +892,7 @@
 
   .complaint-eyebrow {
     align-items: flex-start;
-    border-radius: 0.75rem;
+    border-radius: 6px;
     font-size: 0.78rem;
   }
 
@@ -913,7 +912,7 @@
   .feature-pill-card {
     align-items: flex-start;
     padding: 0.8rem;
-    border-radius: 0.75rem;
+    border-radius: 6px;
   }
 
   .feature-pill-icon {
@@ -937,7 +936,7 @@
   .complaint-form-card,
   .complaint-item-card {
     padding: 0.95rem;
-    border-radius: 0.85rem;
+    border-radius: 6px;
   }
 
   .form-group {

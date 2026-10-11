@@ -14,6 +14,8 @@ import UploadsPage from './pages/Uploads';
 import CommunityPage from './pages/Community';
 import ComplaintBox from './pages/ComplaintBox';
 import './css/Global.css';
+import Toaster from './components/Toaster';
+import toast from './utils/toast';
 
 const defaultUser = {
   fullName: 'Rahul Patil',
@@ -65,6 +67,7 @@ function App() {
     }
     localStorage.setItem('hostelUser', JSON.stringify(loggedInUser));
     localStorage.setItem('hostelToken', tokenValue);
+    toast.success(`Welcome back, ${loggedInUser?.fullName || loggedInUser?.username || 'student'}.`, { title: 'Signed in' });
   }, []);
 
   const handleLogout = () => {
@@ -74,6 +77,7 @@ function App() {
     localStorage.removeItem('hostelUser');
     localStorage.removeItem('hostelProfileImage');
     localStorage.removeItem('hostelToken');
+    toast.info('You have been logged out.', { title: 'Signed out' });
   };
 
   const handleProfileUpdate = useCallback((updatedUser, imageUrl) => {
@@ -101,6 +105,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      <Toaster />
       <Navbar
         user={user}
         profileImage={profileImage}

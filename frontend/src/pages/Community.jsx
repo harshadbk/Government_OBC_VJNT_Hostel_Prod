@@ -7,6 +7,7 @@ import ReportModal from '../components/community/ReportModal';
 import { getSocket } from '../utils/socket';
 
 import '../css/Community.css';
+import toast from '../utils/toast';
 
 export default function CommunityPage({ user, token }) {
 
@@ -471,7 +472,7 @@ export default function CommunityPage({ user, token }) {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(
+        toast.error(
           data.message ||
             'Failed to send message.'
         );
@@ -490,7 +491,7 @@ export default function CommunityPage({ user, token }) {
         err
       );
 
-      alert(
+      toast.error(
         'Unable to send message. Please try again.'
       );
     }
@@ -532,16 +533,19 @@ export default function CommunityPage({ user, token }) {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(
+        toast.error(
           data.message ||
             'Failed to edit message.'
         );
+      } else {
+        toast.success('Message updated.');
       }
     } catch (err) {
       console.error(
         'Error editing message:',
         err
       );
+      toast.error('Could not edit the message. Check your connection.');
     }
   };
 
@@ -577,16 +581,19 @@ export default function CommunityPage({ user, token }) {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(
+        toast.error(
           data.message ||
             'Failed to delete message.'
         );
+      } else {
+        toast.success('Message deleted.');
       }
     } catch (err) {
       console.error(
         'Error deleting message:',
         err
       );
+      toast.error('Could not delete the message. Check your connection.');
     }
   };
 
@@ -623,7 +630,7 @@ export default function CommunityPage({ user, token }) {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(
+        toast.error(
           data.message ||
             'Failed to react to message.'
         );
@@ -670,11 +677,11 @@ export default function CommunityPage({ user, token }) {
       const data = await res.json();
 
       if (res.ok) {
-        alert(
+        toast.success(
           'Thank you. The message has been reported to hostel administration for review.'
         );
       } else {
-        alert(
+        toast.error(
           data.message ||
             'Failed to submit report.'
         );
@@ -685,7 +692,7 @@ export default function CommunityPage({ user, token }) {
         err
       );
 
-      alert(
+      toast.error(
         'Unable to submit report. Please try again.'
       );
     } finally {

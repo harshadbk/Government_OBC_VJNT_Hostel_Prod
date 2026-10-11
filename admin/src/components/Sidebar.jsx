@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { FiGrid, FiUsers, FiUserPlus, FiSettings, FiLogOut, FiSun, FiMoon, FiBell, FiUpload, FiCheckSquare, FiClipboard, FiMessageSquare, FiAlertCircle } from 'react-icons/fi';
+import { FiGrid, FiUsers, FiUserPlus, FiSettings, FiLogOut, FiSun, FiMoon, FiBell, FiUpload, FiCheckSquare, FiClipboard, FiMessageSquare, FiAlertCircle, FiMessageCircle } from 'react-icons/fi';
 import { useEffect, useState, useRef } from 'react';
+import toast from '../utils/toast';
 
 function Sidebar({ onLogout }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem('adminTheme') || 'dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem('adminTheme') || 'light');
   const [uploadsCount, setUploadsCount] = useState(0);
   const [complaintsCount, setComplaintsCount] = useState(0);
   const [pulse, setPulse] = useState(false);
@@ -68,10 +69,10 @@ function Sidebar({ onLogout }) {
   return (
     <aside className="sidebar admin-sidebar">
       <div className="sidebar-brand">
-        <div className="brand-icon">A</div>
+        <div className="brand-icon">H</div>
         <div>
-          <h3>Admin Suite</h3>
-          <p>Hostel Control</p>
+          <h3>Hostel Admin</h3>
+          <p>Govt. OBC Boys Hostel</p>
         </div>
       </div>
       <nav className="sidebar-nav">
@@ -79,7 +80,7 @@ function Sidebar({ onLogout }) {
         {!isAttendanceTaker && <NavLink to="/complaints" className={({isActive}) => isActive ? 'active' : ''}>
           <FiAlertCircle /> Complaint Box
           {complaintsCount > 0 && (
-            <span className={`sidebar-badge ${complaintPulse ? 'pulse' : ''}`} style={{ backgroundColor: '#ef4444' }}>
+            <span className={`sidebar-badge ${complaintPulse ? 'pulse' : ''}`} style={{ backgroundColor: '#d64545' }}>
               {complaintsCount}
             </span>
           )}
@@ -97,8 +98,10 @@ function Sidebar({ onLogout }) {
             <span className={`sidebar-badge ${pulse ? 'pulse' : ''}`}>{uploadsCount}</span>
           )}
         </NavLink>}
+        {!isAttendanceTaker && <NavLink to="/hostel-nexus"><FiMessageCircle /> Assistant</NavLink>}
         {!isAttendanceTaker && <NavLink to="/admin-users"><FiUsers /> Admin Users</NavLink>}
         <button className="sidebar-logout" onClick={() => {
+          toast.info('You have been logged out.', { title: 'Signed out' });
           if (typeof onLogout === 'function') return onLogout();
           localStorage.removeItem('adminToken');
           localStorage.removeItem('adminUsername');

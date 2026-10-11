@@ -16,6 +16,7 @@ import {
   FiSquare,
   FiRefreshCw
 } from 'react-icons/fi';
+import { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -40,6 +41,7 @@ function Attendance({ onLogout }) {
   const [presentMap, setPresentMap] = useState({});
   const [saveMessage, setSaveMessage] = useState('');
   const [saveMessageType, setSaveMessageType] = useState('');
+  useToastMessage(saveMessage, saveMessageType);
   const [saving, setSaving] = useState(false);
 
   const navigate = useNavigate();
@@ -258,15 +260,15 @@ function Attendance({ onLogout }) {
             </div>
           </div>
 
-          <div className="stat-card" style={{ borderLeft: '4px solid #72e3ff' }}>
+          <div className="stat-card" style={{ borderLeft: '4px solid var(--accent-1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3>Rooms Done</h3>
-                <p style={{ color: '#72e3ff', fontSize: '1.8rem', fontWeight: '800' }}>
+                <p style={{ color: 'var(--accent-1)', fontSize: '1.8rem', fontWeight: '800' }}>
                   {loading ? '...' : `${summary?.completedRooms ?? 0} / 20`}
                 </p>
               </div>
-              <FiHome style={{ fontSize: '2rem', color: '#72e3ff', opacity: 0.8 }} />
+              <FiHome style={{ fontSize: '2rem', color: 'var(--accent-1)', opacity: 0.8 }} />
             </div>
           </div>
 
@@ -305,7 +307,7 @@ function Attendance({ onLogout }) {
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-end' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.06)', padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', minWidth: '0', flex: '1 1 180px' }}>
-              <FiCalendar style={{ color: '#72e3ff' }} />
+              <FiCalendar style={{ color: 'var(--accent-1)' }} />
               <input
                 type="date"
                 value={exportDate}
@@ -354,7 +356,7 @@ function Attendance({ onLogout }) {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <FiHome style={{ color: '#72e3ff' }} /> Room {rm.roomNumber}
+                      <FiHome style={{ color: 'var(--accent-1)' }} /> Room {rm.roomNumber}
                     </h4>
                     {rm.isLocked ? (
                       <span title="Attendance Locked (Passed 2h window)" style={{ color: '#f87171', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.8rem', background: 'rgba(248,113,113,0.1)', padding: '2px 8px', borderRadius: '999px' }}>
@@ -381,7 +383,7 @@ function Attendance({ onLogout }) {
                       style={{ 
                         height: '100%', 
                         width: rm.capacity > 0 ? `${(rm.presentCount / rm.capacity) * 100}%` : '0%',
-                        background: 'linear-gradient(90deg, #34d399, #72e3ff)',
+                        background: 'var(--accent-1)',
                         borderRadius: '999px',
                         transition: 'width 0.3s ease'
                       }} 
@@ -402,7 +404,7 @@ function Attendance({ onLogout }) {
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <FiHome style={{ color: '#72e3ff' }} /> Room {activeRoom} Attendance ({todayDate})
+                    <FiHome style={{ color: 'var(--accent-1)' }} /> Room {activeRoom} Attendance ({todayDate})
                   </h3>
                   <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
                     Check residents who are Present physically. Unchecked students will be marked Absent.
@@ -428,7 +430,7 @@ function Attendance({ onLogout }) {
                         <span>Attendance is locked outside the 8:00 PM to 12:00 AM marking window.</span>
                       </div>
                     ) : roomData.firstSavedAt ? (
-                      <div style={{ padding: '0.75rem 1rem', borderRadius: '12px', background: 'rgba(114,227,255,0.08)', border: '1px solid rgba(114,227,255,0.15)', color: '#72e3ff', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ padding: '0.75rem 1rem', borderRadius: '12px', background: 'rgba(77, 132, 224,0.08)', border: '1px solid rgba(77, 132, 224,0.15)', color: 'var(--accent-1)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <FiClock />
                         <span>First saved at {new Date(roomData.firstSavedAt).toLocaleTimeString()}. Editable only between 8:00 PM and 12:00 AM today.</span>
                       </div>
@@ -506,11 +508,7 @@ function Attendance({ onLogout }) {
               </div>
               
               <div style={{ padding: '1.25rem 1.5rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {saveMessage ? (
-                  <span style={{ fontSize: '0.88rem', fontWeight: '600', color: saveMessageType === 'success' ? '#34d399' : '#f87171' }}>
-                    {saveMessage}
-                  </span>
-                ) : <span />}
+                <span />
 
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                   <button className="secondary-btn" onClick={() => setActiveRoom(null)}>Cancel</button>

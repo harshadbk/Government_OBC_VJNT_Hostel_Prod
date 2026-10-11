@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
+import toast, { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 
@@ -11,6 +12,7 @@ function AddUser({ onLogout }) {
   const [roomNumber, setRoomNumber] = useState("");
   const [rollNumber, setRollNumber] = useState("");
   const [status, setStatus] = useState("");
+  useToastMessage(status);
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -88,7 +90,7 @@ function AddUser({ onLogout }) {
       const result = await response.json();
 
       if (!response.ok) {
-        setStatus(result.message || "Unable to create user.");
+        toast.error(result.message || "Unable to create user.");
         return;
       }
 
@@ -171,7 +173,7 @@ function AddUser({ onLogout }) {
 
         const result = await response.json();
         if (!response.ok) {
-          setStatus(result.message || update.error);
+          toast.error(result.message || update.error);
           return;
         }
       }
@@ -297,7 +299,6 @@ function AddUser({ onLogout }) {
                 Cancel
               </button>
             </div>
-            {status ? <p className="form-status">{status}</p> : null}
           </form>
         </div>
 

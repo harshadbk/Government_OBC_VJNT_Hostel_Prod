@@ -4,6 +4,7 @@ import { FiUpload, FiX, FiFile, FiCheckCircle, FiClock, FiImage, FiExternalLink 
 import compressImageFile from '../utils/compressImage';
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 import './uploadwidget.css';
+import { useToastMessage } from '../utils/toast';
 
 const isImageUrl = (url) => /\.(jpe?g|png|gif|jfif|webp)$/i.test(url);
 const isPdfUrl = (url) => /\.pdf$/i.test(url);
@@ -19,6 +20,7 @@ export default function UploadsWidget() {
   const [selectedFiles, setSelectedFiles] = useState({});
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  useToastMessage(message, messageType);
   const [loginRequired, setLoginRequired] = useState(false);
   const [uploadingId, setUploadingId] = useState(null);
   const [serverMessage, setServerMessage] = useState('');
@@ -201,11 +203,6 @@ export default function UploadsWidget() {
                 ))
               )}
             </div>
-            {message && (
-              <div className={`upload-modal-footer ${messageType}`}>
-                {message}
-              </div>
-            )}
           </div>
         </div>
       )}

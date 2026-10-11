@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import toast from '../utils/toast';
 import { FiRefreshCcw, FiCheckCircle, FiClipboard, FiEye, FiX, FiCalendar, FiUser, FiHome, FiPhone } from 'react-icons/fi';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
@@ -45,6 +46,7 @@ function LeaveManagement({ onLogout }) {
       setLeaves(data.leaves || []);
     } catch (err) {
       console.error('Failed to fetch leave applications:', err);
+      toast.error('Could not load leave applications.');
     } finally {
       setLoading(false);
     }
@@ -85,7 +87,12 @@ function LeaveManagement({ onLogout }) {
         const data = await response.json();
         setLeaves((current) => current.map((item) => item._id === comebackLeave._id ? { ...item, ...data.leaveApplication } : item));
         setComebackLeave(null);
+        toast.success('Return marked for this leave.');
+      } else {
+        toast.error('Could not mark the return. Please try again.');
       }
+    } catch (err) {
+      toast.error('Network error. Could not mark the return.');
     } finally {
       setBusyId(null);
     }

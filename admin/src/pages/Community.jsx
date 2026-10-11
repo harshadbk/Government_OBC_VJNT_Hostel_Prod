@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiVolume2, FiMessageSquare, FiAlertTriangle, FiTrash2, FiSend, FiXCircle, FiCheckCircle, FiClock, FiShield } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
+import toast from '../utils/toast';
 
 export default function AdminCommunity({ onLogout }) {
   const [activeTab, setActiveTab] = useState('announcements');
@@ -136,11 +137,13 @@ export default function AdminCommunity({ onLogout }) {
       if (res.ok) {
         setAnnouncementText('');
         setMessages((prev) => [...prev, data.message]);
+        toast.success('Announcement posted.');
       } else {
-        alert(data.message || 'Failed to post announcement.');
+        toast.error(data.message || 'Failed to post announcement.');
       }
     } catch (err) {
       console.error('Error posting announcement:', err);
+      toast.error('Could not post the announcement. Check your connection.');
     } finally {
       setSubmitting(false);
     }
@@ -157,11 +160,13 @@ export default function AdminCommunity({ onLogout }) {
       const data = await res.json();
       if (res.ok) {
         setMessages((prev) => prev.map((m) => (m._id === messageId ? { ...m, isDeleted: true, deletedByRole: 'admin' } : m)));
+        toast.success('Message removed.');
       } else {
-        alert(data.message || 'Failed to delete message.');
+        toast.error(data.message || 'Failed to delete message.');
       }
     } catch (err) {
       console.error('Error deleting message:', err);
+      toast.error('Could not remove the message. Check your connection.');
     }
   };
 
@@ -178,9 +183,13 @@ export default function AdminCommunity({ onLogout }) {
       });
       if (res.ok) {
         fetchReports();
+        toast.success(`Report marked as ${status}.`);
+      } else {
+        toast.error('Could not update the report.');
       }
     } catch (err) {
       console.error('Error updating report status:', err);
+      toast.error('Could not update the report. Check your connection.');
     }
   };
 

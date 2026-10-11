@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { FiEye, FiEyeOff, FiUser, FiLock, FiUserPlus, FiKey, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiUser, FiLock, FiUserPlus, FiKey, FiArrowLeft } from 'react-icons/fi';
 import Register from './Register';
+import { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -11,6 +12,8 @@ function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);
+  useToastMessage(error, 'error');
+  useToastMessage(notice?.message, notice?.type);
   const [mode, setMode] = useState('login');
   const [otp, setOtp] = useState('');
   const [forgotStep, setForgotStep] = useState(false);
@@ -111,17 +114,9 @@ function Login({ onLogin }) {
 
   return (
     <section className="admin-login-page">
-      {notice ? (
-        <div className={`action-popup ${notice.type}`} role="status">
-          <FiCheckCircle />
-          <span>{notice.message}</span>
-        </div>
-      ) : null}
       <div className="login-card admin-login-card">
-        <span className="eyebrow">Administrator Portal</span>
         <h2>{forgotStep ? 'Reset Password' : 'Admin Login'}</h2>
-        <p>{forgotStep ? 'Enter the OTP sent to your registered email.' : 'Manage residents, room assignments, and hostel operations from one secure dashboard.'}</p>
-        {error ? <p className="form-error">{error}</p> : null}
+        <p>{forgotStep ? 'Enter the OTP sent to your registered email.' : 'Sign in with your admin account.'}</p>
         {forgotStep ? (
           <form onSubmit={handleReset} className="auth-form">
             <label className="input-group">

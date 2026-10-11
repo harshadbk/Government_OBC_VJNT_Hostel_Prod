@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { FiUpload, FiList, FiPlus, FiX, FiCheck, FiUser } from 'react-icons/fi';
+import toast, { useToastMessage } from '../utils/toast';
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
 export default function Uploads() {
@@ -13,6 +14,7 @@ export default function Uploads() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', dueDate: '' });
   const [feedback, setFeedback] = useState('');
+  useToastMessage(feedback);
   const [previewMode, setPreviewMode] = useState('');
   const [previewText, setPreviewText] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -52,12 +54,12 @@ export default function Uploads() {
     try {
       const res = await fetch(`${apiBaseUrl}/api/uploads`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
       const data = await res.json();
-      if (!res.ok) { setFeedback(data.message || 'Failed'); return; }
+      if (!res.ok) { toast.error(data.message || 'Could not create the upload request.'); return; }
       setFeedback('Upload request created');
       setShowCreate(false);
       setForm({ title: '', description: '', dueDate: '' });
       await fetchUploads();
-    } catch (err) { setFeedback('Network error'); }
+    } catch (err) { toast.error('Network error. Please try again.'); }
   };
 
   const getFileExtension = (url = '') => {
@@ -115,7 +117,7 @@ export default function Uploads() {
       <main className="dashboard-main admin-main">
         <header className="dashboard-topbar">
           <div>
-            <p className="eyebrow">Management Panel</p>
+            <p className="eyebrow">Documents</p>
             <h2 style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}><FiUpload /> Upload Requests</h2>
           </div>
           <div className="topbar-actions">
@@ -124,7 +126,6 @@ export default function Uploads() {
         </header>
 
         <div className="panel-card" style={{ maxHeight: '72vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          {feedback && <div style={{ marginBottom: '.8rem', padding: '.8rem', borderRadius: 8, background: 'rgba(52,211,153,.08)' }}>{feedback}</div>}
           {loading ? <p>Loading…</p> : (
             <div style={{ display: 'grid', gap: '1rem', overflowY: 'auto', paddingRight: '0.25rem', flex: 1 }}>
               {uploads.map(u => (

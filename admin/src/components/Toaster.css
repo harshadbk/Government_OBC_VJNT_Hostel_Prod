@@ -1,0 +1,132 @@
+.toast-stack {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+  width: min(360px, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.toast {
+  --toast-color: #2f6fd6;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: .7rem;
+  padding: .8rem .8rem .9rem .9rem;
+  overflow: hidden;
+  pointer-events: auto;
+  background: var(--surface, #fff);
+  color: var(--text, #1f2328);
+  border: 1px solid var(--border, #dde1e6);
+  border-left: 4px solid var(--toast-color);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(15, 28, 48, .16);
+  animation: toastIn .2s ease-out;
+}
+
+.toast.leaving {
+  animation: toastOut .18s ease-in forwards;
+}
+
+.toast-success { --toast-color: #2f9e5b; }
+.toast-error { --toast-color: #d64545; }
+.toast-warning { --toast-color: #d48a16; }
+.toast-info { --toast-color: var(--accent-1, #2f6fd6); }
+
+.toast-icon {
+  flex-shrink: 0;
+  margin-top: .1rem;
+  font-size: 1.15rem;
+  color: var(--toast-color);
+}
+
+.toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-body strong {
+  display: block;
+  font-size: .9rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.toast-body p {
+  margin: .15rem 0 0;
+  font-size: .86rem;
+  line-height: 1.45;
+  color: var(--muted, #5f6b7a);
+  overflow-wrap: anywhere;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted, #5f6b7a);
+  cursor: pointer;
+}
+
+.toast-close:hover {
+  background: rgba(127, 127, 127, .14);
+  color: var(--text, #1f2328);
+}
+
+/* thin bar that shrinks while the popup is on screen */
+.toast-timer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--toast-color);
+  opacity: .5;
+  transform-origin: left;
+  animation: toastTimer linear forwards;
+}
+
+.toast:hover .toast-timer {
+  animation-play-state: paused;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes toastOut {
+  to { opacity: 0; transform: translateX(16px); }
+}
+
+@keyframes toastTimer {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (max-width: 600px) {
+  .toast-stack {
+    top: auto;
+    bottom: .75rem;
+    right: .75rem;
+    left: .75rem;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast.leaving {
+    animation: none;
+  }
+}

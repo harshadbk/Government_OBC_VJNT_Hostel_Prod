@@ -6,6 +6,7 @@ import Button from '../components/Button';
 import ProfileCard from '../components/ProfileCard';
 import '../css/Profile.css';
 import { casteList, casteCategories } from '../utils/casteData';
+import toast, { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -50,6 +51,7 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  useToastMessage(message, messageType);
   const [passwordStep, setPasswordStep] = useState('input');
   const [newPassword, setNewPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -75,6 +77,8 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
   const [leaveAttachment, setLeaveAttachment] = useState(null);
   const [leaveMessage, setLeaveMessage] = useState('');
   const [leaveMessageType, setLeaveMessageType] = useState('');
+  useToastMessage(leaveMessage, leaveMessageType);
+  useToastMessage(docMessage);
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [leaveHistoryLoading, setLeaveHistoryLoading] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -610,7 +614,6 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
               <InputField label="Address" id="address" name="address" value={formData.address} onChange={handleChange} icon={<FiMapPin />} textarea />
             </div>
           ) : null}
-          {message ? <p className={`profile-message ${messageType}`}>{message}</p> : null}
           {editable ? <div className="profile-actions" style={{ marginTop: '0.7rem' }}><Button label={saving ? 'Saving...' : 'Save Changes'} variant="primary" onClick={handleSave} loading={saving} icon={<FiSave />} /> </div> : null}
         </div>
       </section>
@@ -728,10 +731,10 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
                             setDocuments(normalizedDocuments);
                             setDocMessage(`${doc.label} uploaded successfully.`);
                           } else {
-                            setDocMessage(data.message || `Failed to upload ${doc.label}.`);
+                            toast.error(data.message || `Failed to upload ${doc.label}.`);
                           }
                         } catch (err) {
-                          setDocMessage(`Error uploading ${doc.label}.`);
+                          toast.error(`Error uploading ${doc.label}.`);
                         } finally {
                           setDocUploading(false);
                           setTimeout(() => setDocMessage(''), 4000);
@@ -750,9 +753,6 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
             ))}
           </div>
 
-          {docMessage && (
-            <p className={`doc-message ${docUploading ? '' : 'done'}`}>{docMessage}</p>
-          )}
         </div>
       </section>
 
@@ -767,7 +767,6 @@ function Profile({ user, profileImage, onProfileUpdate, onProfileImageChange, to
           </button>
         </div>
 
-        {leaveMessage ? <p className={`profile-message ${leaveMessageType}`}>{leaveMessage}</p> : null}
 
         <div className="attendance-history">
           <h3><FiClock /> Your leave history</h3>

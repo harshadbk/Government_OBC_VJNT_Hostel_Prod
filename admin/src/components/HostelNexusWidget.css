@@ -1,1504 +1,441 @@
-/* =========================================================
-   HOSTEL NEXUS
-   Modern Floating AI Widget
-   ========================================================= */
+/* Floating assistant widget. Every rule is scoped to .hostelnexus-widget so
+   nothing here leaks into the rest of the admin panel. */
 
 .hostelnexus-widget {
-  --hn-primary: #2563eb;
-  --hn-primary-dark: #1d4ed8;
-  --hn-primary-light: #eff6ff;
+  --hn-bg: var(--surface, #fff);
+  --hn-soft: var(--bg-1, #f4f5f7);
+  --hn-border: var(--border, #dde1e6);
+  --hn-text: var(--text, #1f2328);
+  --hn-muted: var(--muted, #5f6b7a);
+  --hn-accent: var(--accent-1, #2f6fd6);
 
-  --hn-bg: #ffffff;
-  --hn-surface: #f8fafc;
-  --hn-border: #e5e7eb;
-
-  --hn-text: #111827;
-  --hn-muted: #6b7280;
-
-  width: 370px;
+  width: 360px;
   height: 500px;
-
-  background: var(--hn-bg);
-
-  border: 1px solid var(--hn-border);
-  border-radius: 20px;
-
-  overflow: hidden;
-
   display: flex;
   flex-direction: column;
-
-  z-index: 99999;
-
-  box-shadow:
-    0 20px 60px rgba(15, 23, 42, 0.18),
-    0 5px 15px rgba(15, 23, 42, 0.08);
-
-  animation: hostelNexusEntrance 0.45s cubic-bezier(
-    0.16,
-    1,
-    0.3,
-    1
-  );
-
-  transition:
-    width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-    height 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-    border-radius 0.3s ease,
-    box-shadow 0.3s ease;
-
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-}
-
-
-/* =========================================================
-   ENTRANCE
-   ========================================================= */
-
-@keyframes hostelNexusEntrance {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.92);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-
-/* =========================================================
-   FLOATING EFFECT
-   ========================================================= */
-
-.hostelnexus-widget.minimized {
-  width: 56px;
-  height: 36px;
-  right: 10px;
-  bottom: 10px;
-  border-radius: 999px;
+  overflow: hidden;
   z-index: 900;
-  padding: 6px;
-  overflow: visible;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+  background: var(--hn-bg);
+  color: var(--hn-text);
+  border: 1px solid var(--hn-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-size: 14px;
 }
-
-.hostelnexus-widget.minimized .hostelnexus-widget-body { display: none; }
-.hostelnexus-widget.minimized .hostelnexus-title-area strong,
-.hostelnexus-widget.minimized .hostelnexus-status { display: none !important; }
-.hostelnexus-widget.minimized .hostelnexus-logo { width: 18px; height: 18px; font-size: 11px; }
-.hostelnexus-widget.minimized .icon-btn { display: none; }
-.hostelnexus-widget.minimized .hostelnexus-header-actions { display: none !important; }
-.hostelnexus-widget.minimized .hostelnexus-widget-body { pointer-events: none; }
-
-/* expand on hover to show full name */
-.hostelnexus-widget.minimized:hover,
-.hostelnexus-widget.minimized:focus-within {
-  max-width: 220px; /* reveal full name */
-  box-shadow: 0 10px 30px rgba(2,6,23,0.35);
-  transform: translateY(-4px);
-  background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(79,124,255,0.06));
-}
-
-.hostelnexus-widget.minimized:hover .hostelnexus-title-area strong {
-  opacity: 1;
-}
-
-@keyframes hostelNexusFloat {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-
-/* Don't animate while dragging */
 
 .hostelnexus-widget.dragging {
-  animation: none !important;
-
-  cursor: grabbing !important;
-
-  transition: none;
+  cursor: grabbing;
+  user-select: none;
 }
 
+/* ---------- minimized: small launcher button ---------- */
 
-/* =========================================================
-   HEADER
-   ========================================================= */
+.hostelnexus-widget.minimized {
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--hn-accent);
+  border-color: var(--hn-accent);
+  color: #fff;
+}
+
+.hostelnexus-widget.minimized .hostelnexus-widget-header {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+}
+
+.hostelnexus-widget.minimized .hostelnexus-logo {
+  background: transparent;
+  color: #fff;
+}
+
+.hostelnexus-widget.minimized .hostelnexus-widget-body,
+.hostelnexus-widget.minimized .hostelnexus-status,
+.hostelnexus-widget.minimized .hostelnexus-header-actions {
+  display: none;
+}
+
+/* ---------- maximized ---------- */
+
+.hostelnexus-widget.maximized {
+  width: min(720px, calc(100vw - 32px));
+  height: min(680px, calc(100vh - 32px));
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%);
+}
+
+/* ---------- header ---------- */
 
 .hostelnexus-widget-header {
-  min-height: 68px;
-
-  padding: 0 15px;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-  color: white;
-
-  background:
-    linear-gradient(
-      135deg,
-      #2563eb 0%,
-      #3b82f6 50%,
-      #1d4ed8 100%
-    );
-
-  position: relative;
-
-  user-select: none;
-
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--hn-border);
+  background: var(--hn-soft);
   cursor: grab;
 }
 
-
-/* Subtle shine */
-
-.hostelnexus-widget-header::after {
-  content: "";
-
-  position: absolute;
-
-  inset: 0;
-
-  pointer-events: none;
-
-  background:
-    linear-gradient(
-      120deg,
-      transparent 20%,
-      rgba(255, 255, 255, 0.12),
-      transparent 70%
-    );
-
-  animation: headerShine 5s ease-in-out infinite;
+.hostelnexus-widget.maximized .hostelnexus-widget-header {
+  cursor: default;
 }
-
-@keyframes headerShine {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  40%,
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-
-/* =========================================================
-   TITLE
-   ========================================================= */
 
 .hostelnexus-title-area {
   display: flex;
   align-items: center;
-  gap: 10px;
-
-  position: relative;
-  z-index: 2;
+  gap: 8px;
 }
 
 .hostelnexus-title-area strong {
-  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
 
-  font-size: 15px;
-  font-weight: 700;
-
-  letter-spacing: -0.2px;
+.hostelnexus-logo {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--hn-accent);
+  color: #fff;
 }
 
 .hostelnexus-status {
   display: flex;
   align-items: center;
   gap: 5px;
-
-  margin-top: 3px;
-
-  color: rgba(255, 255, 255, 0.78);
-
-  font-size: 11px;
+  font-size: 12px;
+  color: var(--hn-muted);
 }
 
-
-/* =========================================================
-   LOGO
-   ========================================================= */
-
-.hostelnexus-logo {
-  width: 38px;
-  height: 38px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 11px;
-
-  background: rgba(255, 255, 255, 0.16);
-
-  border: 1px solid rgba(255, 255, 255, 0.2);
-
-  font-size: 19px;
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 4px 12px rgba(0, 0, 0, 0.1);
-
-  animation: logoPulse 3s ease-in-out infinite;
-}
-
-@keyframes logoPulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-
-/* =========================================================
-   STATUS DOT
-   ========================================================= */
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-
+.hostelnexus-widget .status-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-
-  background: #86efac;
-
-  box-shadow:
-    0 0 0 3px rgba(134, 239, 172, 0.15);
-
-  animation: statusPulse 2s infinite;
+  background: #2f9e5b;
 }
 
-@keyframes statusPulse {
-  0% {
-    box-shadow:
-      0 0 0 0 rgba(134, 239, 172, 0.5);
-  }
-
-  70% {
-    box-shadow:
-      0 0 0 5px rgba(134, 239, 172, 0);
-  }
-
-  100% {
-    box-shadow:
-      0 0 0 0 rgba(134, 239, 172, 0);
-  }
+.hostelnexus-widget .status-dot.offline {
+  background: #c94a4a;
 }
 
-
-/* =========================================================
-   HEADER BUTTON
-   ========================================================= */
-
-.hostelnexus-header-actions {
-  position: relative;
-  z-index: 5;
-}
-
-.icon-btn {
-  width: 34px;
-  height: 34px;
-
-  border: 1px solid rgba(255, 255, 255, 0.18);
-
-  border-radius: 9px;
-
-  background: rgba(255, 255, 255, 0.12);
-
-  color: white;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
+.hostelnexus-widget .icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--hn-border);
+  border-radius: 6px;
+  background: var(--hn-bg);
+  color: var(--hn-muted);
   cursor: pointer;
-
-  font-size: 17px;
-
-  transition:
-    background 0.2s ease,
-    transform 0.2s ease;
 }
 
-.icon-btn:hover {
-  background: rgba(255, 255, 255, 0.22);
-
-  transform: scale(1.05);
+.hostelnexus-widget .icon-btn:hover {
+  color: var(--hn-text);
 }
 
-.icon-btn:active {
-  transform: scale(0.92);
-}
-
-/* Maximize button specific styling */
-.maximize-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.12);
-  transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
-}
-
-.maximize-btn svg {
-  display: block;
-  width: 14px;
-  height: 14px;
-  color: white;
-}
-
-.maximize-btn:hover {
-  background: rgba(255,255,255,0.16);
-  transform: translateY(-2px);
-}
-
-.hostelnexus-widget.maximized .maximize-btn {
-  transform: rotate(180deg);
-}
-
-
-/* =========================================================
-   BODY
-   ========================================================= */
+/* ---------- body & tabs ---------- */
 
 .hostelnexus-widget-body {
   flex: 1;
-
-  height: 200px;
-
+  min-height: 0;
   display: flex;
   flex-direction: column;
-
-  background: var(--hn-bg);
-
-  padding: 10px;
-
-  animation: bodyFade 0.3s ease;
 }
-
-@keyframes bodyFade {
-  from {
-    opacity: 0.5;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-
-/* =========================================================
-   TABS
-   ========================================================= */
 
 .hostelnexus-tabs {
   display: flex;
-
-  gap: 3px;
-
-  padding: 4px;
-
-  margin-bottom: 8px;
-
-  background: var(--hn-surface);
-
-  border: 1px solid var(--hn-border);
-
-  border-radius: 11px;
+  gap: 16px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--hn-border);
 }
 
 .hostelnexus-tabs .tab {
-  flex: 1;
-
-  height: 34px;
-
+  padding: 8px 0;
+  margin-bottom: -1px;
   border: none;
-
-  border-radius: 8px;
-
-  background: transparent;
-
+  border-bottom: 2px solid transparent;
+  background: none;
   color: var(--hn-muted);
-
-  font-size: 12px;
+  font: inherit;
   font-weight: 600;
-
   cursor: pointer;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  gap: 5px;
-
-  transition:
-    color 0.2s ease,
-    background 0.25s ease,
-    transform 0.2s ease;
-}
-
-.hostelnexus-tabs .tab:hover {
-  color: var(--hn-primary);
-
-  transform: translateY(-1px);
 }
 
 .hostelnexus-tabs .tab.active {
-  background: var(--hn-bg);
-
-  color: var(--hn-primary);
-
-  box-shadow:
-    0 2px 5px rgba(15, 23, 42, 0.08);
-
-  animation: tabActive 0.25s ease;
+  color: var(--hn-text);
+  border-bottom-color: var(--hn-accent);
 }
 
-@keyframes tabActive {
-  from {
-    transform: scale(0.96);
-  }
-
-  to {
-    transform: scale(1);
-  }
-}
-
-
-/* =========================================================
-   CHAT CONTAINER
-   ========================================================= */
+/* ---------- chat ---------- */
 
 .hostelnexus-chat-container {
   flex: 1;
-
   min-height: 0;
-
   display: flex;
   flex-direction: column;
 }
-
-
-/* =========================================================
-   MESSAGES
-   ========================================================= */
 
 .hostelnexus-messages {
   flex: 1;
-
-  min-height: 0;
-
   overflow-y: auto;
-  overflow-x: hidden;
-
-  padding: 8px 3px;
-
+  padding: 12px;
   display: flex;
   flex-direction: column;
-
   gap: 10px;
-
-  scroll-behavior: smooth;
 }
-
-.hostelnexus-messages::-webkit-scrollbar {
-  width: 4px;
-}
-
-.hostelnexus-messages::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.hostelnexus-messages::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-
-  border-radius: 20px;
-}
-
-
-/* =========================================================
-   MESSAGE
-   ========================================================= */
 
 .hostelnexus-msg {
-  width: 100%;
-
   display: flex;
-  align-items: flex-end;
-
-  gap: 7px;
-
-  animation: messageAppear 0.3s cubic-bezier(
-    0.16,
-    1,
-    0.3,
-    1
-  );
-}
-
-@keyframes messageAppear {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.97);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }
 
 .hostelnexus-msg.user {
   justify-content: flex-end;
 }
 
-.hostelnexus-msg.bot {
-  justify-content: flex-start;
+.hostelnexus-msg-content {
+  max-width: 85%;
 }
 
-
-/* =========================================================
-   BOT AVATAR
-   ========================================================= */
-
-.bot-avatar {
-  flex-shrink: 0;
-
-  width: 27px;
-  height: 27px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 9px;
-
-  background: var(--hn-primary-light);
-
-  color: var(--hn-primary);
-
-  font-size: 13px;
-
-  animation: avatarAppear 0.35s ease;
+.hostelnexus-widget.maximized .hostelnexus-msg-content {
+  max-width: 70%;
 }
-
-@keyframes avatarAppear {
-  from {
-    transform: scale(0);
-  }
-
-  to {
-    transform: scale(1);
-  }
-}
-
-
-/* =========================================================
-   MESSAGE BUBBLE
-   ========================================================= */
 
 .hostelnexus-msg-text {
-  max-width: 78%;
-
-  padding: 9px 11px;
-
-  font-size: 12.5px;
-
-  line-height: 1.5;
-
-  word-break: break-word;
-
-  border-radius: 13px;
-}
-
-
-/* Bot */
-
-.hostelnexus-msg.bot .hostelnexus-msg-text {
-  background: var(--hn-surface);
-
+  padding: 8px 10px;
+  border-radius: 6px;
   border: 1px solid var(--hn-border);
-
-  color: var(--hn-text);
-
-  border-bottom-left-radius: 4px;
+  background: var(--hn-soft);
+  line-height: 1.5;
+  word-wrap: break-word;
 }
-
-
-/* User */
 
 .hostelnexus-msg.user .hostelnexus-msg-text {
-  background: linear-gradient(
-    135deg,
-    #2563eb,
-    #3b82f6
-  );
-
-  color: white;
-
-  border-bottom-right-radius: 4px;
-
-  box-shadow:
-    0 3px 8px rgba(37, 99, 235, 0.18);
+  background: var(--hn-accent);
+  border-color: var(--hn-accent);
+  color: #fff;
 }
 
+.hostelnexus-msg-text p:first-child { margin-top: 0; }
+.hostelnexus-msg-text p:last-child { margin-bottom: 0; }
 
-/* =========================================================
-   TYPING INDICATOR
-   ========================================================= */
+.msg-meta-row {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--hn-muted);
+}
+
+.hostelnexus-msg.user .msg-meta-row {
+  text-align: right;
+}
 
 .typing-indicator {
   display: flex;
-  align-items: center;
-
   gap: 4px;
-
-  padding: 10px 13px;
-
-  background: var(--hn-surface);
-
-  border: 1px solid var(--hn-border);
-
-  border-radius: 13px;
-
-  border-bottom-left-radius: 4px;
+  padding: 10px;
 }
 
 .typing-indicator span {
-  width: 5px;
-  height: 5px;
-
-  background: #9ca3af;
-
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-
-  animation: typingBounce 1.2s infinite ease-in-out;
+  background: var(--hn-muted);
+  animation: hnTyping 1.2s infinite ease-in-out;
 }
 
-.typing-indicator span:nth-child(1) {
-  animation-delay: 0s;
+.typing-indicator span:nth-child(2) { animation-delay: .15s; }
+.typing-indicator span:nth-child(3) { animation-delay: .3s; }
+
+@keyframes hnTyping {
+  0%, 80%, 100% { opacity: .3; }
+  40% { opacity: 1; }
 }
-
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.15s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-@keyframes typingBounce {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-
-    opacity: 0.45;
-  }
-
-  30% {
-    transform: translateY(-4px);
-
-    opacity: 1;
-  }
-}
-
-
-/* =========================================================
-   QUICK SUGGESTIONS CHIPS
-   ========================================================= */
 
 .quick-suggestions-bar {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
-  padding: 8px 12px 4px 12px;
-  align-items: center;
+  padding: 0 12px 8px;
+  overflow-x: auto;
 }
 
 .suggestion-chip {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 9999px;
-  padding: 5px 11px;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: #334155;
-  cursor: pointer;
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid var(--hn-border);
+  border-radius: 4px;
+  background: var(--hn-bg);
+  color: var(--hn-muted);
+  font: inherit;
+  font-size: 12px;
   white-space: nowrap;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  line-height: 1.3;
-  outline: none;
-  font-family: inherit;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  cursor: pointer;
 }
 
 .suggestion-chip:hover:not(:disabled) {
-  background: #eff6ff;
-  border-color: #93c5fd;
-  color: #1d4ed8;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.12);
+  color: var(--hn-text);
+  border-color: var(--hn-muted);
 }
-
-.suggestion-chip:active:not(:disabled) {
-  transform: scale(0.96);
-}
-
-.suggestion-chip:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* =========================================================
-   INPUT
-   ========================================================= */
 
 .hostelnexus-input-row {
   display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 6px 12px 10px 12px;
-  padding-top: 6px;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--hn-border);
 }
 
 .hostelnexus-input-row input {
   flex: 1;
   min-width: 0;
-  height: 40px;
-  padding: 0 12px;
-  border-radius: 10px;
+  padding: 7px 10px;
   border: 1px solid var(--hn-border);
+  border-radius: 6px;
   background: var(--hn-bg);
   color: var(--hn-text);
-  outline: none;
-  font-size: 12.5px;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
-}
-
-.hostelnexus-input-row input::placeholder {
-  color: #9ca3af;
+  font: inherit;
 }
 
 .hostelnexus-input-row input:focus {
-  border-color: var(--hn-primary);
-
-  box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.1);
-
-  transform: translateY(-1px);
+  outline: none;
+  border-color: var(--hn-accent);
 }
 
-
-/* =========================================================
-   SEND BUTTON
-   ========================================================= */
-
-.primary-btn {
-  width: 40px;
-  height: 40px;
-
-  flex-shrink: 0;
-
+.hostelnexus-widget .send-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  padding: 0;
   border: none;
-
-  border-radius: 10px;
-
-  background: linear-gradient(
-    135deg,
-    #2563eb,
-    #3b82f6
-  );
-
-  color: white;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: 16px;
-
+  border-radius: 6px;
+  background: var(--hn-accent);
+  color: #fff;
   cursor: pointer;
-
-  box-shadow:
-    0 4px 10px rgba(37, 99, 235, 0.22);
-
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    opacity 0.2s ease;
 }
 
-.primary-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-
-  box-shadow:
-    0 7px 15px rgba(37, 99, 235, 0.3);
-}
-
-.primary-btn:active:not(:disabled) {
-  transform: scale(0.92);
-}
-
-.primary-btn:disabled {
-  opacity: 0.45;
-
+.hostelnexus-widget .send-btn:disabled {
+  opacity: .5;
   cursor: not-allowed;
-
-  box-shadow: none;
 }
-
-
-/* =========================================================
-   SEND LOADER
-   ========================================================= */
 
 .send-loader {
   width: 14px;
   height: 14px;
-
-  border: 2px solid rgba(255, 255, 255, 0.35);
-
-  border-top-color: white;
-
+  border: 2px solid rgba(255, 255, 255, .4);
+  border-top-color: #fff;
   border-radius: 50%;
-
-  animation: sendSpin 0.7s linear infinite;
+  animation: hnSpin .7s linear infinite;
 }
 
-@keyframes sendSpin {
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes hnSpin {
+  to { transform: rotate(360deg); }
 }
 
-
-/* =========================================================
-   INPUT HINT
-   ========================================================= */
-
-.input-hint {
-  text-align: center;
-
-  margin-top: 5px;
-
-  color: #9ca3af;
-
-  font-size: 9px;
-}
-
-
-/* =========================================================
-   TAB CONTENT
-   ========================================================= */
+/* ---------- history tab ---------- */
 
 .hostelnexus-tab-content {
   flex: 1;
-
-  min-height: 0;
-
   overflow-y: auto;
-
-  padding: 6px 3px;
-
-  animation: tabContentAppear 0.3s ease;
+  padding: 12px;
 }
 
-@keyframes tabContentAppear {
-  from {
-    opacity: 0;
-    transform: translateX(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-
-/* =========================================================
-   SECTION TITLE
-   ========================================================= */
-
-.section-title {
+.hostelnexus-widget .section-title {
   display: flex;
-
   justify-content: space-between;
-
-  margin-bottom: 12px;
+  align-items: baseline;
+  margin-bottom: 6px;
 }
 
-.section-title h4 {
+.hostelnexus-widget .section-title h4 {
   margin: 0;
-
-  color: var(--hn-text);
-
-  font-size: 14px;
-}
-
-.section-title span {
-  display: block;
-
-  margin-top: 3px;
-
-  color: var(--hn-muted);
-
-  font-size: 10px;
-}
-
-
-/* =========================================================
-   HISTORY
-   ========================================================= */
-
-.user-list {
-  list-style: none;
-
-  margin: 0;
-  padding: 0;
-}
-
-.user-list li {
-  display: flex;
-
-  gap: 10px;
-
-  padding: 11px;
-
-  border: 1px solid var(--hn-border);
-
-  border-radius: 12px;
-
-  background: var(--hn-surface);
-
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.user-list li:hover {
-  transform: translateY(-2px);
-
-  box-shadow:
-    0 5px 15px rgba(15, 23, 42, 0.07);
-}
-
-.history-icon {
-  width: 32px;
-  height: 32px;
-
-  flex-shrink: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 9px;
-
-  background: var(--hn-primary-light);
-
-  color: var(--hn-primary);
-}
-
-.history-content {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 2px;
-}
-
-.history-content strong {
-  color: var(--hn-text);
-
   font-size: 12px;
-}
-
-.history-content span {
-  color: var(--hn-muted);
-
-  font-size: 10px;
-}
-
-.history-content small {
-  margin-top: 3px;
-
-  color: #9ca3af;
-
-  font-size: 9px;
-}
-
-
-/* =========================================================
-   STUDENT COUNTS
-   ========================================================= */
-
-.student-count-list {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 7px;
-}
-
-.student-count-item {
-  display: flex;
-
-  align-items: center;
-
-  justify-content: space-between;
-
-  padding: 9px 10px;
-
-  border: 1px solid var(--hn-border);
-
-  border-radius: 11px;
-
-  background: var(--hn-surface);
-
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.student-count-item:hover {
-  transform: translateX(3px);
-
-  background: var(--hn-primary-light);
-
-  box-shadow:
-    0 4px 12px rgba(37, 99, 235, 0.08);
-}
-
-.category-info {
-  display: flex;
-
-  align-items: center;
-
-  gap: 8px;
-
-  color: var(--hn-text);
-
-  font-size: 12px;
-}
-
-.category-icon {
-  width: 29px;
-  height: 29px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 8px;
-
-  background: white;
-
-  border: 1px solid var(--hn-border);
-
-  font-size: 13px;
-}
-
-.student-count-item strong {
-  min-width: 30px;
-
-  text-align: right;
-
-  color: var(--hn-primary);
-
-  font-size: 14px;
-}
-
-
-/* =========================================================
-   EMPTY STATE
-   ========================================================= */
-
-.empty-state {
-  height: 180px;
-
-  display: flex;
-  flex-direction: column;
-
-  align-items: center;
-  justify-content: center;
-
-  text-align: center;
-
-  color: var(--hn-muted);
-}
-
-.empty-icon {
-  width: 55px;
-  height: 55px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  margin-bottom: 10px;
-
-  border-radius: 15px;
-
-  background: var(--hn-primary-light);
-
-  font-size: 22px;
-
-  animation: emptyFloat 3s ease-in-out infinite;
-}
-
-@keyframes emptyFloat {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-5px);
-  }
-}
-
-.empty-state strong {
-  color: var(--hn-text);
-
-  font-size: 12px;
-}
-
-.empty-state span {
-  margin-top: 4px;
-
-  font-size: 10px;
-}
-
-
-/* =========================================================
-   MAXIMIZED
-   ========================================================= */
-
-.hostelnexus-widget.maximized {
-  width: min(760px, calc(100vw - 30px));
-
-  height: min(720px, calc(100vh - 30px));
-
-  left: 50% !important;
-  top: 50% !important;
-
-  right: auto !important;
-  bottom: auto !important;
-
-  transform: translate(-50%, -50%);
-
-  border-radius: 20px;
-
-  box-shadow:
-    0 35px 100px rgba(15, 23, 42, 0.28);
-
-  animation: maximizeWidget 0.35s
-    cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes maximizeWidget {
-  from {
-    opacity: 0.7;
-
-    transform:
-      translate(-50%, -50%)
-      scale(0.92);
-  }
-
-  to {
-    opacity: 1;
-
-    transform:
-      translate(-50%, -50%)
-      scale(1);
-  }
-}
-
-.hostelnexus-widget.maximized
-  .hostelnexus-widget-body {
-  padding: 14px;
-}
-
-
-/* =========================================================
-   MAXIMIZED CHAT
-   ========================================================= */
-
-.hostelnexus-widget.maximized
-  .hostelnexus-msg-text {
-  max-width: 65%;
-
-  font-size: 13px;
-
-  padding: 10px 13px;
-}
-
-.hostelnexus-widget.maximized
-  .hostelnexus-messages {
-  padding: 12px 5px;
-}
-
-
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
-
-@media (max-width: 600px) {
-  .hostelnexus-widget {
-    width: calc(100vw - 20px);
-
-    height: 500px;
-
-    right: 10px !important;
-    bottom: 10px !important;
-    left: auto !important;
-    top: auto !important;
-
-    border-radius: 18px;
-  }
-
-  .hostelnexus-widget.maximized {
-    width: calc(100vw - 14px);
-
-    height: calc(100vh - 14px);
-
-    left: 50% !important;
-    top: 50% !important;
-
-    right: auto !important;
-    bottom: auto !important;
-  }
-
-  .hostelnexus-msg-text {
-    max-width: 84%;
-  }
-}
-
-
-/* =========================================================
-   2-TAB SEGMENTED BAR & HISTORY STYLES
-   ========================================================= */
-
-.hostelnexus-tabs {
-  display: flex;
-  margin: 10px 14px 6px 14px;
-  background: var(--hn-surface, #f1f5f9);
-  padding: 4px;
-  border-radius: 12px;
-  border: 1px solid var(--hn-border, #e2e8f0);
-  gap: 4px;
-}
-
-.hostelnexus-tabs .tab {
-  flex: 1;
-  padding: 7px 14px;
-  font-size: 0.85rem;
   font-weight: 600;
-  border: none;
-  background: transparent;
-  color: var(--hn-muted, #64748b);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
+  color: var(--hn-muted);
 }
 
-.hostelnexus-tabs .tab:hover {
-  color: var(--hn-text, #0f172a);
+.history-view-all {
+  font-size: 12px;
+  color: var(--hn-accent);
 }
 
-.hostelnexus-tabs .tab.active {
-  background: #ffffff;
-  color: var(--hn-primary, #2563eb);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-/* History container */
-.hostelnexus-tab-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.hostelnexus-tab-content .section-title h4 {
+.empty-history-box p {
   margin: 0;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--hn-text, #0f172a);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  padding: 12px 0;
+  color: var(--hn-muted);
+  font-size: 13px;
 }
 
-.empty-history-box {
-  padding: 18px 12px;
-  text-align: center;
-  color: var(--hn-muted, #64748b);
-  font-size: 0.85rem;
-  background: var(--hn-surface, #f8fafc);
-  border-radius: 10px;
-  border: 1px dashed var(--hn-border, #e2e8f0);
-}
-
-.history-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.history-item-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 9px 12px;
-  background: var(--hn-surface, #f8fafc);
-  border: 1px solid var(--hn-border, #e2e8f0);
-  border-radius: 9px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.history-item-row:hover {
-  border-color: var(--hn-primary, #2563eb);
-  background: #ffffff;
-}
-
-.history-item-text {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--hn-text, #0f172a);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 78%;
-}
-
-.history-item-time {
-  font-size: 0.72rem;
-  color: var(--hn-muted, #94a3b8);
-}
-
+.history-items-list,
 .suggestions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  border: 1px solid var(--hn-border);
+  border-radius: 6px;
 }
 
+.history-item-row,
 .suggestion-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: var(--hn-surface, #f8fafc);
-  border: 1px solid var(--hn-border, #e2e8f0);
-  border-radius: 8px;
+  gap: 10px;
+  padding: 8px 10px;
   cursor: pointer;
-  transition: all 0.15s ease;
 }
 
+.history-item-row + .history-item-row,
+.suggestion-card + .suggestion-card {
+  border-top: 1px solid var(--hn-border);
+}
+
+.history-item-row:hover,
 .suggestion-card:hover {
-  border-color: var(--hn-primary, #2563eb);
-  background: #ffffff;
+  background: var(--hn-soft);
 }
 
+.history-item-row.failed .history-item-text {
+  color: #c94a4a;
+}
+
+.history-item-text,
 .suggestion-text {
-  font-size: 0.82rem;
-  color: var(--hn-text, #1e293b);
-  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.history-item-time {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--hn-muted);
 }
 
 .suggestion-action-arrow {
-  color: var(--hn-muted, #94a3b8);
-  display: flex;
-  align-items: center;
+  display: grid;
+  color: var(--hn-muted);
 }
 
-.suggestion-card:hover .suggestion-action-arrow {
-  color: var(--hn-primary, #2563eb);
-}
-
-/* =========================================================
-   DARK MODE
-   ========================================================= */
-
-@media (prefers-color-scheme: dark) {
-  .hostelnexus-widget {
-    --hn-bg: #111827;
-    --hn-surface: #1f2937;
-    --hn-border: #374151;
-    --hn-text: #f9fafb;
-    --hn-muted: #9ca3af;
-    --hn-primary-light: rgba(59, 130, 246, 0.12);
-    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.45);
+@media (max-width: 600px) {
+  .hostelnexus-widget:not(.minimized) {
+    width: calc(100vw - 20px);
+    right: 10px !important;
+    bottom: 10px !important;
+    left: auto !important;
+    top: auto !important;
   }
 
-  .hostelnexus-tabs {
-    background: #1e293b;
-    border-color: #334155;
-  }
-
-  .hostelnexus-tabs .tab.active {
-    background: #0f172a;
-    color: #60a5fa;
-  }
-
-  .history-item-row,
-  .suggestion-card,
-  .empty-history-box,
-  .suggestion-chip {
-    background: #1e293b;
-    border-color: #334155;
-    color: #cbd5e1;
-  }
-
-  .history-item-row:hover,
-  .suggestion-card:hover,
-  .suggestion-chip:hover:not(:disabled) {
-    background: #0f172a;
-    border-color: #60a5fa;
-    color: #93c5fd;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hostelnexus-widget,
-  .hostelnexus-widget * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  .hostelnexus-widget.maximized {
+    width: calc(100vw - 14px);
+    height: calc(100vh - 14px);
+    left: 50% !important;
+    top: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
   }
 }

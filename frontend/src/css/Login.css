@@ -14,7 +14,7 @@
 }
 
 .auth-hero {
-  border-radius: 32px;
+  border-radius: 10px;
   padding: 2rem;
   min-height: 560px;
   display: flex;
@@ -36,9 +36,8 @@
 }
 
 .auth-card {
-  border-radius: 32px;
+  border-radius: 10px;
   padding: 2rem;
-  animation: fadeInUp 0.7s ease both;
 }
 
 .auth-card h3 {
@@ -78,7 +77,7 @@
 .input-control {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 0.95rem 1rem;
   background: var(--card-bg);
   color: var(--text);
@@ -87,7 +86,7 @@
 
 .input-control:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 4px rgba(26, 54, 93, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   outline: none;
 }
 
@@ -127,7 +126,7 @@ textarea:disabled {
   background: rgba(220, 38, 38, 0.1);
   color: var(--danger);
   padding: 0.75rem 1rem;
-  border-radius: 12px;
+  border-radius: 6px;
   font-weight: 600;
   font-size: 0.88rem;
   margin: 0;
@@ -166,7 +165,7 @@ textarea:disabled {
   margin-top: 1rem;
   padding: 1rem;
   border: 1px solid rgba(26, 54, 93, 0.12);
-  border-radius: 20px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.6);
   display: grid;
   gap: 0.8rem;
@@ -200,7 +199,7 @@ textarea:disabled {
 
 .button {
   padding: 0.95rem 1.15rem;
-  border-radius: 16px;
+  border-radius: 8px;
   border: none;
   font-weight: 700;
   cursor: pointer;
@@ -212,13 +211,12 @@ textarea:disabled {
 }
 
 .button:hover {
-  transform: translateY(-2px);
 }
 
 .button.primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  background: var(--primary);
   color: white;
-  box-shadow: 0 12px 28px rgba(26, 54, 93, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .button.secondary {
@@ -249,7 +247,7 @@ textarea:disabled {
   background: var(--card-bg);
   color: var(--text-secondary);
   padding: 0.9rem 1rem;
-  border-radius: 16px;
+  border-radius: 8px;
   font-weight: 700;
   cursor: pointer;
   margin-top: 0.5rem;
@@ -288,7 +286,7 @@ textarea:disabled {
 
 .upload-area {
   border: 1.5px dashed rgba(26, 54, 93, 0.2);
-  border-radius: 20px;
+  border-radius: 10px;
   padding: 1rem;
   text-align: center;
   cursor: pointer;
@@ -299,7 +297,7 @@ textarea:disabled {
   width: 100px;
   height: 100px;
   object-fit: cover;
-  border-radius: 24px;
+  border-radius: 10px;
   margin: 0.5rem auto 0;
   border: 3px solid rgba(26, 54, 93, 0.15);
 }

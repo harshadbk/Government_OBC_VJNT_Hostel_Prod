@@ -9,7 +9,7 @@
 }
 
 .profile-hero {
-  border-radius: 32px;
+  border-radius: 10px;
   padding: 2rem;
   display: grid;
   grid-template-columns: 1fr 1.15fr;
@@ -28,7 +28,7 @@
 .avatar-shell {
   padding: 0.5rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(26, 54, 93, 0.1), rgba(15, 118, 110, 0.1));
+  background: rgba(26, 54, 93, 0.1);
 }
 
 .profile-avatar {
@@ -37,7 +37,7 @@
   border-radius: 50%;
   object-fit: cover;
   border: 4px solid rgba(255,255,255,0.9);
-  box-shadow: 0 14px 30px rgba(15,23,42,0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .profile-fallback {
@@ -49,7 +49,7 @@
   font-size: 2rem;
   font-weight: 800;
   color: white;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
+  background: var(--primary);
 }
 
 .profile-actions {
@@ -67,7 +67,7 @@
 /* ===== Profile Card ===== */
 
 .profile-card {
-  border-radius: 24px;
+  border-radius: 10px;
   padding: 1.2rem;
   max-width: 100%;
   min-width: 0;
@@ -109,7 +109,7 @@
 }
 
 .avatar-fallback {
-  background: linear-gradient(135deg, var(--primary), var(--accent));
+  background: var(--primary);
   color: white;
   font-weight: 700;
 }
@@ -124,7 +124,7 @@
 
 .detail-pill {
   padding: 0.8rem 0.95rem;
-  border-radius: 16px;
+  border-radius: 8px;
   background: rgba(26, 54, 93, 0.06);
   display: flex;
   gap: 0.52rem;
@@ -165,7 +165,7 @@
   width: 100%;
   min-width: 0;
   padding: 0.7rem 0.9rem;
-  border-radius: 12px;
+  border-radius: 6px;
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.03);
   color: var(--text);
@@ -187,7 +187,7 @@
 
 .profile-message {
   padding: 0.8rem 1.2rem;
-  border-radius: 14px;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 0.88rem;
   margin: 0.5rem 0 0;
@@ -211,7 +211,7 @@
 .documents-section {
   margin-top: 2rem;
   padding: 2rem;
-  border-radius: 32px;
+  border-radius: 10px;
 }
 
 .documents-container {
@@ -236,7 +236,7 @@
   background: rgba(74, 144, 217, 0.08);
   border: 1px solid rgba(74, 144, 217, 0.12);
   padding: 1.2rem 1.5rem;
-  border-radius: 16px;
+  border-radius: 8px;
   margin-bottom: 1.5rem;
   text-align: center;
 }
@@ -286,8 +286,8 @@
 }
 
 .documents-scroll-area::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  border-radius: 20px;
+  background: var(--primary);
+  border-radius: 10px;
 }
 
 
@@ -299,14 +299,13 @@
   justify-content: space-between;
   padding: 1rem 1.2rem;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--card-bg);
   transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
 }
 
 .doc-card:hover {
   box-shadow: var(--shadow-sm);
-  transform: translateY(-1px);
 }
 
 .doc-card.uploaded {
@@ -362,7 +361,7 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 1rem;
-  border-radius: 12px;
+  border-radius: 6px;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -375,7 +374,6 @@
 .doc-upload-label:hover {
   background: rgba(74, 144, 217, 0.14);
   border-color: rgba(74, 144, 217, 0.25);
-  transform: translateY(-1px);
 }
 
 .doc-view-btn {
@@ -389,7 +387,7 @@
   font-size: 0.85rem;
   font-weight: 600;
   padding: 0.5rem 0.75rem;
-  border-radius: 10px;
+  border-radius: 6px;
   transition: background 0.2s;
 }
 
@@ -403,13 +401,12 @@
 .doc-message {
   margin-top: 1rem;
   padding: 0.7rem 1rem;
-  border-radius: 12px;
+  border-radius: 6px;
   font-size: 0.88rem;
   font-weight: 600;
   text-align: center;
   color: var(--text);
   background: rgba(74, 144, 217, 0.06);
-  animation: fadeInUp 0.25s ease-out;
 }
 
 .doc-message.done {
@@ -425,14 +422,11 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   z-index: 9999;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 2rem;
-  animation: fadeIn 0.2s ease-out;
 }
 
 .doc-preview-modal {
@@ -441,12 +435,11 @@
   max-width: 900px;
   height: 100%;
   max-height: 800px;
-  border-radius: 18px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-  animation: modalSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 @keyframes modalSlideUp {
@@ -489,7 +482,6 @@
 
 .doc-preview-close:hover {
   color: var(--danger);
-  transform: scale(1.1);
 }
 
 .doc-preview-body {
@@ -518,29 +510,27 @@
 .leave-section {
   margin-top: 2rem;
   padding: 2rem;
-  border-radius: 32px;
+  border-radius: 10px;
 }
 
 .leave-open-btn {
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 0.8rem 1.1rem;
-  background: linear-gradient(90deg, var(--primary), var(--accent));
+  background: var(--primary);
   color: white;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(74, 144, 217, 0.23);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .leave-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(7, 18, 35, 0.72);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   z-index: 9999;
   display: flex;
   justify-content: center;
@@ -553,8 +543,8 @@
   max-height: min(90vh, 860px);
   overflow: auto;
   background: var(--bg-alt);
-  border-radius: 24px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   padding: 1.25rem;
 }
 
@@ -609,7 +599,7 @@
 .leave-field input,
 .leave-field textarea {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 0.8rem 0.95rem;
   background: var(--card-bg);
   color: var(--text);
@@ -643,35 +633,29 @@
   min-width: 220px;
   padding: 0.9rem 1.2rem;
   border: none;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 6px;
+  background: var(--primary);
   color: white;
-  box-shadow: 0 10px 28px rgba(74, 144, 217, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-  animation: leaveButtonFloat 1.8s ease-in-out infinite;
 }
 
 .leave-submit-btn::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.32) 50%, transparent 100%);
-  transform: translateX(-140%);
-  transition: transform 0.7s ease;
+  display: none;
 }
 
 .leave-submit-btn:hover {
-  transform: translateY(-2px) scale(1.01);
-  box-shadow: 0 14px 32px rgba(74, 144, 217, 0.32);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   filter: brightness(1.04);
 }
 
 .leave-submit-btn:hover::before {
-  transform: translateX(140%);
 }
 
 .leave-submit-btn:active {
-  transform: translateY(1px) scale(0.99);
 }
 
 .leave-submit-btn:disabled {
@@ -704,7 +688,7 @@
 .attendance-section {
   margin-top: 2rem;
   padding: 2rem;
-  border-radius: 32px;
+  border-radius: 10px;
 }
 
 .attendance-head {
@@ -747,7 +731,7 @@
 .attendance-year select {
   min-width: 96px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--card-bg);
   color: var(--text);
   padding: 0.55rem 0.75rem;
@@ -763,7 +747,7 @@
 
 .attendance-stat {
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 1rem;
   background: var(--card-bg);
   display: grid;
@@ -791,7 +775,7 @@
 
 .attendance-heatmap-wrap {
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 8px;
   padding: 1rem;
   background: var(--card-bg);
   overflow-x: auto;
@@ -879,7 +863,7 @@
 
 .attendance-month-group {
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 8px;
   background: var(--card-bg);
   overflow: hidden;
 }
@@ -963,7 +947,7 @@
   .documents-section,
   .leave-section,
   .attendance-section {
-    border-radius: 24px;
+    border-radius: 10px;
     padding: 1.25rem;
   }
 
@@ -1047,12 +1031,12 @@
   .attendance-section {
     gap: 1rem;
     padding: 0.9rem;
-    border-radius: 18px;
+    border-radius: 8px;
   }
 
   .profile-card {
     padding: 0.85rem;
-    border-radius: 16px;
+    border-radius: 8px;
   }
 
   .profile-avatar,
@@ -1097,7 +1081,7 @@
 
   .detail-pill {
     padding: 0.7rem 0.75rem;
-    border-radius: 12px;
+    border-radius: 6px;
   }
 
   .profile-form {
@@ -1109,12 +1093,12 @@
   .password-verification-card .input-control,
   .leave-field input,
   .leave-field textarea {
-    border-radius: 12px;
+    border-radius: 6px;
     font-size: 0.92rem;
   }
 
   .password-section {
-    border-radius: 18px !important;
+    border-radius: 8px !important;
     padding: 0.9rem !important;
   }
 
@@ -1130,7 +1114,7 @@
 
   .documents-info-banner {
     padding: 0.9rem;
-    border-radius: 14px;
+    border-radius: 8px;
     text-align: left;
   }
 

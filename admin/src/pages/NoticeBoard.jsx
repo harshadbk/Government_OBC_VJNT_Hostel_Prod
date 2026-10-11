@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { FiBell, FiPlus, FiEdit2, FiTrash2, FiX, FiCheck, FiAlertTriangle, FiInfo, FiAlertCircle, FiCalendar, FiSearch } from 'react-icons/fi';
+import toast, { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -30,6 +31,9 @@ export default function NoticeBoard({ onLogout }) {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [feedback, setFeedback] = useState('');
+  useToastMessage(formError, 'error');
+  useToastMessage(saveSuccess, 'success');
+  useToastMessage(feedback);
   const [highlightedNoticeId, setHighlightedNoticeId] = useState(null);
 
   // search
@@ -161,10 +165,13 @@ export default function NoticeBoard({ onLogout }) {
       } else if (res.status === 401 || res.status === 403) {
         handleAuthFailure();
         return;
+      } else {
+        toast.error('Could not delete the notice.');
       }
       await fetchNotices();
     } catch (err) {
       console.error('Delete failed:', err);
+      toast.error('Could not delete the notice. Please try again.');
     } finally {
       setDeleteId(null);
     }
@@ -190,7 +197,7 @@ export default function NoticeBoard({ onLogout }) {
         {/* ── Topbar ── */}
         <header className="dashboard-topbar">
           <div>
-            <p className="eyebrow">Management Panel</p>
+            <p className="eyebrow">Announcements</p>
             <h2 style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
               <FiBell /> Notice Board
             </h2>
@@ -238,12 +245,6 @@ export default function NoticeBoard({ onLogout }) {
           <div className="panel-head">
             <h3>All Notices</h3>
           </div>
-
-          {feedback ? (
-            <div style={{ marginBottom: '.8rem', padding: '.8rem 1rem', borderRadius: '12px', background: 'rgba(52, 211, 153, 0.14)', color: '#10b981', fontWeight: 600 }}>
-              {feedback}
-            </div>
-          ) : null}
 
           {loading ? (
             <p style={{ color: 'var(--muted)', padding: '1rem' }}>Loading notices…</p>
@@ -410,12 +411,6 @@ export default function NoticeBoard({ onLogout }) {
                 </div>
               </div>
 
-              {formError && (
-                <p style={{ color: '#f87171', margin: 0, fontSize: '.9rem' }}>{formError}</p>
-              )}
-              {saveSuccess && (
-                <p style={{ color: '#10b981', margin: 0, fontSize: '.95rem' }}>{saveSuccess}</p>
-              )}
 
               <div style={{ display: 'flex', gap: '.7rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="secondary-btn" onClick={closeModal}>Cancel</button>

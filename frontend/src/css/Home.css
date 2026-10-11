@@ -18,8 +18,6 @@
 .hero-bg-pattern {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 20% 50%, rgba(26, 54, 93, 0.04) 0%, transparent 70%),
-              radial-gradient(ellipse at 80% 20%, rgba(217, 119, 6, 0.03) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
@@ -28,8 +26,7 @@
   position: relative;
   z-index: 1;
   opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.8s ease, transform 0.8s ease;
+  transition: opacity 0.3s ease;
 }
 
 .hero-copy.visible {
@@ -64,10 +61,7 @@
 }
 
 .highlight-text {
-  background: linear-gradient(135deg, var(--secondary), var(--secondary-light));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--secondary);
 }
 
 .hero-subtitle {
@@ -117,7 +111,6 @@
 }
 
 .stat-pill:hover {
-  transform: translateY(-2px);
   border-color: var(--primary, #2563eb);
 }
 
@@ -135,20 +128,19 @@
 
 .stat-counter-badge.green-badge {
   background: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  box-shadow: none;
 }
 
 .stat-counter-badge.red-badge {
   background: #ef4444;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+  box-shadow: none;
 }
 
 .hero-visual {
   position: relative;
   z-index: 1;
   opacity: 0;
-  transform: translateX(40px);
-  transition: opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s;
+  transition: opacity 0.3s ease;
 }
 
 .hero-visual.visible {
@@ -160,7 +152,7 @@
   position: relative;
   min-height: 420px;
   border-radius: var(--radius-xl);
-  background: linear-gradient(135deg, rgba(26, 54, 93, 0.08), rgba(217, 119, 6, 0.06));
+  background: rgba(26, 54, 93, 0.08);
   border: 1px solid var(--card-border);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
@@ -188,8 +180,6 @@
   font-weight: 700;
   font-size: 0.82rem;
   box-shadow: var(--shadow-md);
-  animation: float 4s ease-in-out infinite;
-  backdrop-filter: blur(12px);
 }
 
 .badge-top {
@@ -212,7 +202,6 @@
   max-width: 280px;
   background: var(--card-bg);
   box-shadow: var(--shadow-md);
-  backdrop-filter: blur(12px);
 }
 
 .hero-card-info h3 {
@@ -242,8 +231,7 @@
   padding: 1.8rem 1.5rem;
   border-radius: var(--radius-lg);
   opacity: 0;
-  transform: translateY(25px);
-  transition: opacity 0.6s ease, transform 0.6s ease, box-shadow var(--transition);
+  transition: opacity 0.3s ease;
 }
 
 .feature-card.visible {
@@ -252,7 +240,6 @@
 }
 
 .feature-card:hover {
-  transform: translateY(-6px);
   box-shadow: var(--shadow-lg);
 }
 
@@ -263,14 +250,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(26, 54, 93, 0.1), rgba(15, 118, 110, 0.1));
+  background: rgba(26, 54, 93, 0.1);
   color: var(--primary);
   font-size: 1.3rem;
   margin-bottom: 1rem;
 }
 
 [data-theme="dark"] .feature-icon-wrap {
-  background: linear-gradient(135deg, rgba(74, 144, 217, 0.15), rgba(45, 212, 191, 0.1));
+  background: rgba(74, 144, 217, 0.15);
 }
 
 .feature-card h3 {
@@ -299,8 +286,7 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   opacity: 0;
-  transform: translateX(-30px);
-  transition: opacity 0.7s ease, transform 0.7s ease;
+  transition: opacity 0.3s ease;
 }
 
 .about-image-card.visible {
@@ -342,8 +328,7 @@
   padding: 1.4rem;
   border-radius: var(--radius-md);
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition: opacity 0.3s ease;
 }
 
 .about-card.visible {
@@ -361,11 +346,11 @@
 .about-card-icon {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  background: var(--primary);
   color: white;
   font-size: 1rem;
   flex-shrink: 0;
@@ -396,8 +381,7 @@
   border-radius: var(--radius-md);
   text-align: center;
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.5s ease, transform 0.5s ease, box-shadow var(--transition);
+  transition: opacity 0.3s ease;
 }
 
 .facility-card.visible {
@@ -406,7 +390,6 @@
 }
 
 .facility-card:hover {
-  transform: translateY(-5px);
   box-shadow: var(--shadow-lg);
 }
 
@@ -417,14 +400,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(26, 54, 93, 0.08), rgba(15, 118, 110, 0.08));
+  background: rgba(26, 54, 93, 0.08);
   color: var(--primary);
   font-size: 1.2rem;
   margin: 0 auto 0.8rem;
 }
 
 [data-theme="dark"] .facility-icon {
-  background: linear-gradient(135deg, rgba(74, 144, 217, 0.15), rgba(45, 212, 191, 0.1));
+  background: rgba(74, 144, 217, 0.15);
 }
 
 .facility-card h4 {
@@ -447,11 +430,10 @@
   gap: 2.5rem;
   padding: 2.5rem;
   border-radius: var(--radius-xl);
-  background: linear-gradient(135deg, rgba(217, 119, 6, 0.06), rgba(245, 158, 11, 0.04));
+  background: rgba(217, 119, 6, 0.06);
   border: 2px solid rgba(217, 119, 6, 0.15);
   opacity: 0;
-  transform: translateY(25px);
-  transition: opacity 0.7s ease, transform 0.7s ease;
+  transition: opacity 0.3s ease;
 }
 
 .food-allowance-card.visible {
@@ -460,7 +442,7 @@
 }
 
 [data-theme="dark"] .food-allowance-card {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(217, 119, 6, 0.05));
+  background: rgba(245, 158, 11, 0.08);
   border-color: rgba(245, 158, 11, 0.2);
 }
 
@@ -471,11 +453,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--secondary), var(--secondary-light));
+  background: var(--secondary);
   color: white;
   font-size: 2rem;
   flex-shrink: 0;
-  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .food-allowance-badge {
@@ -550,8 +532,7 @@
   overflow: hidden;
   padding: 0;
   opacity: 0;
-  transform: translateY(25px);
-  transition: opacity 0.5s ease, transform 0.5s ease, box-shadow var(--transition);
+  transition: opacity 0.3s ease;
 }
 
 .event-card.visible {
@@ -560,7 +541,6 @@
 }
 
 .event-card:hover {
-  transform: translateY(-5px);
   box-shadow: var(--shadow-xl);
 }
 
@@ -578,7 +558,6 @@
 }
 
 .event-card:hover .event-image-wrap img {
-  transform: scale(1.05);
 }
 
 .event-date-badge {
@@ -594,7 +573,6 @@
   color: white;
   font-size: 0.75rem;
   font-weight: 600;
-  backdrop-filter: blur(8px);
 }
 
 .event-info {
@@ -619,7 +597,7 @@
   align-items: center;
   gap: 0.35rem;
   padding: 0.45rem 0.85rem;
-  border-radius: 999px;
+  border-radius: 6px;
   background: rgba(26, 54, 93, 0.08);
   color: var(--primary);
   border: none;
@@ -648,7 +626,7 @@
 
 .gallery-filter-btn {
   padding: 0.45rem 1rem;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--card-bg);
   color: var(--muted);
@@ -677,8 +655,7 @@
   overflow: hidden;
   cursor: pointer;
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.3s ease;
 }
 
 .gallery-item.visible {
@@ -703,7 +680,6 @@
 }
 
 .gallery-item:hover img {
-  transform: scale(1.08);
 }
 
 .gallery-overlay {
@@ -744,7 +720,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fadeIn 0.3s ease;
 }
 
 .lightbox-content {
@@ -833,8 +808,7 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   opacity: 0;
-  transform: translateY(25px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.3s ease;
 }
 
 .staff-card.visible {
@@ -855,7 +829,6 @@
 }
 
 .staff-card:hover .staff-image-wrap img {
-  transform: scale(1.06);
 }
 
 .staff-info {
@@ -907,8 +880,7 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   opacity: 0;
-  transform: translateY(25px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.3s ease;
 }
 
 .council-card.visible {
@@ -929,7 +901,6 @@
 }
 
 .council-card:hover .council-image-wrap img {
-  transform: scale(1.06);
 }
 
 .council-info {
@@ -971,8 +942,7 @@
   border-radius: var(--radius-md);
   position: relative;
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.3s ease;
 }
 
 .rule-card.visible {
@@ -1030,8 +1000,7 @@
   align-items: center;
   text-align: center;
   opacity: 0;
-  transform: translateY(25px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition: opacity 0.3s ease;
 }
 
 .timeline-step.visible {
@@ -1052,7 +1021,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  background: var(--primary);
   color: white;
   font-weight: 800;
   font-size: 0.95rem;
@@ -1060,7 +1029,7 @@
   align-items: center;
   justify-content: center;
   z-index: 2;
-  box-shadow: 0 4px 12px rgba(26, 54, 93, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .timeline-line {
@@ -1069,7 +1038,7 @@
   left: 50%;
   width: 100%;
   height: 3px;
-  background: linear-gradient(90deg, var(--primary), rgba(26, 54, 93, 0.15));
+  background: var(--primary);
   z-index: 1;
 }
 
@@ -1112,8 +1081,7 @@
   padding: 1.4rem;
   border-radius: var(--radius-md);
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.3s ease;
 }
 
 .document-card.visible {
@@ -1163,8 +1131,7 @@
   padding: 1.4rem;
   border-radius: var(--radius-md);
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.3s ease;
 }
 
 .notice-card.visible {
@@ -1180,7 +1147,7 @@
   width: 44px;
   height: 44px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, rgba(26, 54, 93, 0.1), rgba(15, 118, 110, 0.1));
+  background: rgba(26, 54, 93, 0.1);
   color: var(--primary);
   display: flex;
   align-items: center;
@@ -1251,8 +1218,7 @@
   display: flex;
   gap: 1.5rem;
   opacity: 0;
-  transform: translateY(25px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition: opacity 0.3s ease;
 }
 
 .journey-item.visible {
@@ -1291,7 +1257,7 @@
   background: var(--secondary);
   border-color: var(--secondary);
   color: white;
-  box-shadow: 0 0 0 6px rgba(217, 119, 6, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .journey-line {
@@ -1375,8 +1341,7 @@
   border-radius: var(--radius-md);
   overflow: hidden;
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.3s ease;
   padding: 0;
 }
 
@@ -1443,8 +1408,7 @@
   overflow: hidden;
   min-height: 400px;
   opacity: 0;
-  transform: translateX(-30px);
-  transition: opacity 0.7s ease, transform 0.7s ease;
+  transition: opacity 0.3s ease;
 }
 
 .contact-map-wrap.visible {
@@ -1465,8 +1429,7 @@
   padding: 1.2rem 1.4rem;
   border-radius: var(--radius-md);
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.3s ease;
 }
 
 .contact-card.visible {
@@ -1481,8 +1444,8 @@
 .contact-card-icon {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  border-radius: 6px;
+  background: var(--primary);
   color: white;
   display: flex;
   align-items: center;
@@ -1512,7 +1475,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  background: var(--primary);
   color: white;
   border: none;
   font-size: 1.2rem;
@@ -1523,7 +1486,6 @@
   box-shadow: var(--shadow-lg);
   opacity: 0;
   visibility: hidden;
-  transform: translateY(20px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 999;
 }
@@ -1535,7 +1497,6 @@
 }
 
 .back-to-top:hover {
-  transform: translateY(-4px);
   box-shadow: var(--shadow-xl);
 }
 
@@ -1629,7 +1590,6 @@
   background: rgba(0, 0, 0, 0.5);
   padding: 0.3rem 0.8rem;
   border-radius: 999px;
-  backdrop-filter: blur(4px);
 }
 
 .staff-image-wrap,

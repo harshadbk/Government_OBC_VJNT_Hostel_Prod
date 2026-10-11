@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import toast, { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -11,6 +12,7 @@ function AdminUsers({ onLogout }) {
   const [otp, setOtp] = useState('');
   const [pendingUserId, setPendingUserId] = useState(null);
   const [message, setMessage] = useState('');
+  useToastMessage(message);
   const navigate = useNavigate();
 
   const getAdminToken = () => {
@@ -46,7 +48,7 @@ function AdminUsers({ onLogout }) {
       }
       setUsers(data.users || []);
     } catch (error) {
-      setMessage(error.message);
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
@@ -100,7 +102,6 @@ function AdminUsers({ onLogout }) {
             <h2>Admin Users</h2>
           </div>
         </header>
-        {message ? <p className="form-error" style={{ marginBottom: '1rem' }}>{message}</p> : null}
         {otpSent ? (
           <div className="panel-card" style={{ marginBottom: '1rem' }}>
             <h3>Delete Verification</h3>

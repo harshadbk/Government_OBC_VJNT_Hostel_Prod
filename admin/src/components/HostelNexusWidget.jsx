@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import MarkdownMessage from './MarkdownMessage';
+import { askQuestion, checkHealth as pingServer, fetchHistory, formatDateTime } from '../utils/assistantApi';
 import './HostelNexusWidget.css';
-
-const FASTAPI_URL = import.meta.env.VITE_FASTAPI_URL || 'http://127.0.0.1:8000';
 
 const SUGGESTIONS = [
   'How many students are registered?',
@@ -23,7 +23,7 @@ export default function HostelNexusWidget() {
     {
       id: 1,
       from: 'bot',
-      text: 'Hello. How can I assist you with the hostel database today?',
+      text: 'Ask me about students, rooms, attendance, leaves or notices.',
       source: 'system',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
@@ -34,6 +34,7 @@ export default function HostelNexusWidget() {
   const [isOnline, setIsOnline] = useState(true);
   const [isMax, setIsMax] = useState(false);
   const [tab, setTab] = useState('chat'); // 'chat' or 'history'
+  const [serverHistory, setServerHistory] = useState({ items: [], loading: false, error: '' });
 
   const endRef = useRef(null);
   const widgetRef = useRef(null);
@@ -52,14 +53,21 @@ export default function HostelNexusWidget() {
     }
   }, [messages, loading, isMax]);
 
-  const checkHealth = async () => {
+  const checkHealth = async () => setIsOnline(await pingServer());
+
+  const loadHistory = async () => {
+    setServerHistory((h) => ({ ...h, loading: true, error: '' }));
     try {
-      const res = await fetch(`${FASTAPI_URL}/health`, { method: 'GET' });
-      setIsOnline(res.ok);
+      const data = await fetchHistory({ limit: 15 });
+      setServerHistory({ items: data.items, loading: false, error: '' });
     } catch {
-      setIsOnline(false);
+      setServerHistory({ items: [], loading: false, error: 'Could not load history.' });
     }
   };
+
+  useEffect(() => {
+    if (tab === 'history') loadHistory();
+  }, [tab]);
 
   useEffect(() => {
     localStorage.setItem('hostelnexus_session_id', sessionIdRef.current);
@@ -140,27 +148,14 @@ export default function HostelNexusWidget() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${FASTAPI_URL}/ask`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question: text,
-          session_id: sessionIdRef.current,
-          history: messages.slice(-10).map((m) => ({
-            role: m.from === 'bot' ? 'assistant' : 'user',
-            content: m.text,
-          })),
-        }),
+      const data = await askQuestion({
+        question: text,
+        sessionId: sessionIdRef.current,
+        history: messages.slice(-10).map((m) => ({
+          role: m.from === 'bot' ? 'assistant' : 'user',
+          content: m.text,
+        })),
       });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
-      }
-
-      const data = await res.json();
       setIsOnline(true);
 
       setMessages((prev) => [
@@ -180,7 +175,7 @@ export default function HostelNexusWidget() {
         {
           id: Date.now() + 1,
           from: 'bot',
-          text: `Service unreachable. Please verify server connection.`,
+          text: 'Could not reach the assistant server.',
           source: 'error',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
@@ -217,8 +212,6 @@ export default function HostelNexusWidget() {
     node.classList.add('dragging');
   };
 
-  const userQueryHistory = messages.filter((m) => m.from === 'user');
-
   return (
     <div
       ref={widgetRef}
@@ -239,7 +232,7 @@ export default function HostelNexusWidget() {
             </svg>
           </div>
           <div>
-            <strong>AI Assistant</strong>
+            <strong>Assistant</strong>
             <div className="hostelnexus-status">
               <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
               {isOnline ? 'Connected' : 'Offline'}
@@ -278,7 +271,6 @@ export default function HostelNexusWidget() {
 
       {/* BODY */}
       <div className={`hostelnexus-widget-body ${isMax ? 'maximized' : ''}`}>
-        {/* ONLY 2 CLEAN TABS: CHAT & HISTORY */}
         <div className="hostelnexus-tabs">
           <button className={`tab ${tab === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>
             Chat
@@ -355,33 +347,39 @@ export default function HostelNexusWidget() {
         {tab === 'history' && (
           <div className="hostelnexus-tab-content">
             <div className="section-title">
-              <h4>Recent Queries</h4>
+              <h4>Recent questions</h4>
+              <Link to="/hostel-nexus" className="history-view-all">View all</Link>
             </div>
 
-            {userQueryHistory.length === 0 ? (
+            {serverHistory.loading ? (
+              <div className="empty-history-box"><p>Loading…</p></div>
+            ) : serverHistory.error ? (
+              <div className="empty-history-box"><p>{serverHistory.error}</p></div>
+            ) : serverHistory.items.length === 0 ? (
               <div className="empty-history-box">
-                <p>No queries sent in this session yet.</p>
+                <p>No questions asked yet.</p>
               </div>
             ) : (
               <div className="history-items-list">
-                {userQueryHistory.map((item, idx) => (
+                {serverHistory.items.map((item) => (
                   <div
-                    key={idx}
-                    className="history-item-row"
+                    key={item.id}
+                    className={`history-item-row ${item.success ? '' : 'failed'}`}
+                    title="Ask again"
                     onClick={() => {
                       setTab('chat');
-                      send(item.text);
+                      send(item.question);
                     }}
                   >
-                    <div className="history-item-text">{item.text}</div>
-                    <span className="history-item-time">{item.timestamp}</span>
+                    <div className="history-item-text">{item.question}</div>
+                    <span className="history-item-time">{formatDateTime(item.created_at)}</span>
                   </div>
                 ))}
               </div>
             )}
 
             <div className="section-title" style={{ marginTop: '1rem' }}>
-              <h4>Quick Prompts</h4>
+              <h4>Common questions</h4>
             </div>
             <div className="suggestions-list">
               {SUGGESTIONS.map((s, idx) => (

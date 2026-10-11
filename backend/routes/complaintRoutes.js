@@ -12,7 +12,7 @@ import Message from '../models/Message.js';
 const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }
 });
 
 const __filename = fileURLToPath(import.meta.url);

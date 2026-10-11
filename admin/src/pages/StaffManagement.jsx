@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import compressImageFile from '../utils/compressImage';
+import toast, { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -13,6 +14,7 @@ export default function StaffManagement() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', position: '', email: '', phone: '', image: null });
   const [feedback, setFeedback] = useState('');
+  useToastMessage(feedback);
   const navigate = useNavigate();
 
   const token = localStorage.getItem('adminToken');
@@ -68,7 +70,7 @@ export default function StaffManagement() {
       await fetchStaff();
       resetForm();
     } catch (err) {
-      setFeedback(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -89,7 +91,7 @@ export default function StaffManagement() {
       setFeedback('Staff member deleted.');
       setTimeout(() => setFeedback(''), 3500);
     } catch (err) {
-      setFeedback(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -110,7 +112,6 @@ export default function StaffManagement() {
         </header>
 
         <div className="panel-card">
-          {feedback && <div className="status-message">{feedback}</div>}
           {loading ? (
             <p>Loading staff members…</p>
           ) : error ? (

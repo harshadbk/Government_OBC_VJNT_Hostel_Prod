@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { FiEye, FiEyeOff, FiUser, FiLock, FiMail, FiPhone, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiUser, FiLock, FiMail, FiPhone, FiArrowLeft } from 'react-icons/fi';
+import { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -9,6 +10,8 @@ function Register({ onRegister, switchToLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);
+  useToastMessage(error, 'error');
+  useToastMessage(notice?.message, notice?.type);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
 
@@ -71,17 +74,10 @@ function Register({ onRegister, switchToLogin }) {
 
   return (
     <section className="admin-login-page">
-      {notice ? (
-        <div className={`action-popup ${notice.type}`} role="status">
-          <FiCheckCircle />
-          <span>{notice.message}</span>
-        </div>
-      ) : null}
       <div className="login-card admin-login-card">
         <span className="eyebrow">Create Admin Account</span>
         <h2>{otpSent ? 'Verify Registration' : 'Register Admin'}</h2>
         <p>First-time admin accounts are verified through the root admin email.</p>
-        {error ? <p className="form-error">{error}</p> : null}
         {otpSent ? (
           <form onSubmit={handleVerify} className="auth-form">
             <label className="input-group">

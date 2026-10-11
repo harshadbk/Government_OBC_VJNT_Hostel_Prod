@@ -20,6 +20,7 @@ import {
   FiEdit2
 } from 'react-icons/fi';
 import '../css/ComplaintBox.css';
+import toast, { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -54,6 +55,7 @@ export default function ComplaintBox({ user, token }) {
   // Status & List State
   const [submitting, setSubmitting] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null);
+  useToastMessage(alertMsg?.text, alertMsg?.type);
   const [myComplaints, setMyComplaints] = useState([]);
   const [loadingMy, setLoadingMy] = useState(false);
   const [previewModalImage, setPreviewModalImage] = useState(null);
@@ -117,7 +119,7 @@ export default function ComplaintBox({ user, token }) {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert('File size exceeds 10MB limit.');
+        toast.error('File size exceeds 10MB limit.');
         return;
       }
       setSelectedFile(file);
@@ -332,14 +334,6 @@ export default function ComplaintBox({ user, token }) {
                 >
                   <FiEdit2 /> Update Profile
                 </Link>
-              </div>
-            )}
-
-            {/* Submission Alerts */}
-            {alertMsg && (
-              <div className={`alert-box ${alertMsg.type}`}>
-                {alertMsg.type === 'success' ? <FiCheckCircle /> : <FiAlertCircle />}
-                <span>{alertMsg.text}</span>
               </div>
             )}
 

@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import Sidebar from '../components/Sidebar';
+import { useToastMessage } from '../utils/toast';
 
 function Profile({ onLogout }) {
   const [username, setUsername] = useState(() => localStorage.getItem('adminUsername') || 'admin');
   const [newPassword, setNewPassword] = useState('');
   const [preview, setPreview] = useState(() => localStorage.getItem('adminProfileImage') || '');
   const [status, setStatus] = useState('');
+  useToastMessage(status);
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -84,7 +86,6 @@ function Profile({ onLogout }) {
             <div className="profile-actions" style={{ gridColumn: '1 / -1', marginTop: '.6rem' }}>
               <button className="primary-btn" onClick={handleSaveProfile}>Save Profile</button>
             </div>
-            {status ? <div className="form-status">{status}</div> : null}
           </div>
         </div>
       </main>

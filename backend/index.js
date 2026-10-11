@@ -14,6 +14,7 @@ import attendanceRoutes from './routes/attendanceRoutes.js';
 import leaveRoutes from './routes/leaveRoutes.js';
 import communityRoutes from './routes/communityRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
+import mcpHistoryRoutes from './routes/mcpHistoryRoutes.js';
 import User from './models/User.js';
 import Document from './models/Document.js';
 import { initSocket } from './socket/socketHandler.js';
@@ -47,6 +48,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/complaints', complaintRoutes);
+app.use('/api/mcp-history', mcpHistoryRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'HMS backend is running.' });

@@ -1,10 +1,12 @@
 import os
+import time
 from pathlib import Path
 from typing import Any
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import history_store
 import llm_service
 import server as mcp_server
 
@@ -29,6 +31,7 @@ class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, description="Natural-language question about the hostel database.")
     session_id: str | None = Field(default=None, description="Optional chat session id for conversation memory.")
     history: list[dict[str, Any]] | None = Field(default=None, description="Optional recent chat messages for follow-up context.")
+    user: str | None = Field(default=None, max_length=120, description="Optional admin username, stored in query history.")
 
 
 class QueryResponse(BaseModel):
@@ -87,24 +90,32 @@ def tools() -> dict[str, Any]:
 
 
 @app.post("/ask", response_model=QueryResponse)
-def ask(request: QueryRequest) -> QueryResponse:
+def ask(request: QueryRequest, http_request: Request) -> QueryResponse:
     """Main API endpoint for answering database questions using LLM -> MCP tool execution flow."""
+    started = time.perf_counter()
     try:
         result = llm_service.ask_question(
             request.question,
             session_id=request.session_id,
             history=request.history,
         )
-        result["session_id"] = request.session_id
-        return QueryResponse(**result)
     except Exception as exc:
-        return QueryResponse(
-            success=False,
-            question=request.question,
-            answer="Sorry, an error occurred while processing your request.",
-            error=str(exc),
-            session_id=request.session_id,
-        )
+        result = {
+            "success": False,
+            "question": request.question,
+            "answer": "Sorry, an error occurred while processing your request.",
+            "error": str(exc),
+        }
+    result["session_id"] = request.session_id
+    history_store.record(
+        question=request.question,
+        result=result,
+        duration_ms=round((time.perf_counter() - started) * 1000),
+        session_id=request.session_id,
+        admin_user=request.user,
+        client_ip=http_request.client.host if http_request.client else None,
+    )
+    return QueryResponse(**result)
 
 
 if __name__ == "__main__":

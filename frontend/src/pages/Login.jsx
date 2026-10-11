@@ -4,6 +4,7 @@ import { FiUser, FiLock, FiArrowRight, FiMail, FiKey } from 'react-icons/fi';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import '../css/Login.css';
+import { useToastMessage } from '../utils/toast';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -16,6 +17,8 @@ function Login({ onLogin }) {
   const [resetLoading, setResetLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [resetMessage, setResetMessage] = useState('');
+  useToastMessage(errorMessage, 'error');
+  useToastMessage(resetMessage);
   const [resetMode, setResetMode] = useState('login');
 
   const validate = () => {
@@ -170,7 +173,6 @@ function Login({ onLogin }) {
                 Forgot Password?
               </button>
             </div>
-            {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
             <Button label="Login" variant="primary" type="submit" fullWidth loading={loading} icon={<FiArrowRight />} />
           </form>
 
@@ -234,7 +236,6 @@ function Login({ onLogin }) {
                   />
                 </>
               ) : null}
-              {resetMessage ? <p className={`form-error ${resetMode === 'verify' ? 'success' : ''}`}>{resetMessage}</p> : null}
               <Button label={resetMode === 'request' ? 'Send OTP' : 'Update Password'} variant="secondary" type="submit" fullWidth loading={resetLoading} icon={<FiArrowRight />} />
             </form>
           ) : null}
