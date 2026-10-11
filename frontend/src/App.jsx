@@ -15,6 +15,7 @@ import CommunityPage from './pages/Community';
 import ComplaintBox from './pages/ComplaintBox';
 import './css/Global.css';
 import Toaster from './components/Toaster';
+import ScrollToTop from './components/ScrollToTop';
 import toast from './utils/toast';
 
 const defaultUser = {
@@ -106,6 +107,7 @@ function App() {
   return (
     <div className="app-shell">
       <Toaster />
+      <ScrollToTop />
       <Navbar
         user={user}
         profileImage={profileImage}

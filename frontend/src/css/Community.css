@@ -27,20 +27,23 @@
 
 [data-theme="dark"] {
   /* WhatsApp Dark Theme Tokens */
-  --wa-bg: #0c1317;
-  --wa-sidebar-bg: #111b21;
-  --wa-chat-bg: #0b141a;
-  --wa-header-bg: #202c33;
-  --wa-input-bg: #202c33;
-  --wa-bubble-sent: #005c4b;
-  --wa-bubble-received: #202c33;
-  --wa-text-primary: #e9edef;
-  --wa-text-secondary: #d1d7db;
-  --wa-text-muted: #8696a0;
-  --wa-border: #222d34;
-  --wa-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --wa-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --wa-shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.5);
+  --wa-primary: #5b9cf0;
+  --wa-primary-dark: #4a8ae0;
+  --wa-accent: #74acf3;
+  --wa-bg: #0c1830;
+  --wa-sidebar-bg: #13233b;
+  --wa-chat-bg: #0f1c30;
+  --wa-header-bg: #172a47;
+  --wa-input-bg: #172a47;
+  --wa-bubble-sent: #24508f;
+  --wa-bubble-received: #1c3254;
+  --wa-text-primary: #e6edf7;
+  --wa-text-secondary: #c9d6e8;
+  --wa-text-muted: #98aac2;
+  --wa-border: #26406a;
+  --wa-shadow-sm: 0 1px 2px rgba(4, 12, 28, 0.35);
+  --wa-shadow-md: 0 4px 16px rgba(4, 12, 28, 0.45);
+  --wa-shadow-lg: 0 12px 28px rgba(4, 12, 28, 0.55);
   --wa-reply-bg: rgba(255, 255, 255, 0.06);
   --wa-checkmark: #53bdeb;
 }

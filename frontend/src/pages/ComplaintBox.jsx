@@ -38,6 +38,16 @@ const CATEGORIES = [
 export default function ComplaintBox({ user, token }) {
   const [activeTab, setActiveTab] = useState('file'); // 'file' | 'my'
 
+  // Switching tabs opens the new tab at the top of the page
+  const firstTabRender = useRef(true);
+  useEffect(() => {
+    if (firstTabRender.current) {
+      firstTabRender.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [activeTab]);
+
   // Student Profile Data
   const [studentName, setStudentName] = useState('');
   const [roomNumber, setRoomNumber] = useState('');

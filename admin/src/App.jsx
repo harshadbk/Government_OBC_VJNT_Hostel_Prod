@@ -12,6 +12,7 @@ import AdminCommunity from './pages/Community';
 import Complaints from './pages/Complaints';
 import './css/Global.css';
 import Toaster from './components/Toaster';
+import ScrollToTop from './components/ScrollToTop';
 import UploadDetails from './pages/UploadDetails';
 import StaffManagement from './pages/StaffManagement';
 import Attendance from './pages/Attendance';
@@ -63,6 +64,7 @@ function App() {
   return (
     <div className="admin-shell">
       <Toaster />
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={isLoggedIn ? <Navigate to={getStoredRole() === 'attendance_taker' ? '/attendance' : '/dashboard'} replace /> : <Login onLogin={handleLogin} />} />
         <Route path="/login" element={isLoggedIn ? <Navigate to={getStoredRole() === 'attendance_taker' ? '/attendance' : '/dashboard'} replace /> : <Login onLogin={handleLogin} />} />

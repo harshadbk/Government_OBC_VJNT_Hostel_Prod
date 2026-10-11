@@ -54,8 +54,8 @@ export default function HeroSection() {
         </div>
 
         <h1 className="hero-title">
-          Government OBC Boys Hostel,{" "}
-          <span className="highlight-text">Sangli</span>
+          Government OBC Boys Hostel,
+          Sangli
         </h1>
 
         <p className="hero-subtitle">

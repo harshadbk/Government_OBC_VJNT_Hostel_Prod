@@ -2,15 +2,15 @@ import { FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import useInView from '../../hooks/useInView';
 
 const rules = [
-  { text: 'Maintain discipline and decorum at all times within the hostel premises.', important: true },
-  { text: 'Follow hostel timings strictly. Entry gate closes at 9:00 PM.', important: true },
+  { text: 'Maintain discipline and decorum at all times within the hostel premises.', important: false },
+  { text: 'Follow hostel timings strictly. Entry gate closes at 9:00 PM.', important: false },
   { text: 'Keep rooms and common areas clean and hygienic.', important: false },
-  { text: 'Ragging in any form is strictly prohibited and punishable by law.', important: true },
+  { text: 'Ragging in any form is strictly prohibited and punishable by law.', important: false },
   { text: 'Respect hostel property. Damage to hostel property will be penalized.', important: false },
   { text: 'Visitors are allowed only during permitted hours (4:00 PM – 6:00 PM) with prior permission.', important: false },
   { text: 'Maintain silence during study hours (8:00 PM – 10:00 PM).', important: false },
-  { text: 'Follow all Government hostel regulations and circulars issued from time to time.', important: true },
-  { text: 'Consumption of alcohol, tobacco, or any intoxicating substance is strictly prohibited.', important: true },
+  { text: 'Follow all Government hostel regulations and circulars issued from time to time.', important: false },
+  { text: 'Consumption of alcohol, tobacco, or any intoxicating substance is strictly prohibited.', important: false },
   { text: 'Students must carry their hostel ID card at all times.', important: false },
   { text: 'Mobile phones are not allowed in the study hall and library.', important: false },
   { text: 'Report any suspicious activity to the hostel administration immediately.', important: false },
