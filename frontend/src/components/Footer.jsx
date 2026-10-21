@@ -95,8 +95,8 @@ function Footer() {
           className="footer-developers"
           style={{ textAlign: "center", width: "100%" }}
         >
-          Developed by <span>Harshad Khatale</span> &amp;{" "}
-          <span>Madanraj Sagar</span>
+          {/* Developed by <span>Harshad Khatale</span> &amp;{" "}
+          <span>Madanraj Sagar</span> */}
         </p>
       </div>
     </footer>
